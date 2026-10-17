@@ -4,7 +4,10 @@ import { connect, state } from "./core/mqtt.js";
 import { init as initEngine } from "./core/engine.js";
 import { settings } from "./core/settings.js";
 import { log } from "./core/log.js";
-import { applyTheme } from "./ui/theme.js";
+import { applyTheme, themeToggle } from "./ui/theme.js";
+import { syncAutostart } from "./core/pc.js";
+import { ensurePermission } from "./core/notify.js";
+import { isAndroid } from "./core/platform.js";
 import { h, toast } from "./ui/dom.js";
 import { overview } from "./views/overview.js";
 import { logView } from "./views/log.js";
@@ -31,7 +34,7 @@ function render() {
 
 function renderConn() {
   const el = document.getElementById("conn-badge");
-  el.replaceChildren(state.connected
+  el.replaceChildren(themeToggle(), state.connected
     ? h("span.chip.ok", {}, h("span.chip-label", {}, "Verbunden"))
     : h("span.chip" + (settings().broker.host ? ".bad" : ""), {}, h("span.chip-label", {}, settings().broker.host ? "Getrennt" : "Nicht eingerichtet")));
 }
@@ -47,7 +50,6 @@ on("devices", live);
 on("log", live);
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
-on("conn-error", () => {});
 window.addEventListener("hashchange", render);
 
 // A8 – Offline-Warnung für den eigenen ESP32
@@ -59,5 +61,9 @@ setInterval(() => {
   }
 }, 10000);
 
-render();
 connect();
+// Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
+if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);
+render();
+syncAutostart(settings().pc.autostart).catch(() => log("warn", "Autostart konnte nicht gesetzt werden"));
+if (isAndroid) ensurePermission();

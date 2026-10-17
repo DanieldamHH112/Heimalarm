@@ -68,12 +68,17 @@ export function settingsView(rerender) {
     toggle("pc.autostart", "Mit Windows starten", "Damit kein Alarm verpasst wird.", (v) => setAutostart(v).catch(() => toast("Autostart konnte nicht geändert werden"))),
   ) : null;
 
+  const geraet = section("Dieses Gerät", "So erscheint die App bei den anderen unter „Verbundene Apps“.",
+    h("div.fields", {}, field("Gerätename", text("device.name", { placeholder: "z. B. PC Arbeitszimmer", autocomplete: "off" }), "Wird beim nächsten Verbinden übernommen.")),
+    toggle("notify.enabled", "Benachrichtigung bei Alarm", hasPcFeatures ? "Für Alarme anderer Personen. Eigene Alarme zeigen die Abfrage." : "Systemmeldung, auch wenn die App im Hintergrund ist."),
+  );
+
   const darstellung = section("Darstellung", null,
     h("div.field", {}, h("span", {}, "Farbschema"), segmented("ui.theme", [["system", "System"], ["light", "Hell"], ["dark", "Dunkel"]], applyTheme)),
   );
 
   return h("div.page", {},
     h("header.page-head", {}, h("div", {}, h("h1", {}, "Einstellungen"), h("p", {}, "Änderungen werden sofort gespeichert."))),
-    verbindung, alarm, pc, darstellung,
+    verbindung, alarm, pc, geraet, darstellung,
   );
 }

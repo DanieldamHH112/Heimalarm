@@ -15,12 +15,13 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
+let toastTimer = 0;
 export function toast(text) {
   const t = document.getElementById("toast");
   t.textContent = text;
   t.classList.add("show");
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove("show"), 2600);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
 export const fmtTime = (ts) => new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });

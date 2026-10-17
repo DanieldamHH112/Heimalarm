@@ -1,18 +1,32 @@
-import { h, fmtAgo, fmtTime } from "../ui/dom.js";
+// E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
+import { h, fmtAgo, fmtTime, fmtDate } from "../ui/dom.js";
 import { state } from "../core/mqtt.js";
 import { settings, isConfigured } from "../core/settings.js";
-import { engine, testAlarm } from "../core/engine.js";
+import { testAlarm } from "../core/engine.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS } from "../core/pc.js";
 import { hasPcFeatures, platformName } from "../core/platform.js";
+import { themeToggle } from "../ui/theme.js";
 
-export function overview() {
-  const s = settings();
-  const me = s.alarm.me;
-  const dev = state.devices[me];
+const chip = (kind, text) => h("span.chip" + (kind ? "." + kind : ""), {}, text);
 
-  const setup = !isConfigured() && h("section.card",
-    {},
+function uptime(sec) {
+  if (!Number.isFinite(sec)) return "–";
+  const d = Math.floor(sec / 86400), hr = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  return d > 0 ? `${d} T ${hr} h` : hr > 0 ? `${hr} h ${m} min` : `${m} min`;
+}
+
+/** WLAN-Signal als 4 Balken + dBm */
+function signal(rssi) {
+  if (!Number.isFinite(rssi)) return h("span.muted", {}, "–");
+  const bars = rssi > -55 ? 4 : rssi > -67 ? 3 : rssi > -78 ? 2 : 1;
+  return h("span.signal", { title: `${rssi} dBm` },
+    h("span.bars", { "data-bars": bars }, h("i"), h("i"), h("i"), h("i")), `${rssi} dBm`);
+}
+
+function setupCard() {
+  const me = settings().alarm.me;
+  return h("section.card.span-all", {},
     h("div.card-head", {}, h("h2", {}, "In 3 Schritten startklar")),
     h("ol.steps", {},
       h("li", {}, h("div", {}, "Zentrale eintragen", h("small", {}, "IP-Adresse des Raspberry Pi unter Einstellungen → Verbindung."))),
@@ -21,45 +35,113 @@ export function overview() {
     ),
     h("div.row", {}, h("a.btn.primary", { href: "#/einstellungen" }, "Einrichten")),
   );
+}
 
-  const conn = state.connected
-    ? h("span.chip.ok", {}, "Zentrale verbunden")
-    : isConfigured() ? h("span.chip.bad", {}, "Zentrale nicht erreichbar") : h("span.chip", {}, "Nicht eingerichtet");
+const tile = (label, value, status) => h("div.tile", {}, h("span.tile-label", {}, label), h("b", {}, value), status);
 
-  const esp = !dev ? h("span.chip", {}, "Noch kein Signal")
-    : dev.online ? h("span.chip.ok", {}, `Online · ${fmtAgo(dev.since)}`)
-    : h("span.chip.bad", {}, `Offline seit ${fmtTime(dev.since)}`);
-
-  const last = engine.last || getLog("alarm")[0];
+function tiles() {
+  const s = settings();
+  const dev = state.devices[s.alarm.me];
+  const apps = Object.values(state.clients).filter((c) => c.online).length;
   const alarms24 = getLog("alarm").filter((e) => Date.now() - e.ts < 86400e3).length;
+  return h("div.tiles", {},
+    tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
+      state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
+    tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
+      dev?.online ? chip("ok", `seit ${fmtAgo(dev.since).replace("vor ", "")}`) : chip(dev ? "bad" : "", dev ? `seit ${fmtTime(dev.since)}` : `alarm/${s.alarm.me}`)),
+    tile("Apps verbunden", String(apps), chip(apps > 0 ? "ok" : "", apps > 0 ? "inkl. dieser" : "keine")),
+    tile("Alarme 24 h", String(alarms24), chip(alarms24 > 0 ? "bad" : "", alarms24 > 0 ? fmtAgo(getLog("alarm")[0].ts) : "ruhig")),
+  );
+}
 
+function espCard() {
+  const me = settings().alarm.me;
+  const list = Object.entries(state.devices).toSorted(([a], [b]) => (a === me ? -1 : b === me ? 1 : a.localeCompare(b)));
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "ESP32 an der Ladeschale")),
+    list.length === 0
+      ? h("p.hint", {}, "Noch kein ESP32 gemeldet. Er sendet unter ", h("code", {}, `alarm/${me}`), ".")
+      : h("ul.rows", {}, list.map(([who, d]) => h("li", {},
+          h("div.row-main", {},
+            h("b", {}, who, who === me ? h("span.badge", {}, "ich") : null),
+            d.online ? chip("ok", "online") : d.online === false ? chip("bad", "offline") : chip("", "unbekannt")),
+          h("dl.facts", {},
+            h("div", {}, h("dt", {}, "WLAN"), h("dd", {}, signal(d.rssi))),
+            h("div", {}, h("dt", {}, "Laufzeit"), h("dd", {}, uptime(d.uptime))),
+            h("div", {}, h("dt", {}, "IP"), h("dd.mono", {}, d.ip || "–")),
+            h("div", {}, h("dt", {}, "Firmware"), h("dd", {}, d.version || "–")),
+          ),
+        ))),
+  );
+}
+
+function appsCard() {
+  const myId = settings().device.id;
+  const list = Object.entries(state.clients).toSorted(([, a], [, b]) => Number(b.online) - Number(a.online) || b.ts - a.ts);
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Verbundene Apps")),
+    list.length === 0
+      ? h("p.hint", {}, state.connected ? "Nur diese App ist verbunden." : "Sichtbar, sobald die Zentrale verbunden ist.")
+      : h("ul.rows", {}, list.map(([id, c]) => h("li", {},
+          h("div.row-main", {},
+            h("b", {}, c.name || c.platform, id === myId ? h("span.badge", {}, "dieses Gerät") : null),
+            c.online ? chip("ok", "online") : chip("", `zuletzt ${fmtAgo(c.ts)}`)),
+          h("p.hint", {}, `${c.platform} · Version ${c.version}`),
+        ))),
+  );
+}
+
+function alarmsCard() {
+  const alarms = getLog("alarm").slice(0, 5);
+  const recent = alarms[0] && Date.now() - alarms[0].ts < 3600e3;
+  return h("section.card" + (recent ? ".alarm" : ""), {},
+    h("div.card-head", {}, h("h2", {}, "Letzte Einsätze"), h("a.link", { href: "#/protokoll" }, "Alle")),
+    alarms.length === 0 ? h("p.hint", {}, "Bisher kein Alarm.")
+      : h("ul.log", {}, alarms.map((e) => h("li.alarm", {},
+          h("time", {}, fmtTime(e.ts)), h("span.ico", {}),
+          h("div", {}, e.text, h("small", {}, `${fmtDate(e.ts)} · ${fmtAgo(e.ts)} · ${e.detail}`))))),
+  );
+}
+
+function eventsCard() {
+  const ev = getLog().filter((e) => e.kind !== "alarm").slice(0, 6);
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Letzte Ereignisse"), h("a.link", { href: "#/protokoll" }, "Protokoll")),
+    ev.length === 0 ? h("p.hint", {}, "Noch nichts passiert.")
+      : h("ul.log", {}, ev.map((e) => h("li." + e.kind, {}, h("time", {}, fmtTime(e.ts)), h("span.ico", {}), h("div", {}, e.text, e.detail && h("small", {}, e.detail))))),
+  );
+}
+
+function zigbeeCard() {
+  const z = state.zigbee;
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Licht & Geräte"), z ? chip("ok", `${z.length} Geräte`) : chip("", "noch nicht eingerichtet")),
+    z && z.length > 0
+      ? h("ul.rows.compact", {}, z.slice(0, 8).map((d) => h("li", {}, h("div.row-main", {}, h("b", {}, d.friendly_name), h("span.hint", {}, d.definition?.description || d.type)))))
+      : h("p.hint", {}, z ? "Zigbee2MQTT läuft, aber noch kein Gerät angelernt." : "Kommt mit Zigbee2MQTT auf der Zentrale (Stufe 3)."),
+  );
+}
+
+function pcCard() {
+  const p = settings().pc;
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Bei Alarm am PC"), h("a.link", { href: "#/einstellungen" }, "Ändern")),
+    h("div.stat", {}, h("b", {}, ACTIONS[p.action]?.label), h("span", {}, `Countdown ${p.countdownSec} s · ohne Antwort ${p.onTimeout === "run" ? "ausführen" : "abbrechen"}`)),
+  );
+}
+
+export function overview() {
+  const s = settings();
   return h("div.page", {},
     h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, `${platformName} · Kennung `, h("code", {}, me))),
-      h("button.btn.primary", { onclick: testAlarm }, "Testalarm"),
+      h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, `${s.device.name || platformName} · Kennung `, h("code", {}, s.alarm.me))),
+      h("div.row", {}, themeToggle("only-mobile"), h("button.btn.primary", { onclick: testAlarm }, "Testalarm")),
     ),
-    setup,
-    h("div.grid", {},
-      h("section.card", {},
-        h("div.card-head", {}, h("h2", {}, "Zentrale"), conn),
-        h("p.hint", {}, s.broker.host ? h("code", {}, `${s.broker.host}:${s.broker.port}`) : "Noch keine Adresse eingetragen."),
-      ),
-      h("section.card", {},
-        h("div.card-head", {}, h("h2", {}, "ESP32 an der Ladeschale"), esp),
-        h("p.hint", {}, "Meldet den Relaiskontakt des Melders unter ", h("code", {}, `alarm/${me}`), "."),
-      ),
-      h("section.card" + (last && Date.now() - last.ts < 3600e3 ? ".alarm" : ""), {},
-        h("div.card-head", {}, h("h2", {}, "Letzter Alarm")),
-        last
-          ? h("div.stat", {}, h("b", {}, fmtTime(last.ts)), h("span", {}, `${fmtAgo(last.ts)} · ${last.detail || last.source || ""}`))
-          : h("p.hint", {}, "Bisher kein Alarm."),
-        h("p.hint", {}, `${alarms24} Alarm${alarms24 === 1 ? "" : "e"} in den letzten 24 h`),
-      ),
-      hasPcFeatures && h("section.card", {},
-        h("div.card-head", {}, h("h2", {}, "Bei Alarm am PC")),
-        h("div.stat", {}, h("b", {}, ACTIONS[s.pc.action]?.label), h("span", {}, `nach ${s.pc.countdownSec} s ohne Antwort ${s.pc.onTimeout === "run" ? "ausführen" : "abbrechen"}`)),
-        h("div.row", {}, h("a.btn", { href: "#/einstellungen" }, "Ändern")),
-      ),
+    !isConfigured() && setupCard(),
+    tiles(),
+    h("div.dash", {},
+      h("div.dash-main", {}, alarmsCard(), espCard(), zigbeeCard()),
+      h("div.dash-side", {}, hasPcFeatures && pcCard(), appsCard(), eventsCard()),
     ),
   );
 }

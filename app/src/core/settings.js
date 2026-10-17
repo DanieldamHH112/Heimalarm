@@ -20,6 +20,10 @@ export const defaults = {
     onTimeout: "run",     // run | cancel
     autostart: true,
   },
+  // E3 – dieses Gerät in der Übersicht der anderen
+  device: { id: "", name: "" },
+  // E1 – Benachrichtigung bei Alarm (Handy, und bei fremden Alarmen am PC)
+  notify: { enabled: true },
   // E5 – Darstellung
   ui: { theme: "system" }, // system | light | dark
 };
@@ -33,6 +37,10 @@ function merge(base, over) {
 }
 
 let current = load();
+if (!current.device.id) {
+  current.device.id = Math.random().toString(36).slice(2, 10);
+  try { localStorage.setItem(KEY, JSON.stringify(current)); } catch {}
+}
 
 function load() {
   try { return merge(defaults, JSON.parse(localStorage.getItem(KEY) || "{}")); }

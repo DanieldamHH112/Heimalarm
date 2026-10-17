@@ -46,6 +46,10 @@ Der vorhandene Funkhandel-Alarmschalter (Tuya/ELESION/Alexa) bleibt **unverände
 |---|---|---|
 | `alarm/<kennung>` | `ALARM` | ESP32 |
 | `alarm/<kennung>/status` | `online` / `offline` (automatisch, Last Will) | ESP32 |
+| `alarm/<kennung>/sensor/wifi_signal\|uptime/state` | WLAN in dBm, Laufzeit in s | ESP32 |
+| `alarm/<kennung>/text_sensor/ip\|version/state` | IP, Firmware | ESP32 |
+| `heimalarm/clients/<id>` | JSON `{name, platform, version, online, ts}` (retained, Last Will) | jede App |
+| `zigbee2mqtt/bridge/devices` | Geräteliste | Zigbee2MQTT |
 
 Ports der Zentrale: `1883` (ESP32), `9001` (App über WebSocket).
 Eigene Kennung (Standard `ich`) löst am PC die Abfrage aus. Fremde Kennungen erscheinen nur als Hinweis.
@@ -61,10 +65,12 @@ app/src/
     engine.js        Alarm-Logik: Sperrzeit, eigen/fremd, Testalarm, Entscheidung
     pc.js            PC-Aktionen, Vollbild, Autostart (Aufruf Rust-Kern)
     log.js           Protokoll (E7), max. 500 Einträge
+    notify.js        System-Benachrichtigung (E1)
     platform.js      Windows / Android / Browser erkennen
     events.js        Ereignis-Bus
   views/             Seiten: overview, log, settings, takeover („Fährst du?“)
-  ui/                dom.js (Helfer), theme.js
+  ui/                dom.js (Helfer), theme.js (Hell/Dunkel + Umschalter)
+  dev/demo.js        Beispieldaten, nur `npm run dev` mit ?demo
   styles/            tokens.css (Farben, Typo, Abstände), base, layout, components, takeover
 ```
 
@@ -118,13 +124,20 @@ Nummern wie im Konzept (Seiten „Funktionsliste“). ★ = Grundausstattung. �
 - **B Routinen:** B1–B11 offen (Stufe 3)
 - **C Licht & Geräte:** C1–C11 offen (Stufe 3/4)
 - **D Windows-PC:** D1 ★ Aktion ✅ · D2 ★ Countdown ✅ · D3 ★ Standard ohne Klick ✅ · D4 Texte · D5 Ton · D6 Über Vollbild ✅ (immer oben + Vollbild) · D7 Ausnahmen · D8 Medien pausieren · D9 ★ Autostart ✅ · D10 Ruhezustand einrichten · D11 Wake-on-LAN · D12 Zeitfenster
-- **E Handy-App:** E1 ★ Benachrichtigung · E2 Widget · E3 Dashboard ✅ (Übersicht) · E4 Alarmverlauf ✅ · E5 Darstellung ✅ · E6 Akku-Optimierung · E7 ★ Protokoll ✅
+- **E Handy-App:** E1 ★ Benachrichtigung ✅ · E2 Widget · E3 Dashboard ✅ (Übersicht) · E4 Alarmverlauf ✅ · E5 Darstellung ✅ · E6 Akku-Optimierung · E7 ★ Protokoll ✅
 - **F Zentrale:** F1 ★ Adresse ✅ · F2 ★ Zugangsdaten ✅ · F3 Backup · F4 Updates · F5 Logs · F6 Zeitzone/Standort
 - **G Personen:** G1 mehrere Personen (✅ Kennungen) · G2 Routinen pro Person · G3 Rollen
 - **H Sicherheit:** H1 ★ TLS (✅ Schalter) · H2 Webhook-Schlüssel · H3 nur Heimnetz/VPN · H4 App-Sperre
 - **I Test & Diagnose:** I1 ★ Testalarm ✅ · I2 Komplettprobe · I3 Verbindungstest · I4 Wochen-Selbsttest
 
+## Prüfen (lokal, nicht in CI)
+
+- `cd app && npm run lint` – Oxlint (Konfiguration `.oxlintrc.json`): Fehler und doppelte/fragwürdige Stellen finden.
+- `npm run dev` und `http://localhost:1420/?demo` – Übersicht mit Beispieldaten ansehen.
+
 ## Offene Punkte / Hinweise
+
+- Android: Läuft die App im Hintergrund, kann Android sie anhalten. Zuverlässiger Empfang braucht einen Vordergrund-Dienst (Stufe 5, zusammen mit E6).
 
 - Relaiskontakt der Ladeschale vor dem Anschluss messen (potentialfrei?). Sonst Optokoppler.
 - Android-APK ist vorerst **debug-signiert** (installierbar, aber Updates nur mit gleichem Schlüssel). Fester Signierschlüssel als GitHub-Secret folgt.

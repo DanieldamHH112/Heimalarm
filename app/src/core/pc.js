@@ -10,13 +10,13 @@ export const ACTIONS = {
   none: { label: "Nichts tun", hint: "Nur Abfrage und Protokoll." },
 };
 
-async function invoke(cmd, args) {
+async function callCore(cmd, args) {
   if (!isTauri) throw new Error("Nur im Windows-Programm verfügbar");
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke(cmd, args);
+  const core = await import("@tauri-apps/api/core");
+  return core.invoke(cmd, args);
 }
 
-export const runPcAction = (action) => invoke("pc_action", { action });
+export const runPcAction = (action) => callCore("pc_action", { action });
 
 /** Fenster nach vorne holen, Vollbild, immer im Vordergrund. */
 export async function takeoverWindow(onTop) {
@@ -35,4 +35,11 @@ export async function setAutostart(enabled) {
   if (!hasPcFeatures) return;
   const m = await import("@tauri-apps/plugin-autostart");
   if (enabled) await m.enable(); else await m.disable();
+}
+
+/** Autostart beim Start an die Einstellung angleichen (D9). */
+export async function syncAutostart(enabled) {
+  if (!hasPcFeatures) return;
+  const m = await import("@tauri-apps/plugin-autostart");
+  if ((await m.isEnabled()) !== enabled) await setAutostart(enabled);
 }

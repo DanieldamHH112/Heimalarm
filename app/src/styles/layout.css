@@ -48,3 +48,10 @@
   .nav-item { flex-direction: column; gap: 2px; padding: 6px 12px; font-size: var(--fs-xs); }
   .main { padding: var(--s5) var(--s4) calc(96px + env(safe-area-inset-bottom)); }
 }
+
+.nav-foot { display: grid; gap: var(--s2); justify-items: start; }
+@media (max-width: 1080px) and (min-width: 761px) {
+  .nav-foot { justify-items: center; }
+  .nav-foot .theme-toggle span { display: none; }
+}
+@media (max-width: 760px) { .nav-foot { display: none; } }

@@ -43,3 +43,20 @@ binary_sensor:
           topic: alarm/${kennung}
           payload: "ALARM"
           qos: 1
+
+# Infos für die Übersicht der App (WLAN-Signal, Laufzeit, IP, Firmware)
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP"
+  - platform: version
+    name: "Version"
+    hide_timestamp: true
