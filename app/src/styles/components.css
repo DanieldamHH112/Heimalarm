@@ -199,3 +199,29 @@ input.mini-switch:checked::after { transform: translateX(18px); }
   .pair { grid-template-columns: 1fr; justify-items: center; }
   .pair-text { justify-items: stretch; width: 100%; }
 }
+
+/* Gruppen innerhalb einer Quelle */
+.group { display: grid; gap: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.group:first-child { border-top: 0; padding-top: 0; }
+.group-title { margin: 0; font-size: var(--fs-sm); font-weight: 650; color: var(--text); }
+.group-cont { display: grid; gap: var(--s2); margin-top: calc(var(--s3) * -1); }
+.inline { display: grid; grid-template-columns: 1fr auto; gap: var(--s3); align-items: start; }
+.inline > .btn { margin-top: 27px; }
+.meta.err { color: var(--signal); }
+details.more { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--s3) var(--s4); display: grid; gap: var(--s3); }
+details.more[open] { display: grid; }
+details.more summary { cursor: pointer; font-weight: 600; font-size: var(--fs-sm); }
+details.more > .field { margin-top: var(--s3); }
+
+/* Divera-Status in der Übersicht */
+.status-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-pill { --c: var(--text-2); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 8px 14px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
+.status-pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.status-pill[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, var(--surface)); }
+.status-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 560px) { .inline { grid-template-columns: 1fr; } .inline > .btn { margin-top: 0; justify-self: start; } }
+.source-body { padding-top: var(--s2); gap: var(--s5, 20px); }
+.source-body .group { padding-top: var(--s4); }
+.source-body .group:first-child { padding-top: 0; }
+.group-cont { margin-top: 0; }

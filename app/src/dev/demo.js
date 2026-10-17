@@ -4,6 +4,7 @@ import { log } from "../core/log.js";
 export function fillDemo(state) {
   const now = Date.now();
   state.connected = true;
+  import("../core/divera.js").then(({ divera }) => { divera.ok = true; divera.current = "1"; divera.loading = true; });
   state.voice = { enabled: true, running: true, commissioned: false, qr: "MT:Y.K90SO527NHQL71V00", manual: "36360023599", fabrics: [], sensors: ["Heimalarm Einsatz", "Einsatz Daniel", "Einsatz Kollege"] };
   state.devices = {
     ich: { online: true, since: now - 3 * 3600e3, rssi: -58, uptime: 3 * 86400 + 4 * 3600, ip: "192.168.1.42", version: "2026.10.0" },

@@ -49,11 +49,19 @@ export const defaults = {
     key: "",                // persönlicher Accesskey (Divera → Profil → Login → API-Schlüssel)
     poll: false,            // Alarme direkt bei Divera abfragen
     pollSec: 20,
-    statusGo: "",           // Status-ID bei „Ich fahre“ (leer = nichts setzen)
-    statusStay: "",         // Status-ID bei „Ich fahre nicht“
+    answerGo: "",           // Rückmeldung zum Divera-Einsatz bei „Ich fahre“ (Status-ID)
+    answerStay: "",         // … bei „Ich fahre nicht“
+    statusGo: "",           // eigener Status bei „Ich fahre“ (leer = nichts setzen)
+    statusStay: "",         // … bei „Ich fahre nicht“
+    note: "",               // Freitext zur Rückmeldung (z. B. „per Heimalarm“)
+    resetMin: 0,            // Status nach X Minuten zurücksetzen (0 = aus)
+    resetTo: "",            // … auf diesen Status
     unit: "",               // Name der Einheit (nur Anzeige)
-    statuses: [],           // [{ id, name, color }] aus Divera geladen
+    statuses: [],           // Statusgeber-Liste [{ id, name, color }]
+    answers: [],            // Rückmelde-Status für Einsätze
   },
+  // aPager PRO – Rückmeldung per API (Smart-Home-Abo nötig). Bleibt auf diesem Gerät.
+  apager: { key: "", feedback: true, silent: false },
   // E – dieses Gerät
   device: { id: "", name: "" },
   notify: { enabled: true },       // E1

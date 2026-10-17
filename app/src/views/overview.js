@@ -5,8 +5,8 @@ import { shared } from "../core/shared.js";
 import { settings, isConfigured } from "../core/settings.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
-import { testAlarm, simulateContact, engine } from "../core/engine.js";
-import { setDiveraStatus } from "../core/divera.js";
+import { testAlarm, simulateContact, engine, answerApps } from "../core/engine.js";
+import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { themeToggle } from "../ui/theme.js";
 
@@ -153,23 +153,38 @@ function pcCard() {
   );
 }
 
-/** Eigener Einsatz läuft (max. 30 min): Rückmeldung an Divera direkt vom Handy. */
+const sendAnswer = (going) => answerApps(going).then((ok) => toast(ok ? "Antwort gesendet" : "Nicht angekommen – siehe Protokoll"));
+
+/** Eigener Einsatz läuft (max. 30 min): Antwort an Divera / aPager direkt vom Handy. */
 function answerCard() {
-  const a = engine.last, d = settings().divera;
-  if (hasPcFeatures || !a?.own || a.test || Date.now() - a.ts > 30 * 60_000 || !(d.statusGo || d.statusStay)) return null;
-  const name = (id) => d.statuses.find((x) => x.id === String(id))?.name || `Status ${id}`;
-  const send = (id) => setDiveraStatus(id).then((ok) => toast(ok ? `An Divera gemeldet: ${name(id)}` : "Divera nicht erreichbar"));
+  const a = engine.last, st = settings();
+  const viaDivera = st.alarm.apps.divera.on && st.divera.key && (st.divera.answerGo || st.divera.statusGo || st.divera.answerStay || st.divera.statusStay);
+  const apager = st.alarm.apps.apager.on && st.apager.key && st.apager.feedback;
+  if (hasPcFeatures || !a?.own || a.test || Date.now() - a.ts > 30 * 60_000 || !(viaDivera || apager)) return null;
   return h("section.card.span-all.answer", {},
     h("div.card-head", {}, h("h2", {}, `Einsatz · ${fmtTime(a.ts)}`), a.keyword && h("span.chip.bad", {}, a.keyword)),
     a.address && h("p.meta", {}, a.address),
     h("div.row", {},
-      d.statusGo && h("button.btn.primary", { onclick: () => send(d.statusGo) }, settings().pc.goText || "Ich fahre"),
-      d.statusStay && h("button.btn", { onclick: () => send(d.statusStay) }, settings().pc.stayText || "Ich fahre nicht")),
-    h("small.meta", {}, "Setzt deinen Status in Divera 24/7."));
+      h("button.btn.primary", { onclick: () => sendAnswer(true) }, st.pc.goText || "Ich fahre"),
+      h("button.btn", { onclick: () => sendAnswer(false) }, st.pc.stayText || "Ich fahre nicht")),
+    h("small.meta", {}, `Meldet an ${[viaDivera && "Divera", apager && "aPager"].filter(Boolean).join(" und ")}.`));
+}
+
+/** Eigener Divera-Status: anzeigen und mit einem Tipp ändern. */
+function diveraCard() {
+  const d = settings().divera;
+  if (!settings().alarm.apps.divera.on || !d.key || !d.statuses.length) return null;
+  return h("section.card.divera-card", {},
+    h("div.card-head", {}, h("h2", {}, "Mein Divera-Status"), divera.ok === false && h("span.chip.bad", {}, "Fehler")),
+    h("div.status-pills", { role: "group", "aria-label": "Status setzen" }, d.statuses.map((x) =>
+      h("button.status-pill", { "aria-pressed": String(divera.current === x.id), style: x.color ? `--c:${x.color}` : "",
+        onclick: () => setDiveraStatus(x.id).then((ok) => toast(ok ? `Status: ${x.name}` : "Nicht gesetzt")) }, x.name))),
+    h("small.meta", {}, d.unit || "Divera 24/7"));
 }
 
 export function overview() {
   const s = settings();
+  if (divera.current === null && s.divera.key && s.alarm.apps.divera.on && !divera.loading) { divera.loading = true; loadDivera().catch(() => {}); }
   return h("div.page", {},
     h("header.page-head", {},
       h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, `${s.device.name || platformName} · Kennung `, h("code", {}, s.alarm.me))),
@@ -180,7 +195,7 @@ export function overview() {
     tiles(),
     h("div.dash", {},
       h("div.dash-main", {}, alarmsCard(), espCard(), zigbeeCard()),
-      h("div.dash-side", {}, quickCard(), hasPcFeatures && pcCard(), appsCard(), eventsCard()),
+      h("div.dash-side", {}, diveraCard(), quickCard(), hasPcFeatures && pcCard(), appsCard(), eventsCard()),
     ),
   );
 }

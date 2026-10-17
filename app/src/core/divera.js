@@ -1,8 +1,8 @@
-// Divera 24/7 – Alarme abfragen und Status setzen, mit dem persönlichen Accesskey.
-// Endpunkte (help.divera247.com):
-//   GET  /api/v2/alarms?accesskey=…               nicht archivierte Alarme { items, sorting }
-//   GET  /api/v2/pull/all?accesskey=…             Einheit, Status-Liste u. a.
-//   GET  /statusgeber.html?status=<id>&accesskey=…  eigenen Status setzen
+// Divera 24/7 – alles mit dem persönlichen Accesskey (API-Doku: api.divera247.com).
+//   GET  /api/v2/pull/all                     Einheit, Status-Listen, eigener Status
+//   GET  /api/v2/alarms                       offene Alarme { items, sorting }
+//   POST /api/v2/statusgeber/set-status       eigenen Status setzen { Status: { id, note, reset_date, reset_to } }
+//   POST /api/v2/alarms/confirm/{id}          Rückmeldung zu einem Einsatz { Status: { id, note } }
 // In der App läuft der Abruf über das Tauri-HTTP-Plugin (kein CORS-Problem).
 import { settings, set } from "./settings.js";
 import { log } from "./log.js";
@@ -16,37 +16,50 @@ let seen = new Set();
 try { seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch { /* leer */ }
 let primed = seen.size > 0;
 
-export const divera = { ok: null, error: "", lastPoll: 0 };
+/** Laufzeit-Zustand für die Oberfläche. */
+export const divera = { ok: null, error: "", lastPoll: 0, current: null };
 
-async function http(url) {
+async function http(url, opts = {}) {
   const f = isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch;
-  return f(url, { method: "GET", headers: { Accept: "application/json" } });
+  return f(url, { ...opts, headers: { Accept: "application/json", ...(opts.body ? { "Content-Type": "application/json" } : {}) } });
 }
 
-async function api(path) {
+async function api(path, body) {
   const key = settings().divera.key;
   if (!key) throw new Error("Kein Accesskey eingetragen");
-  const r = await http(`${BASE}${path}${path.includes("?") ? "&" : "?"}accesskey=${encodeURIComponent(key)}`);
-  if (r.status === 401 || r.status === 403) throw new Error("Accesskey ungültig oder ohne Berechtigung");
-  if (!r.ok) throw new Error(`Divera antwortet mit Fehler ${r.status}`);
-  const j = await r.json();
+  const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}accesskey=${encodeURIComponent(key)}`;
+  const r = await http(url, body ? { method: "POST", body: JSON.stringify(body) } : { method: "GET" });
+  if (r.status === 403 || r.status === 401) throw new Error("Accesskey ungültig");
+  if (r.status === 404) throw new Error("Nicht gefunden oder keine Berechtigung");
+  if (!r.ok) throw new Error(`Divera-Fehler ${r.status}`);
+  const j = await r.json().catch(() => ({}));
   if (j.success === false) throw new Error(j.message || "Divera meldet einen Fehler");
   return j.data ?? j;
 }
 
 const saveSeen = () => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-200))); } catch { /* egal */ } };
 
-/** Verbindung prüfen: Einheit und Status-Liste laden. */
-export async function testDivera() {
+/** Status-Liste in der gewünschten Reihenfolge (z. B. statussorting_statusgeber). */
+function statusList(cluster, sortKey) {
+  const raw = cluster.status || {};
+  const order = cluster[sortKey]?.length ? cluster[sortKey] : cluster.statussorting || Object.keys(raw);
+  return order.map((id) => raw[id]).filter(Boolean).map((s) => ({
+    id: String(s.id), name: s.name || s.shortname || `Status ${s.id}`,
+    color: s.color_hex ? `#${String(s.color_hex).replace("#", "")}` : "",
+  }));
+}
+
+/** Verbindung prüfen und Einheit, Status-Listen und eigenen Status laden. */
+export async function loadDivera() {
   const d = await api("/api/v2/pull/all");
   const c = d.cluster || {};
-  const raw = c.status || {};
-  const order = c.statussorting || Object.keys(raw);
-  const statuses = order.map((id) => raw[id]).filter(Boolean).map((s) => ({ id: String(s.id), name: s.name, color: s.color_hex ? `#${s.color_hex}` : "" }));
-  set("divera.unit", c.name || "");
-  set("divera.statuses", statuses);
+  set("divera.unit", c.name || c.shortname || "");
+  set("divera.statuses", statusList(c, "statussorting_statusgeber"));
+  set("divera.answers", statusList(c, "statussorting_alarm"));
+  divera.current = d.status?.status_id != null ? String(d.status.status_id) : null;
   divera.ok = true; divera.error = "";
-  return { unit: c.name || "", statuses };
+  emit("divera", divera);
+  return { unit: c.name || "", statuses: settings().divera.statuses, answers: settings().divera.answers };
 }
 
 /** Neue Alarme seit der letzten Abfrage. Beim ersten Abruf wird nur gemerkt, nichts ausgelöst. */
@@ -60,11 +73,10 @@ export async function pollDivera() {
       const a = items[id];
       if (!a || seen.has(id)) continue;
       seen.add(id);
-      // Nur offene, aktuelle Alarme (max. 15 min alt) – ältere nur merken
       const ts = (a.date || a.ts_create || 0) * 1000;
       if (primed && !a.closed && !a.deleted && Date.now() - ts < 15 * 60_000) fresh.push(a);
     }
-    if (!primed) primed = true;
+    primed = true;
     saveSeen();
     divera.ok = true; divera.error = ""; divera.lastPoll = Date.now();
     for (const a of fresh) {
@@ -80,26 +92,53 @@ export async function pollDivera() {
   emit("divera", divera);
 }
 
-/** Eigenen Status in Divera setzen (z. B. nach „Ich fahre“). */
+const nameOf = (list, id) => list.find((s) => s.id === String(id))?.name || `Status ${id}`;
+
+/** Eigenen Status setzen, optional mit Rücksetzen nach X Minuten. */
 export async function setDiveraStatus(id) {
-  if (!id || !settings().divera.key) return false;
-  const name = settings().divera.statuses.find((s) => s.id === String(id))?.name || id;
+  const d = settings().divera;
+  if (!id || !d.key) return false;
+  const Status = { id: Number(id) };
+  if (d.note) Status.note = d.note;
+  if (d.resetMin > 0 && d.resetTo) { Status.reset_date = Math.floor(Date.now() / 1000) + d.resetMin * 60; Status.reset_to = Number(d.resetTo); }
   try {
-    const r = await http(`https://www.divera247.com/statusgeber.html?status=${encodeURIComponent(id)}&accesskey=${encodeURIComponent(settings().divera.key)}`);
-    if (!r.ok) throw new Error(`Fehler ${r.status}`);
-    log("action", `Divera-Status gesetzt: ${name}`);
+    await api("/api/v2/statusgeber/set-status", { Status });
+    divera.current = String(id);
+    log("action", `Divera-Status: ${nameOf(d.statuses, id)}`);
+    emit("divera", divera);
     return true;
-  } catch (e) {
-    log("warn", "Divera-Status nicht gesetzt", e.message);
-    return false;
-  }
+  } catch (e) { log("warn", "Divera-Status nicht gesetzt", e.message); return false; }
+}
+
+/** Rückmeldung zu einem Divera-Einsatz. */
+export async function confirmDiveraAlarm(alarmId, statusId) {
+  const d = settings().divera;
+  if (!alarmId || !statusId || !d.key) return false;
+  try {
+    await api(`/api/v2/alarms/confirm/${encodeURIComponent(alarmId)}`, { Status: { id: Number(statusId), ...(d.note ? { note: d.note } : {}) } });
+    log("action", `Divera-Rückmeldung: ${nameOf(d.answers, statusId)}`);
+    return true;
+  } catch (e) { log("warn", "Divera-Rückmeldung fehlgeschlagen", e.message); return false; }
+}
+
+/** Antwort auf „Fährst du?“ an Divera: Rückmeldung zum Einsatz (falls von Divera) und/oder Status. */
+export async function answerDivera(going, alarm) {
+  const d = settings().divera;
+  if (!d.key) return false;
+  const answer = going ? d.answerGo : d.answerStay;
+  const status = going ? d.statusGo : d.statusStay;
+  let ok = false;
+  if (alarm?.diveraId && answer) ok = await confirmDiveraAlarm(alarm.diveraId, answer);
+  if (status) ok = (await setDiveraStatus(status)) || ok;
+  return ok;
 }
 
 /** Abfrage starten/stoppen je nach Einstellungen. */
 export function restartDivera() {
   clearInterval(timer); timer = null;
   const d = settings().divera;
-  if (!d.poll || !d.key) { divera.ok = null; return; }
+  const on = settings().alarm.apps?.divera?.on;
+  if (!on || !d.poll || !d.key) { divera.ok = d.key ? divera.ok : null; return; }
   pollDivera();
   timer = setInterval(pollDivera, Math.max(10, Number(d.pollSec) || 20) * 1000);
 }

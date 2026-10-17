@@ -10,7 +10,8 @@ import { requireAdmin, isAdmin } from "../core/admin.js";
 import { androidStatus, openBatterySettings, openNotificationAccess, setBackgroundService } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
 import { recentApps } from "../core/engine.js";
-import { divera, testDivera, restartDivera, setDiveraStatus } from "../core/divera.js";
+import { divera, loadDivera, restartDivera } from "../core/divera.js";
+import { answerApager } from "../core/apager.js";
 import qrcode from "qrcode-generator";
 import { playAlarmTone } from "../ui/sound.js";
 
@@ -45,81 +46,123 @@ function alarm() {
 }
 
 // ── Alarmquellen ───────────────────────────────────
-const APP_INFO = {
-  sybos: { hint: "Benachrichtigung der SYBOS-App mitlesen." },
-  apager: { hint: "Benachrichtigung von aPager PRO mitlesen. Der Webhook an die Zentrale steht unter „Zentrale“." },
-  divera: { hint: "Benachrichtigung der Divera-App mitlesen und/oder Alarme direkt bei Divera abfragen." },
-};
+// Aufbau je Quelle: Kopfzeile (Name, Kurzinfo was aktiv ist, Schalter) → aufgeklappt in Gruppen
+// „Zugang“, „Alarm empfangen“, „Rückmeldung“. Alles optional, jede Quelle für sich.
 
 /** Paketname per „Erkennen“: zuletzt gesehene Apps mit Benachrichtigungen zur Auswahl. */
 function pickPackage(path, rerender) {
   const list = [...recentApps.keys()].toReversed();
   const close = dialog("App erkennen",
-    h("p.meta", {}, list.length ? "Diese Apps haben zuletzt eine Benachrichtigung gezeigt. Tippe auf die Alarm-App." : "Noch keine Benachrichtigung gesehen. Lass dir in der Alarm-App eine Test-Meldung schicken und öffne diesen Dialog dann erneut."),
+    h("p.meta", {}, list.length ? "Apps mit den letzten Benachrichtigungen. Tippe auf die Alarm-App." : "Noch keine Benachrichtigung gesehen. Schick dir aus der Alarm-App eine Testmeldung und öffne das hier erneut."),
     list.length && h("ul.rows.compact", {}, list.map((pkg) => h("li", {}, h("button.btn.ghost.pick", { onclick: () => { set(path, pkg); close(); rerender(); toast("Übernommen"); } }, h("code", {}, pkg))))));
 }
 
-function sourceRow(id, title, hint, on, onToggle, body, badge) {
-  return h("div.source" + (on ? ".on" : ""), {},
+const group = (title, ...body) => h("div.group", {}, h("h3.group-title", {}, title), ...body.flat().filter(Boolean));
+
+function sourceRow({ id, title, summary, on, onToggle, badge, body }) {
+  return h("div.source" + (on ? ".on" : ""), { id: `quelle-${id}` },
     h("label.switch.source-head", {},
-      h("div", {}, h("b", {}, title, badge), h("small", {}, hint)),
+      h("div", {}, h("b", {}, title, badge), h("small", {}, summary)),
       h("input", { type: "checkbox", role: "switch", checked: on, "aria-label": `${title} als Alarmquelle`, onchange: (e) => onToggle(e.target.checked) })),
-    on && body && h("div.source-body", {}, ...[body].flat().filter(Boolean)));
+    on && body && h("div.source-body", {}, ...body.filter(Boolean)));
 }
 
-function diveraBody(rerender) {
-  const d = settings().divera;
-  const status = (path, label, hint) => field(label,
-    d.statuses.length
-      ? select([["", "– nichts setzen –"], ...d.statuses.map((x) => [x.id, x.name])], get(path), (v) => set(path, v))
-      : text(path, { inputmode: "numeric", placeholder: "Status-ID" }), hint);
-  const test = async (e) => {
+/** Benachrichtigung mitlesen (nur Android) – auf PC nur Hinweis. */
+function notifGroup(id, rerender) {
+  if (!isAndroid) return group("Alarm empfangen", h("p.meta", {}, id === "divera" ? "Am Handy: Benachrichtigung mitlesen. Hier: Abfrage per API (unten)." : "Das Handy liest mit und gibt den Alarm über die Zentrale an diesen PC."));
+  return group("Alarm empfangen",
+    h("div.inline", {},
+      field("App auf dem Handy", text(`alarm.apps.${id}.pkg`, { autocomplete: "off", placeholder: "über „Erkennen“ wählen" }), "Paketname, ein Teil reicht."),
+      h("button.btn.small", { onclick: () => pickPackage(`alarm.apps.${id}.pkg`, rerender) }, "Erkennen")));
+}
+
+const statusSelect = (path, list, empty = "– nichts –") => list.length
+  ? select([["", empty], ...list.map((x) => [x.id, x.name])], get(path), (v) => set(path, v))
+  : text(path, { inputmode: "numeric", placeholder: "Status-ID" });
+
+function diveraSource(rerender) {
+  const d = settings().divera, on = settings().alarm.apps.divera.on;
+  const load = async (e) => {
     e.target.disabled = true;
-    try { const r = await testDivera(); toast(`Verbunden${r.unit ? " mit " + r.unit : ""} · ${r.statuses.length} Status geladen`); rerender(); }
-    catch (err) { toast(err.message); }
+    try { const r = await loadDivera(); toast(`Verbunden${r.unit ? " · " + r.unit : ""}`); rerender(); }
+    catch (err) { toast(err.message); rerender(); }
     e.target.disabled = false;
   };
-  return [
-    isAndroid && h("div.fields", {},
-      field("Paketname der Divera-App", text("alarm.apps.divera.pkg", { placeholder: "über „Erkennen“ ermitteln", autocomplete: "off" }), "Nur für das Mitlesen der Benachrichtigung."),
-      h("div.field.end", {}, h("button.btn.small", { onclick: () => pickPackage("alarm.apps.divera.pkg", rerender) }, "Erkennen"))),
-    h("div.field", {}, h("span", {}, "Persönlicher Accesskey"),
-      h("input.input", { type: "password", autocomplete: "off", spellcheck: "false", value: d.key, placeholder: "dvpat-…",
-        onchange: (e) => { set("divera.key", e.target.value.trim()); restartDivera(); rerender(); } }),
-      h("small", {}, "Divera → Profil → Login → API-Schlüssel. Bleibt nur auf diesem Gerät.")),
-    h("div.row", {},
-      h("button.btn.small", { onclick: test, disabled: !d.key }, "Verbindung prüfen"),
-      d.unit && h("span.chip.ok", {}, d.unit),
-      divera.ok === false && h("span.chip.bad", {}, divera.error)),
-    d.key && toggle("divera.poll", "Alarme bei Divera abfragen", "Funktioniert ohne Benachrichtigung, solange die App läuft. Erst sinnvoll, wenn eure Leitstelle über Divera alarmiert.", () => { restartDivera(); rerender(); }),
-    d.key && d.poll && field("Abfrage alle (Sekunden)", text("divera.pollSec", { type: "number", min: 10, max: 300 }, { onSave: restartDivera }), "Kürzer = schneller, aber mehr Anfragen. 15–30 s reichen."),
-    d.key && h("div.fields", {},
-      status("divera.statusGo", "Status bei „Ich fahre“", "Wird in Divera gesetzt, sobald du antwortest."),
-      status("divera.statusStay", "Status bei „Ich fahre nicht“", "Leer lassen, wenn nichts passieren soll.")),
-    d.key && d.statusGo && h("div.row", {}, h("button.btn.small.ghost", { onclick: () => setDiveraStatus(d.statusGo).then((ok) => toast(ok ? "Gesendet – bitte in Divera prüfen" : "Nicht gesendet")) }, "Status jetzt testweise setzen")),
-  ];
+  const parts = [isAndroid && settings().alarm.apps.divera.pkg && "Mitlesen", d.key && d.poll && `Abfrage ${d.pollSec} s`, d.key && (d.answerGo || d.statusGo) && "Rückmeldung"].filter(Boolean);
+  const badge = !d.key ? null : divera.ok === false ? h("span.badge.bad", {}, "Fehler") : d.unit ? h("span.badge", {}, d.unit) : null;
+  return sourceRow({
+    id: "divera", title: "Divera 24/7", on, badge,
+    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Abfrage per API, Rückmeldung und Status.",
+    onToggle: (v) => { set("alarm.apps.divera.on", v); restartDivera(); rerender(); },
+    body: [
+      group("Zugang",
+        h("div.inline", {},
+          field("Persönlicher Accesskey", h("input.input", { type: "password", autocomplete: "off", spellcheck: "false", value: d.key, placeholder: "dvpat-…",
+            onchange: (e) => { set("divera.key", e.target.value.trim()); restartDivera(); rerender(); } }), "Divera → Profil → Login → API-Schlüssel. Bleibt auf diesem Gerät."),
+          h("button.btn.small", { onclick: load, disabled: !d.key }, d.unit ? "Neu laden" : "Verbinden")),
+        divera.ok === false && h("p.meta.err", {}, divera.error)),
+      notifGroup("divera", rerender),
+      d.key && h("div.group-cont", {},
+        toggle("divera.poll", "Bei Divera abfragen", "Ohne Benachrichtigung, solange die App läuft.", () => { restartDivera(); rerender(); }),
+        d.poll && field("Abfrage alle (Sekunden)", text("divera.pollSec", { type: "number", min: 10, max: 300 }, { onSave: restartDivera }), "15–30 s reichen.")),
+      d.key && group("Rückmeldung bei Antwort",
+        h("p.meta", {}, "Nach „Fährst du?“ am PC oder per Karte in der Übersicht."),
+        h("div.fields", {},
+          field("Einsatz: „Ich fahre“", statusSelect("divera.answerGo", d.answers), "Rückmeldung zum Divera-Alarm."),
+          field("Einsatz: „Ich fahre nicht“", statusSelect("divera.answerStay", d.answers))),
+        h("div.fields", {},
+          field("Mein Status: „Ich fahre“", statusSelect("divera.statusGo", d.statuses), "Wird immer gesetzt, egal welche Quelle."),
+          field("Mein Status: „Ich fahre nicht“", statusSelect("divera.statusStay", d.statuses))),
+        h("div.fields", {},
+          field("Notiz", text("divera.note", { placeholder: "z. B. per Heimalarm", maxlength: 80 }), "Optional, erscheint in Divera."),
+          field("Status zurücksetzen nach (min)", text("divera.resetMin", { type: "number", min: 0, max: 720 }), "0 = nie"),
+          d.resetMin > 0 && field("… auf", statusSelect("divera.resetTo", d.statuses, "– wählen –"))),
+        !d.statuses.length && h("p.meta", {}, "Tipp: „Verbinden“ lädt eure Status als Auswahl.")),
+    ],
+  });
+}
+
+function apagerSource(rerender) {
+  const a = settings().apager, on = settings().alarm.apps.apager.on;
+  const parts = [isAndroid && settings().alarm.apps.apager.pkg && "Mitlesen", shared().webhookSecret && "Webhook", a.key && a.feedback && "Rückmeldung"].filter(Boolean);
+  return sourceRow({
+    id: "apager", title: "aPager PRO", on,
+    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Webhook an die Zentrale, Rückmeldung.",
+    onToggle: (v) => { set("alarm.apps.apager.on", v); rerender(); },
+    body: [
+      notifGroup("apager", rerender),
+      group("Webhook", h("p.meta", {}, "Geht direkt an die Zentrale, auch ohne Handy. Adresse unter ", h("a", { href: "#/einstellungen/zentrale" }, "Zentrale"), ".")),
+      group("Rückmeldung bei Antwort",
+        h("div.inline", {},
+          field("API-Schlüssel", h("input.input", { type: "password", autocomplete: "off", value: a.key, onchange: (e) => { set("apager.key", e.target.value.trim()); rerender(); } }),
+            "aPager → Verfügbarkeit → Zahnrad → Externer Zugriff. Smart-Home-Abo nötig."),
+          h("button.btn.small", { disabled: !a.key, onclick: async () => { const r = await answerApager(true, { quiet: true }); toast(r.code === 204 ? "Schlüssel ok – gerade kein Alarm" : r.text); } }, "Prüfen")),
+        a.key && toggle("apager.feedback", "Zusage / Absage senden", "„Ich fahre“ = komme, „Ich fahre nicht“ = komme nicht. Nur Alarme der letzten 3 Minuten."),
+        a.key && toggle("apager.silent", "Ohne Bestätigungs-Push", "aPager zeigt dann keine eigene Meldung.")),
+    ],
+  });
 }
 
 function quellen(rerender) {
   const a = settings().alarm;
-  const apps = a.apps;
-  const appToggle = (id) => (v) => { set(`alarm.apps.${id}.on`, v); rerender(); };
-  const pkgField = (id, label) => isAndroid && h("div.fields", {},
-    field(label, text(`alarm.apps.${id}.pkg`, { autocomplete: "off" }), "Teil des Namens reicht."),
-    h("div.field.end", {}, h("button.btn.small", { onclick: () => pickPackage(`alarm.apps.${id}.pkg`, rerender) }, "Erkennen")));
-  const anyNotif = Object.values(apps).some((x) => x.on) || a.filterApps;
-  const diveraState = divera.ok === true ? h("span.badge", {}, "verbunden") : settings().divera.key && apps.divera.on && divera.ok === false ? h("span.badge.bad", {}, "Fehler") : null;
-  return section("quellen", "Alarmquellen", "Woher Alarme kommen. Mehrere gleichzeitig sind möglich – die Sperrzeit führt sie zu einem Einsatz zusammen.",
+  const sybosOn = a.apps.sybos.on;
+  const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
+  return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
     h("div.sources", {},
-      sourceRow("esp32", "Melder (ESP32)", "Hauptweg: Relaiskontakt an der Ladeschale.", a.mqtt, (v) => { set("alarm.mqtt", v); rerender(); }),
-      sourceRow("sybos", "SYBOS", APP_INFO.sybos.hint, apps.sybos.on, appToggle("sybos"), [pkgField("sybos", "Paketname"), !isAndroid && h("p.meta", {}, "Wird auf dem Handy mitgelesen und an die Zentrale gegeben.")]),
-      sourceRow("apager", "aPager PRO", APP_INFO.apager.hint, apps.apager.on, appToggle("apager"), [pkgField("apager", "Paketname"), !isAndroid && h("p.meta", {}, "Wird auf dem Handy mitgelesen. Der Webhook geht direkt an die Zentrale.")]),
-      sourceRow("divera", "Divera 24/7", APP_INFO.divera.hint, apps.divera.on, appToggle("divera"), diveraBody(rerender), diveraState),
+      sourceRow({ id: "esp32", title: "Melder (ESP32)", summary: "Relaiskontakt der Ladeschale. Hauptweg.", on: a.mqtt, onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
+      sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
+        summary: "Benachrichtigung der SYBOS-App mitlesen.",
+        onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
+        body: [notifGroup("sybos", rerender), group("Rückmeldung", h("p.meta", {}, "SYBOS bietet dafür keine offene Schnittstelle. Rückmeldung weiter in der SYBOS-App."))] }),
+      apagerSource(rerender),
+      diveraSource(rerender),
     ),
-    isAndroid && field("Weitere Apps", text("alarm.filterApps", { placeholder: "z. B. de.example.alarm" }), "Paketnamen, kommagetrennt."),
-    isAndroid && anyNotif && field("Schlüsselwörter", text("alarm.filterWords"), "Mindestens eines muss in der Benachrichtigung stehen. Leer = jede Meldung der App."),
-    isAndroid && anyNotif && android && !android.notificationAccess && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Benachrichtigungen mitlesen ist nicht erlaubt"), "Ohne diese Erlaubnis erkennt die App keine Alarme aus anderen Apps.",
-      h("div.row", { style: "margin-top:8px" }, h("button.btn.small", { onclick: () => openNotificationAccess() }, "Zugriff erlauben")))),
+    isAndroid && h("details.more", {},
+      h("summary", {}, "Weitere Apps & Filter"),
+      field("Weitere Apps", text("alarm.filterApps", { placeholder: "z. B. de.example.alarm" }), "Paketnamen, kommagetrennt."),
+      field("Schlüsselwörter", text("alarm.filterWords"), "Eines muss in der Meldung stehen. Leer = jede Meldung.")),
+    isAndroid && anyNotif && android && !android.notificationAccess && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Mitlesen nicht erlaubt"), "Ohne Erlaubnis erkennt die App keine Alarme aus anderen Apps.",
+      h("div.row", { style: "margin-top:8px" }, h("button.btn.small", { onclick: () => openNotificationAccess() }, "Erlauben")))),
   );
 }
 

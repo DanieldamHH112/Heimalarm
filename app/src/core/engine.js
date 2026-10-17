@@ -9,7 +9,8 @@ import { ACTIONS, runPcAction, runningProcesses, stopMedia } from "./pc.js";
 import { notify } from "./notify.js";
 import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
-import { setDiveraStatus } from "./divera.js";
+import { answerDivera } from "./divera.js";
+import { answerApager } from "./apager.js";
 
 const lastByWho = new Map();
 export const engine = { last: null };
@@ -101,12 +102,20 @@ export function alarmFromNotification({ app, title, text }) {
   forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 250) });
 }
 
+/** Antwort an die Alarm-Apps weitergeben, die dafür eingerichtet sind. */
+export async function answerApps(going) {
+  const s = settings();
+  const jobs = [];
+  if (s.alarm.apps.divera.on && s.divera.key) jobs.push(answerDivera(going, engine.last));
+  if (s.alarm.apps.apager.on && s.apager.key && s.apager.feedback) jobs.push(answerApager(going).then((r) => r.ok));
+  return (await Promise.all(jobs)).some(Boolean);
+}
+
 /** Ergebnis der Abfrage „Fährst du?“ */
 export async function decide(going, { test = false, timeout = false } = {}) {
   const p = settings().pc;
-  // Divera-Status setzen (nicht bei Tests, nicht ohne Antwort)
-  const dv = settings().divera;
-  if (!test && !timeout) setDiveraStatus(going ? dv.statusGo : dv.statusStay);
+  // Rückmeldung an Divera / aPager (nicht bei Tests, nicht ohne Antwort)
+  if (!test && !timeout) answerApps(going);
   if (!going) {
     log("info", timeout ? "Keine Antwort – keine Aktion (Einstellung „Abbrechen“)" : "„Ich fahre nicht“ – keine Aktion");
     return;

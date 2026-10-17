@@ -138,12 +138,20 @@ Logo: Haus mit Funkwellen auf Signalrot, `docs/logo.svg`.
 | 6 | **Alexa & Google Home** über Matter: Dienst stellt Kontaktsensoren bereit („Heimalarm Einsatz“ + je Person), Matterbridge (Profil `matter`) gibt Zigbee-Licht weiter, App-Abschnitt mit QR-Code | ✅ erste Version, Kopplung am Pi zu prüfen |
 | 7 | **Alarmquellen** wählbar (ESP32, SYBOS, aPager PRO, Divera, weitere – mehrere gleichzeitig); **Divera**: Abfrage `v2/alarms` mit persönlichem Accesskey (je App), Status bei „Ich fahre / nicht“ | ✅ erste Version, mit echtem Divera-Alarm zu prüfen |
 
-### Alarmquellen & Divera
+### Alarmquellen & Rückmeldung
 
-- Einstellungen → **Alarmquellen**: je Quelle ein Schalter. Android liest Benachrichtigungen der gewählten Apps mit (Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`, Divera über „Erkennen“ – zuletzt gesehene Apps). Treffer gehen als `alarm/<kennung>` mit `source` an die Zentrale.
-- **Divera** (Wehr nutzt Divera Free, Leitstellen-Anbindung folgt): persönlicher Accesskey bleibt **nur auf dem Gerät** (`settings.divera`, nicht synchronisiert, nicht im Repo). Endpunkte: `GET app.divera247.com/api/v2/alarms` (Abfrage, erster Abruf merkt nur), `GET /api/v2/pull/all` (Einheit, Status-Liste), `GET www.divera247.com/statusgeber.html?status=<id>&accesskey=…` (Status). Abruf über `@tauri-apps/plugin-http` (Scope `*.divera247.com`).
-- Status: PC setzt ihn nach „Fährst du?“, das Handy zeigt bei eigenem Einsatz eine Karte mit „Ich fahre / Ich fahre nicht“.
-- Offen: Struktur der Status-Liste in `pull/all` (`cluster.status`) und Antwort von `statusgeber` mit echtem Zugang prüfen; ohne Liste kann die Status-ID von Hand eingetragen werden.
+Einstellungen → **Alarmquellen**: je Quelle Schalter, aufgeklappt in Gruppen *Zugang · Alarm empfangen · Rückmeldung*. Schlüssel bleiben **nur auf dem Gerät** (`settings.divera`, `settings.apager`; nicht synchronisiert, nicht im Repo).
+
+| Quelle | Empfangen | Rückmeldung |
+|---|---|---|
+| ESP32 | MQTT `alarm/<kennung>` | – |
+| SYBOS (`at.syPhone`) | Benachrichtigung (Android) | keine offene API für Mitglieder (SOLARYS: Schnittstellen nur als kostenpflichtiges Modul+ für die Verwaltung) |
+| aPager PRO (`org.xcrypt.apager.android2`) | Benachrichtigung, Webhook an die Zentrale | Alamos-API `GET alamos-backend.ey.r.appspot.com/fe2/feedback/user/external?authToken&mode=accept|reject[&suppressNotification]` – Smart-Home-Abo nötig, nur Alarme der letzten 3 min |
+| Divera 24/7 | Benachrichtigung, `GET /api/v2/alarms` (Abfrage) | `POST /api/v2/alarms/confirm/{id}` (Rückmeldung zum Einsatz), `POST /api/v2/statusgeber/set-status` (eigener Status, optional Notiz + Rücksetzen) |
+
+- Divera: Spec unter `api.divera247.com/docs/*.yaml`, Auth `?accesskey=` (persönlich). `pull/all` liefert `cluster.status` + `statussorting_statusgeber` / `statussorting_alarm` und `status.status_id`. Ungültiger Schlüssel → 401.
+- Antwort: PC nach „Fährst du?“ (`engine.answerApps`), Handy per Karte „Einsatz“ in der Übersicht. Übersicht zeigt „Mein Divera-Status“ zum Umschalten.
+- HTTP über `@tauri-apps/plugin-http`, Scope `*.divera247.com`, `alamos-backend.ey.r.appspot.com`.
 
 ### Sprachassistenten (Matter)
 
