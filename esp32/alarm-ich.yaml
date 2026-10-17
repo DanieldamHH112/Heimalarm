@@ -1,0 +1,45 @@
+# Heimalarm – ESP32 an der Ladeschale (Motorola TPG2200)
+# Verdrahtung: Relais Pol A -> GPIO27, Pol B -> GND. Interner Pull-up, kein Widerstand nötig.
+# Flashen: https://web.esphome.io (Chrome/Edge) oder ESPHome-Dashboard.
+# Für weitere Personen Datei kopieren und "ich" überall durch die eigene Kennung ersetzen.
+
+substitutions:
+  kennung: ich
+
+esphome:
+  name: alarm-${kennung}
+
+esp32:
+  board: esp32dev
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_pw
+
+ota:
+  - platform: esphome
+    password: !secret ota_pw
+
+# MQTT statt api: (sonst startet das Gerät regelmäßig neu, weil kein API-Client verbindet)
+mqtt:
+  broker: !secret mqtt_host
+  username: !secret mqtt_user
+  password: !secret mqtt_pw
+  topic_prefix: alarm/${kennung}   # Status "online"/"offline" unter alarm/<kennung>/status
+
+binary_sensor:
+  - platform: gpio
+    name: "Melder Alarm"
+    pin:
+      number: GPIO27
+      mode: { input: true, pullup: true }
+      inverted: true               # Kontakt geschlossen = Alarm = ON
+    filters:
+      - delayed_on: 50ms           # Entprellen
+    on_press:
+      - mqtt.publish:
+          topic: alarm/${kennung}
+          payload: "ALARM"
+          qos: 1

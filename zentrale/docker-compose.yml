@@ -1,0 +1,23 @@
+# Heimalarm – Zentrale (z. B. Raspberry Pi)
+# Start:  docker compose up -d
+# Zigbee2MQTT ist vorbereitet und startet erst, wenn der USB-Stick eingetragen ist (siehe unten).
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # ESP32
+      - "9001:9001"   # App (WebSocket)
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+
+  # zigbee2mqtt:
+  #   image: koenkk/zigbee2mqtt
+  #   restart: unless-stopped
+  #   depends_on: [mosquitto]
+  #   volumes:
+  #     - ./zigbee2mqtt:/app/data
+  #   devices:
+  #     - /dev/ttyUSB0:/dev/ttyUSB0   # Pfad des Zigbee-Sticks anpassen

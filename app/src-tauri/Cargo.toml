@@ -1,0 +1,25 @@
+[package]
+name = "heimalarm"
+version = "0.1.0"
+description = "Heimalarm"
+edition = "2021"
+
+[lib]
+name = "heimalarm_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-autostart = "2"
+
+# Schnelle Release-Builds: weniger Optimierung, dafür kürzere Build-Zeit.
+[profile.release]
+codegen-units = 16
+lto = false
+strip = true

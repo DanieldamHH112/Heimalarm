@@ -1,0 +1,61 @@
+/* Heimalarm – Design-Tokens
+   Farbwelt "Leitstelle": ruhige, kontrastreiche Flächen, Signalrot nur für Alarm und Hauptaktion. */
+
+@font-face { font-family: "Archivo"; src: url("/fonts/Archivo.ttf") format("truetype"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight: 100 800; font-display: swap; }
+
+:root {
+  /* Farben – hell */
+  --bg: #f4f2ee;
+  --surface: #ffffff;
+  --surface-2: #faf9f6;
+  --line: #e2ddd4;
+  --text: #16181d;
+  --text-2: #4c525d;
+  --signal: #c42d21;        /* Alarm, Hauptaktion */
+  --signal-ink: #ffffff;
+  --signal-soft: #fbe9e6;
+  --ok: #24704a;
+  --ok-soft: #e4f1e9;
+  --warn: #8f5d0e;
+  --warn-soft: #fbf0dc;
+  --info: #2c5a88;
+  --info-soft: #e7eef6;
+  --focus: #2c5a88;
+
+  /* Typo */
+  --font: "Archivo", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --fs-xs: 0.8125rem;   /* 13 px – Metadaten */
+  --fs-sm: 0.875rem;    /* 14 px – Hilfstexte */
+  --fs-md: 1rem;        /* 16 px – Fließtext */
+  --fs-lg: 1.25rem;     /* 20 px – Kartentitel */
+  --fs-xl: clamp(1.6rem, 1.2rem + 1.4vw, 2.1rem); /* Seitentitel */
+
+  /* Raum & Form */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-w: 232px;
+  --content-max: 1080px;
+  --shadow: 0 1px 2px rgb(22 24 29 / 6%), 0 4px 16px rgb(22 24 29 / 5%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1013; --surface: #171a1f; --surface-2: #1d2127; --line: #2b3039;
+    --text: #f1f2f4; --text-2: #a3aab5;
+    --signal: #e5432f; --signal-soft: #3a1915;
+    --ok: #4cc287; --ok-soft: #15291f; --warn: #e9a945; --warn-soft: #2e2413;
+    --info: #74a9df; --info-soft: #172433; --focus: #74a9df;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1013; --surface: #171a1f; --surface-2: #1d2127; --line: #2b3039;
+  --text: #f1f2f4; --text-2: #a3aab5;
+  --signal: #e5432f; --signal-soft: #3a1915;
+  --ok: #4cc287; --ok-soft: #15291f; --warn: #e9a945; --warn-soft: #2e2413;
+  --info: #74a9df; --info-soft: #172433; --focus: #74a9df;
+  --shadow: none;
+}

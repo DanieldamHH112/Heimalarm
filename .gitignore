@@ -1,0 +1,21 @@
+# Node / Vite
+node_modules/
+app/dist/
+
+# Tauri / Rust
+app/src-tauri/target/
+app/src-tauri/gen/
+
+# Geheimnisse
+esp32/secrets.yaml
+esp32/.esphome/
+zentrale/mosquitto/data/
+zentrale/mosquitto/passwd
+zentrale/zigbee2mqtt/
+*.keystore
+*.jks
+.env
+
+# System
+.DS_Store
+Thumbs.db

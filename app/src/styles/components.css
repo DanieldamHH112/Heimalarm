@@ -1,0 +1,75 @@
+/* Karten */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s5); box-shadow: var(--shadow); display: grid; gap: var(--s3); align-content: start; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.card .hint { color: var(--text-2); font-size: var(--fs-sm); }
+.card.alarm { border-color: var(--signal); background: linear-gradient(var(--signal-soft), var(--surface) 70%); }
+
+/* Status-Chips */
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 8px; border-radius: 99px; font-size: var(--fs-xs); font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); white-space: nowrap; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.chip.ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+.chip.bad { color: var(--signal); background: var(--signal-soft); border-color: transparent; }
+.chip.ok::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); font-weight: 620; cursor: pointer; text-decoration: none; color: var(--text); transition: background .15s, border-color .15s; }
+.btn:hover { background: var(--surface-2); border-color: color-mix(in srgb, var(--text) 25%, var(--line)); }
+.btn.primary { background: var(--signal); border-color: var(--signal); color: var(--signal-ink); }
+.btn.primary:hover { background: color-mix(in srgb, var(--signal) 88%, black); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; }
+
+/* Kennzahlen */
+.stat { display: grid; gap: 2px; }
+.stat b { font-size: 1.6rem; font-weight: 720; font-variation-settings: "wdth" 90; line-height: 1.1; }
+.stat span { color: var(--text-2); font-size: var(--fs-sm); }
+
+/* Einrichtungs-Schritte */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 28px 1fr; gap: var(--s3); align-items: start; }
+.steps li::before { counter-increment: s; content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-xs); font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+.steps li.done::before { content: "✓"; background: var(--ok); color: #fff; border-color: var(--ok); }
+.steps li small { display: block; color: var(--text-2); font-size: var(--fs-sm); }
+
+/* Formulare */
+.section { display: grid; gap: var(--s4); }
+.section > header p { color: var(--text-2); font-size: var(--fs-sm); margin-top: 2px; }
+.field { display: grid; gap: 6px; }
+.field > span { font-weight: 600; font-size: var(--fs-sm); }
+.field small { color: var(--text-2); font-size: var(--fs-xs); }
+.input, .select { min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); width: 100%; }
+.input:focus, .select:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; }
+.fields { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.switch:first-of-type { border-top: 0; }
+.switch div small { display: block; color: var(--text-2); font-size: var(--fs-sm); }
+.switch input { appearance: none; width: 46px; height: 28px; border-radius: 99px; background: var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / 25%); }
+.switch input:checked { background: var(--ok); }
+.switch input:checked::after { transform: translateX(18px); }
+.segmented { display: inline-flex; justify-self: start; max-width: 100%; padding: 3px; gap: 3px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
+.segmented button { border: 0; background: transparent; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 580; color: var(--text-2); }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); outline: 1px solid var(--line); }
+
+/* Protokoll */
+.log { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: 76px 22px 1fr; gap: var(--s3); padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.log li:first-child { border-top: 0; }
+.log time { font-family: var(--mono); font-size: var(--fs-xs); color: var(--text-2); }
+.log .ico { width: 10px; height: 10px; border-radius: 50%; background: var(--text-2); align-self: center; justify-self: center; }
+.log .alarm .ico { background: var(--signal); } .log .action .ico { background: var(--info); }
+.log .ok .ico { background: var(--ok); } .log .warn .ico { background: var(--warn); }
+.log small { display: block; color: var(--text-2); font-size: var(--fs-sm); }
+.empty { color: var(--text-2); padding: var(--s5) 0; text-align: center; }
+
+/* Hinweis-Leiste */
+.banner { display: flex; gap: var(--s3); align-items: start; padding: var(--s4); border-radius: var(--radius); background: var(--info-soft); color: var(--text); }
+.banner.warn { background: var(--warn-soft); }
+.banner b { display: block; }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 10px; font-weight: 560; transition: .2s; z-index: 50; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 760px) { .toast { bottom: calc(88px + env(safe-area-inset-bottom)); } }
