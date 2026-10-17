@@ -32,16 +32,12 @@ jobs:
   android:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: app } }
-    env:
-      NDK_VERSION: 27.2.12479018
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager "ndk;${NDK_VERSION}"
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: aarch64-linux-android }
       - uses: swatinem/rust-cache@v2
@@ -49,12 +45,12 @@ jobs:
       - run: npm ci
       - name: Android-Projekt erzeugen
         run: |
-          export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
           npx tauri android init --ci
           npx tauri icon src-tauri/icons/icon.png
       - name: APK bauen (nur arm64, Debug-signiert)
         run: |
-          export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
           npx tauri android build --apk --debug --target aarch64
       - run: find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${GITHUB_REF_NAME}.apk" \; -quit
       - uses: actions/upload-artifact@v4
