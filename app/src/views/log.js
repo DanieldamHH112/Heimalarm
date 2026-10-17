@@ -1,13 +1,14 @@
 import { h, fmtTime, fmtDate } from "../ui/dom.js";
 import { getLog, clearLog } from "../core/log.js";
+import { state } from "../core/mqtt.js";
 
 const FILTERS = [
-  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"],
+  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale"],
 ];
 let filter = "";
 
 export function logView(rerender) {
-  const items = getLog(filter);
+  const items = filter === "zentrale" ? state.zlog.filter(Boolean) : getLog(filter);
   let day = "";
   const list = h("ul.log", {});
   for (const e of items) {
@@ -18,7 +19,7 @@ export function logView(rerender) {
 
   return h("div.page", {},
     h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Protokoll"), h("p", {}, "Was wann passiert ist, gemacht oder ausgeführt wurde.")),
+      h("div", {}, h("h1", {}, "Protokoll"), h("p", {}, filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : "Was wann passiert ist, gemacht oder ausgeführt wurde.")),
       h("button.btn.ghost", { onclick: () => { if (confirm("Protokoll wirklich leeren?")) { clearLog(); rerender(); } } }, "Leeren"),
     ),
     h("div.segmented", { role: "group", "aria-label": "Filter" },

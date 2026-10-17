@@ -1,23 +1,42 @@
 # Heimalarm – Zentrale (z. B. Raspberry Pi)
-# Start:  docker compose up -d
-# Zigbee2MQTT ist vorbereitet und startet erst, wenn der USB-Stick eingetragen ist (siehe unten).
+# Start ohne Zigbee:  docker compose up -d
+# Start mit Zigbee:   docker compose --profile zigbee up -d   (USB-Stick unten eintragen)
 
 services:
   mosquitto:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      - "1883:1883"   # ESP32
+      - "1883:1883"   # ESP32, Dienst
       - "9001:9001"   # App (WebSocket)
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
 
-  # zigbee2mqtt:
-  #   image: koenkk/zigbee2mqtt
-  #   restart: unless-stopped
-  #   depends_on: [mosquitto]
-  #   volumes:
-  #     - ./zigbee2mqtt:/app/data
-  #   devices:
-  #     - /dev/ttyUSB0:/dev/ttyUSB0   # Pfad des Zigbee-Sticks anpassen
+  dienst:
+    build: ./dienst
+    restart: unless-stopped
+    network_mode: host   # für Wake-on-LAN (Broadcast im Heimnetz)
+    environment:
+      MQTT_URL: mqtt://127.0.0.1:1883
+      WEBHOOK_PORT: "8080"
+      TZ: Europe/Berlin
+    depends_on: [mosquitto]
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:2
+    profiles: ["zigbee"]
+    restart: unless-stopped
+    depends_on: [mosquitto]
+    ports:
+      - "8081:8080"   # Zigbee2MQTT-Weboberfläche (optional)
+    volumes:
+      - ./zigbee2mqtt:/app/data
+    devices:
+      - /dev/ttyUSB0:/dev/ttyACM0   # links: Pfad des Zigbee-Sticks anpassen
+    environment:
+      TZ: Europe/Berlin
+      ZIGBEE2MQTT_CONFIG_MQTT_SERVER: mqtt://mosquitto:1883
+      ZIGBEE2MQTT_CONFIG_SERIAL_PORT: /dev/ttyACM0
+      ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
+      ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "false"

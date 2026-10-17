@@ -18,6 +18,7 @@
 .takeover .btn.secondary { background: transparent; color: #fff; border: 2px solid rgb(255 255 255 / 55%); }
 .takeover .btn.secondary:hover { background: rgb(255 255 255 / 8%); }
 .takeover .note { color: #c9cdd4; font-size: var(--fs-sm); }
-.takeover .keys { font-family: var(--mono); font-size: var(--fs-xs); color: #8d939d; }
+.takeover .keys { font-family: var(--mono); font-size: var(--fs-xs); color: #aeb3bb; }
 @media (max-width: 480px) { .takeover .actions { grid-template-columns: 1fr; } }
 @keyframes to-in { from { opacity: 0; transform: scale(1.02); } }
+.takeover .meta-big { font-size: 1.25rem; color: #fff; font-weight: 600; }

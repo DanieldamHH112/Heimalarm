@@ -18,9 +18,12 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_pw
 
+http_request:
+
 ota:
-  - platform: esphome
+  - platform: esphome          # Update per ESPHome/Browser
     password: !secret ota_pw
+  - platform: http_request     # A10 – Update aus der App (Datei im Heimnetz)
 
 # MQTT statt api: (sonst startet das Gerät regelmäßig neu, weil kein API-Client verbindet)
 mqtt:
@@ -28,6 +31,26 @@ mqtt:
   username: !secret mqtt_user
   password: !secret mqtt_pw
   topic_prefix: alarm/${kennung}   # Status "online"/"offline" unter alarm/<kennung>/status
+  on_message:
+    # A10 – App sendet "<url>|<md5>" an alarm/<kennung>/ota
+    - topic: alarm/${kennung}/ota
+      then:
+        - ota.http_request.flash:
+            url: !lambda 'return x.substr(0, x.find("|"));'
+            md5: !lambda 'return x.substr(x.find("|") + 1);'
+
+# A3 – Mindestdauer des Kontakts, aus der App einstellbar (alarm/<kennung>/number/min_duration/command)
+number:
+  - platform: template
+    name: "Min Duration"
+    id: min_duration
+    optimistic: true
+    restore_value: true
+    initial_value: 50
+    min_value: 10
+    max_value: 5000
+    step: 10
+    unit_of_measurement: ms
 
 binary_sensor:
   - platform: gpio
@@ -37,7 +60,7 @@ binary_sensor:
       mode: { input: true, pullup: true }
       inverted: true               # Kontakt geschlossen = Alarm = ON
     filters:
-      - delayed_on: 50ms           # Entprellen
+      - delayed_on: !lambda 'return (uint32_t) id(min_duration).state;'   # Entprellen / Mindestdauer
     on_press:
       - mqtt.publish:
           topic: alarm/${kennung}

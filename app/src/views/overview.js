@@ -1,11 +1,12 @@
 // E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
-import { h, fmtAgo, fmtTime, fmtDate } from "../ui/dom.js";
-import { state } from "../core/mqtt.js";
+import { h, fmtAgo, fmtTime, fmtDate, toast } from "../ui/dom.js";
+import { state, publish } from "../core/mqtt.js";
+import { shared } from "../core/shared.js";
 import { settings, isConfigured } from "../core/settings.js";
-import { testAlarm } from "../core/engine.js";
 import { getLog } from "../core/log.js";
-import { ACTIONS } from "../core/pc.js";
-import { hasPcFeatures, platformName } from "../core/platform.js";
+import { ACTIONS, wakeOnLan } from "../core/pc.js";
+import { testAlarm, simulateContact } from "../core/engine.js";
+import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { themeToggle } from "../ui/theme.js";
 
 const chip = (kind, text) => h("span.chip" + (kind ? "." + kind : ""), {}, text);
@@ -75,6 +76,26 @@ function espCard() {
   );
 }
 
+/** D11 – PC per Wake-on-LAN wecken: direkt (App) oder über den Zentralen-Dienst. */
+function wake(c) {
+  const viaZentrale = () => publish("heimalarm/cmd/wol", { mac: c.mac }) && toast(`Weckruf an „${c.name}“ über die Zentrale`);
+  if (isTauri) wakeOnLan(c.mac).then(() => toast(`Weckruf an „${c.name}“ gesendet`)).catch(viaZentrale);
+  else viaZentrale();
+}
+
+/** Schnellaktionen (statt Startbildschirm-Widget): Testalarm, Wieder da, manuelle Routinen */
+function quickCard() {
+  const manual = (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual");
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Schnellaktionen")),
+    h("div.quick", {},
+      h("button.btn", { onclick: testAlarm }, "Testalarm"),
+      h("button.btn", { onclick: () => simulateContact() && toast("Simulierter Alarm gesendet") }, "Kontakt simulieren"),
+      h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
+      ...manual.map((r) => h("button.btn", { onclick: () => publish("heimalarm/cmd/run", { id: r.id }) && toast(`„${r.name}“ läuft`) }, r.name))),
+  );
+}
+
 function appsCard() {
   const myId = settings().device.id;
   const list = Object.entries(state.clients).toSorted(([, a], [, b]) => Number(b.online) - Number(a.online) || b.ts - a.ts);
@@ -87,6 +108,7 @@ function appsCard() {
             h("b", {}, c.name || c.platform, id === myId ? h("span.badge", {}, "dieses Gerät") : null),
             c.online ? chip("ok", "online") : chip("", `zuletzt ${fmtAgo(c.ts)}`)),
           h("p.hint", {}, `${c.platform} · Version ${c.version}`),
+          !c.online && c.mac && h("div.row", {}, h("button.btn.small", { onclick: () => wake(c) }, "Aufwecken")),
         ))),
   );
 }
@@ -115,10 +137,10 @@ function eventsCard() {
 function zigbeeCard() {
   const z = state.zigbee;
   return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Licht & Geräte"), z ? chip("ok", `${z.length} Geräte`) : chip("", "noch nicht eingerichtet")),
+    h("div.card-head", {}, h("h2", {}, h("a", { href: "#/geraete", style: "text-decoration:none" }, "Licht & Geräte")), z ? chip("ok", `${z.length} Geräte`) : chip("", "noch nicht eingerichtet")),
     z && z.length > 0
       ? h("ul.rows.compact", {}, z.slice(0, 8).map((d) => h("li", {}, h("div.row-main", {}, h("b", {}, d.friendly_name), h("span.hint", {}, d.definition?.description || d.type)))))
-      : h("p.hint", {}, z ? "Zigbee2MQTT läuft, aber noch kein Gerät angelernt." : "Kommt mit Zigbee2MQTT auf der Zentrale (Stufe 3)."),
+      : h("p.hint", {}, z ? "Zigbee2MQTT läuft, aber noch kein Gerät angelernt." : "Zigbee2MQTT auf der Zentrale starten, dann unter Geräte anlernen."),
   );
 }
 
@@ -141,7 +163,7 @@ export function overview() {
     tiles(),
     h("div.dash", {},
       h("div.dash-main", {}, alarmsCard(), espCard(), zigbeeCard()),
-      h("div.dash-side", {}, hasPcFeatures && pcCard(), appsCard(), eventsCard()),
+      h("div.dash-side", {}, quickCard(), hasPcFeatures && pcCard(), appsCard(), eventsCard()),
     ),
   );
 }

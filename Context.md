@@ -35,62 +35,82 @@ Der vorhandene Funkhandel-Alarmschalter (Tuya/ELESION/Alexa) bleibt **unverände
 | Teil | Technik | Ort |
 |---|---|---|
 | App (PC + Android) | Tauri 2, Vite, Vanilla JS, mqtt.js | `app/` |
-| Rust-Kern | PC-Aktionen (Ruhezustand usw.), Autostart | `app/src-tauri/` |
+| Rust-Kern | PC-Aktionen, Prozesse, Medien, Wake-on-LAN, Autostart | `app/src-tauri/` |
+| Android-Plugin | Hintergrund-Dienst, Akku-Optimierung, Benachrichtigungen mitlesen (Kotlin) | `app/plugins/heimalarm/` |
+| Zentralen-Dienst | Node: Routinen, Webhook, Protokoll, Selbsttest, Wake-on-LAN | `zentrale/dienst/` |
 | ESP32 | ESPHome | `esp32/` |
-| Zentrale | Docker: Mosquitto (+ Zigbee2MQTT vorbereitet) | `zentrale/` |
+| Zentrale | Docker: Mosquitto, Dienst, Zigbee2MQTT (Profil `zigbee`) | `zentrale/` |
 | Release | GitHub Actions, nur bei Tag `v*` | `.github/workflows/release.yml` |
 
 ### MQTT-Topics
 
 | Topic | Inhalt | Von |
 |---|---|---|
-| `alarm/<kennung>` | `ALARM` | ESP32 |
-| `alarm/<kennung>/status` | `online` / `offline` (automatisch, Last Will) | ESP32 |
+| `alarm/<kennung>` | `ALARM` oder JSON `{source, keyword, unit, test, probe}` | ESP32, Dienst (Webhook), App (Simulation/Benachrichtigung) |
+| `alarm/<kennung>/status` | `online` / `offline` (Last Will) | ESP32 |
 | `alarm/<kennung>/sensor/wifi_signal\|uptime/state` | WLAN in dBm, Laufzeit in s | ESP32 |
 | `alarm/<kennung>/text_sensor/ip\|version/state` | IP, Firmware | ESP32 |
-| `heimalarm/clients/<id>` | JSON `{name, platform, version, online, ts}` (retained, Last Will) | jede App |
-| `zigbee2mqtt/bridge/devices` | Geräteliste | Zigbee2MQTT |
+| `alarm/<kennung>/number/min_duration/command\|state` | Mindestdauer Kontakt in ms (A3) | App ↔ ESP32 |
+| `alarm/<kennung>/ota` | `<url>|<md5>` – Firmware-Update (A10) | App |
+| `heimalarm/clients/<id>` | JSON `{name, platform, version, online, ts, mac}` (retained, Last Will) | jede App |
+| `heimalarm/config/shared` | gemeinsame Konfiguration (retained): Personen, Routinen, Standort, Urlaubsmodus, Webhook-Schlüssel, Admin-PIN, synchronisierte Einstellungen | Apps |
+| `heimalarm/cmd/run\|restore\|wol\|selftest` | Routine ausführen, „Wieder da“, Wake-on-LAN, Selbsttest | Apps → Dienst |
+| `heimalarm/log`, `heimalarm/log/recent` | Protokoll der Zentrale (letzte 200 retained) | Dienst |
+| `heimalarm/report` | Wöchentlicher Selbsttest (retained) | Dienst |
+| `heimalarm/dienst/status`, `heimalarm/ping` → `heimalarm/pong` | Dienst-Status, Verbindungstest | Dienst |
+| `zigbee2mqtt/#` | Geräte, Gruppen, Zustände, Befehle | Zigbee2MQTT |
 
-Ports der Zentrale: `1883` (ESP32), `9001` (App über WebSocket).
-Eigene Kennung (Standard `ich`) löst am PC die Abfrage aus. Fremde Kennungen erscheinen nur als Hinweis.
+Ports der Zentrale: `1883` (ESP32, Dienst), `9001` (App über WebSocket), `8080` (Webhook), `8081` (Zigbee2MQTT-Oberfläche).
+Eigene Kennung löst am PC die Abfrage aus. Fremde Kennungen erscheinen als Benachrichtigung.
+
+### Einstellungen & Synchronisation
+
+- **Lokal je Gerät** (`settings.js`, localStorage): Verbindung, PC-Einstellungen, Gerätename, App-PIN.
+- **Gemeinsam** (`shared.js`, retained auf der Zentrale): Personen, Routinen, Standort, Urlaubsmodus, Webhook-Schlüssel, Admin-PIN.
+- **Abgeglichen zwischen Handy und PC:** Alarm-, Benachrichtigungs- und Darstellungs-Einstellungen (außer der eigenen Kennung). Abschaltbar unter *Dieses Gerät*.
 
 ### App-Struktur
 
 ```
 app/src/
-  main.js            Start, Router, Live-Aktualisierung
-  core/              Logik ohne Oberfläche
-    settings.js      Einstellungen + Standardwerte (localStorage)
-    mqtt.js          Verbindung zur Zentrale, Topics auswerten
-    engine.js        Alarm-Logik: Sperrzeit, eigen/fremd, Testalarm, Entscheidung
-    pc.js            PC-Aktionen, Vollbild, Autostart (Aufruf Rust-Kern)
-    log.js           Protokoll (E7), max. 500 Einträge
-    notify.js        System-Benachrichtigung (E1)
-    platform.js      Windows / Android / Browser erkennen
-    events.js        Ereignis-Bus
-  views/             Seiten: overview, log, settings, takeover („Fährst du?“)
-  ui/                dom.js (Helfer), theme.js (Hell/Dunkel + Umschalter)
-  dev/demo.js        Beispieldaten, nur `npm run dev` mit ?demo
-  styles/            tokens.css (Farben, Typo, Abstände), base, layout, components, takeover
+  main.js            Start, Router, Live-Aktualisierung, Warnungen
+  core/
+    settings.js      lokale Einstellungen + Standardwerte
+    shared.js        gemeinsame Konfiguration + Sync
+    mqtt.js          Verbindung, Topics auswerten, Zigbee-Befehle
+    engine.js        Alarm-Logik: Sperrzeit je Person, Test/Probe, Ruhezeit, Ausnahmen
+    pc.js            PC-Funktionen (Rust-Kern)
+    android.js       Android-Plugin (Dienst, Akku, Benachrichtigungen)
+    admin.js         Admin-PIN (G3), App-Sperre (H4)
+    notify.js        System-Benachrichtigung
+    log.js           Protokoll dieses Geräts
+    platform.js, events.js
+  views/             overview, devices, routines, log, settings, diagnose, takeover
+  ui/                dom.js, form.js (Formular-Bausteine, Dialog), theme.js, sound.js
+  dev/demo.js        Beispieldaten (nur npm run dev mit ?demo)
+  styles/            tokens (Farben/Typo), base, layout, components, takeover
 ```
 
-Neue Funktion = neues Modul in `core/` + ggf. Ansicht in `views/`. Einstellungen immer in `settings.js` mit Standardwert ergänzen.
+Neue Funktion = Modul in `core/` + ggf. Ansicht in `views/`. Lokale Einstellungen in `settings.js`, gemeinsame in `shared.js` mit Standardwert ergänzen.
 
 ### PC-Aktionen (Rust, nur Windows)
 
 | Aktion | Befehl |
 |---|---|
-| Ruhezustand (Standard) | `shutdown /h` (vorher einmalig `powercfg /h on`) |
+| Ruhezustand (Standard) | `shutdown /h` (Einschalten per Knopf: `powercfg /h on` mit Admin-Abfrage) |
 | Energiesparen | `rundll32 powrprof.dll,SetSuspendState 0,1,0` |
 | Sperren | `rundll32 user32.dll,LockWorkStation` |
 | Herunterfahren | `shutdown /s /t 0` |
 | Mischform | Herunterfahren, nach 120 s sonst Ruhezustand |
+| Medien stoppen (D8) | Medientaste „Stopp“ |
+| Ausnahmen (D7) | `tasklist` – läuft ein genanntes Programm, wird nur gesperrt |
 
 Ein Windows-Befehl „alle Programme speichern“ existiert nicht, deshalb ist der Ruhezustand die Standardaktion.
 
 ## Design-System
 
-Farbwelt **„Leitstelle“**: ruhig und kontrastreich, Signalrot nur für Alarm und Hauptaktion. Hell und Dunkel, folgt dem System.
+Farbwelt **„Leitstelle“**: ruhig und kontrastreich, Signalrot nur für Alarm und Hauptaktion. **Dunkel ist Standard**, Hell die zweite Auswahl (Umschalter in der Navigation).
+Schriftgrößen: mindestens 14 px (Labels, Metadaten), Hilfstexte 15 px, Fließtext 16 px.
 
 | Token | Hell | Dunkel | Einsatz |
 |---|---|---|---|
@@ -110,34 +130,46 @@ Logo: Haus mit Funkwellen auf Signalrot, `docs/logo.svg`.
 
 | Stufe | Inhalt | Stand |
 |---|---|---|
-| 1 | ESP32-Konfiguration, Mosquitto-Zentrale, App-Grundgerüst | ✅ erste Version |
-| 2 | Windows: „Fährst du?“, Ruhezustand, Autostart | ✅ erste Version |
-| 3 | Zigbee2MQTT + Regel-Dienst: Licht bei Alarm | offen |
-| 4 | Handy: Geräte anlernen, steuern, Routinen | offen |
-| 5 | Android: Benachrichtigungen (SYBOS/aPager) mitlesen, aPager-Webhook | offen |
+| 1 | ESP32, Mosquitto-Zentrale, App-Grundgerüst | ✅ |
+| 2 | Windows: „Fährst du?“, Ruhezustand, Autostart | ✅ |
+| 3 | Zigbee2MQTT + Zentralen-Dienst: Routinen, Licht | ✅ erste Version |
+| 4 | Handy: Geräte anlernen, steuern, Routinen | ✅ erste Version |
+| 5 | Android: Benachrichtigungen mitlesen, Hintergrund-Dienst, Webhook | ✅ erste Version, auf echtem Gerät zu prüfen |
 
 ## Funktionsliste (Stand)
 
-Nummern wie im Konzept (Seiten „Funktionsliste“). ★ = Grundausstattung. ✅ = umgesetzt.
+Nummern wie im Konzept. Alle Punkte A–I sind in einer ersten Version umgesetzt. Ausnahmen und Einschränkungen:
 
-- **A Alarmeingang:** A1 ★ Quellen (✅ ESP32 an/aus) · A2 ★ Entprellen (✅ im ESP32) · A3 Mindestdauer · A4 ★ Sperrzeit ✅ · A5 Quellen zusammenführen · A6 Benachrichtigungs-Filter · A7 Stichwort/Einheit · A8 ★ Offline-Warnung ✅ · A9 Lebenszeichen ✅ (ESPHome-Status) · A10 Firmware-Update · A11 Testmodus
-- **B Routinen:** B1–B11 offen (Stufe 3)
-- **C Licht & Geräte:** C1–C11 offen (Stufe 3/4)
-- **D Windows-PC:** D1 ★ Aktion ✅ · D2 ★ Countdown ✅ · D3 ★ Standard ohne Klick ✅ · D4 Texte · D5 Ton · D6 Über Vollbild ✅ (immer oben + Vollbild) · D7 Ausnahmen · D8 Medien pausieren · D9 ★ Autostart ✅ · D10 Ruhezustand einrichten · D11 Wake-on-LAN · D12 Zeitfenster
-- **E Handy-App:** E1 ★ Benachrichtigung ✅ · E2 Widget · E3 Dashboard ✅ (Übersicht) · E4 Alarmverlauf ✅ · E5 Darstellung ✅ · E6 Akku-Optimierung · E7 ★ Protokoll ✅
-- **F Zentrale:** F1 ★ Adresse ✅ · F2 ★ Zugangsdaten ✅ · F3 Backup · F4 Updates · F5 Logs · F6 Zeitzone/Standort
-- **G Personen:** G1 mehrere Personen (✅ Kennungen) · G2 Routinen pro Person · G3 Rollen
-- **H Sicherheit:** H1 ★ TLS (✅ Schalter) · H2 Webhook-Schlüssel · H3 nur Heimnetz/VPN · H4 App-Sperre
-- **I Test & Diagnose:** I1 ★ Testalarm ✅ · I2 Komplettprobe · I3 Verbindungstest · I4 Wochen-Selbsttest
+- **E2 Widget:** Ein echtes Startbildschirm-Widget braucht eigenen nativen Android-Code. Ersatz: Karte **Schnellaktionen** in der Übersicht (Testalarm, Simulation, „Wieder da“, Routinen „Nur per Knopf“).
+- **D5 Ton bei stummem PC:** Der Ton läuft über die App mit eigener Lautstärke; eine Windows-Stummschaltung wird nicht aufgehoben.
+- **A10 Firmware-Update:** braucht eine mit ESPHome gebaute `.ota.bin` im Heimnetz plus MD5-Summe.
+- **C10 Netzwerkkarte:** als Tabelle (Gerät → über → Signal), keine Grafik.
+- **H4 App-Sperre:** PIN; Fingerabdruck ist nicht eingebaut.
+- **F4 Updates:** prüft die neueste GitHub-Version – funktioniert erst, wenn das Repo öffentlich ist.
+- **Android-Teile** (Dienst, Akku, Benachrichtigungen) werden in CI gebaut, sind aber noch nicht auf einem echten Handy getestet.
+
+| Bereich | Wo in der App |
+|---|---|
+| A Alarmeingang | Einstellungen → Alarm, ESP32 · Engine |
+| B Routinen | Seite Routinen (Dienst führt aus) |
+| C Licht & Geräte | Seite Geräte |
+| D Windows-PC | Einstellungen → PC · Vollbild-Abfrage |
+| E Handy-App | Übersicht, Protokoll, Einstellungen → Android/Dieses Gerät/Darstellung |
+| F Zentrale | Einstellungen → Verbindung, Zentrale, Backup · Protokoll → Zentrale |
+| G Personen | Einstellungen → Personen, Sicherheit · Routinen „Für wen“ |
+| H Sicherheit | Einstellungen → Verbindung (TLS, Heimnetz-Warnung), Zentrale (Webhook-Schlüssel), Sicherheit |
+| I Test & Diagnose | Einstellungen → Test & Diagnose · Übersicht → Schnellaktionen |
 
 ## Prüfen (lokal, nicht in CI)
 
-- `cd app && npm run lint` – Oxlint (Konfiguration `.oxlintrc.json`): Fehler und doppelte/fragwürdige Stellen finden.
-- `npm run dev` und `http://localhost:1420/?demo` – Übersicht mit Beispieldaten ansehen.
+- `cd app && npm run lint` – Oxlint (`.oxlintrc.json`): Fehler, doppelte und fragwürdige Stellen.
+- `npm run dev` und `http://localhost:1420/?demo` – Übersicht mit Beispieldaten.
+- Ohne Hardware: in `zentrale/dienst` `npm run devbroker`, `MQTT_URL=mqtt://127.0.0.1:1883 npm start`, `node tools/sim.js` – App mit Adresse `127.0.0.1` verbinden.
+- ESP32-Konfiguration prüfen: `esphome config esp32/alarm-ich.yaml`.
 
 ## Offene Punkte / Hinweise
 
-- Android: Läuft die App im Hintergrund, kann Android sie anhalten. Zuverlässiger Empfang braucht einen Vordergrund-Dienst (Stufe 5, zusammen mit E6).
+- Android: Der Hintergrund-Dienst hält die App am Leben. Akku-Optimierung trotzdem ausschalten (Einstellungen → Android).
 
 - Relaiskontakt der Ladeschale vor dem Anschluss messen (potentialfrei?). Sonst Optokoppler.
 - Android-APK ist vorerst **debug-signiert** (installierbar, aber Updates nur mit gleichem Schlüssel). Fester Signierschlüssel als GitHub-Secret folgt.

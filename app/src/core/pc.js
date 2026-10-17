@@ -1,4 +1,4 @@
-// PC-Aktionen (nur Windows-Programm). Ausführung im Rust-Kern, siehe src-tauri/src/lib.rs.
+// PC-Funktionen (nur Windows-Programm). Ausführung im Rust-Kern, siehe src-tauri/src/lib.rs.
 import { isTauri, hasPcFeatures } from "./platform.js";
 
 export const ACTIONS = {
@@ -11,14 +11,25 @@ export const ACTIONS = {
 };
 
 async function callCore(cmd, args) {
-  if (!isTauri) throw new Error("Nur im Windows-Programm verfügbar");
+  if (!isTauri) throw new Error("Nur im Programm verfügbar");
   const core = await import("@tauri-apps/api/core");
   return core.invoke(cmd, args);
 }
 
 export const runPcAction = (action) => callCore("pc_action", { action });
+/** D7 – welche der Programme laufen gerade? */
+export const runningProcesses = (names) => (hasPcFeatures ? callCore("running_processes", { names }) : Promise.resolve([]));
+/** D8 – Medienwiedergabe stoppen */
+export const stopMedia = () => (hasPcFeatures ? callCore("stop_media") : Promise.resolve());
+/** D10 – Ruhezustand prüfen / einschalten (fragt nach Admin-Rechten) */
+export const hibernateEnabled = () => callCore("hibernate_enabled");
+export const enableHibernate = () => callCore("enable_hibernate");
+/** D11 – MAC-Adresse dieses PCs ermitteln */
+export const macAddress = () => callCore("mac_address");
+/** D11 – Wake-on-LAN direkt aus der App (Handy oder PC) */
+export const wakeOnLan = (mac) => callCore("wake_on_lan", { mac });
 
-/** Fenster nach vorne holen, Vollbild, immer im Vordergrund. */
+/** D6 – Fenster nach vorne holen, Vollbild, immer im Vordergrund. */
 export async function takeoverWindow(onTop) {
   if (!hasPcFeatures) return;
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -37,7 +48,7 @@ export async function setAutostart(enabled) {
   if (enabled) await m.enable(); else await m.disable();
 }
 
-/** Autostart beim Start an die Einstellung angleichen (D9). */
+/** D9 – Autostart beim Start an die Einstellung angleichen. */
 export async function syncAutostart(enabled) {
   if (!hasPcFeatures) return;
   const m = await import("@tauri-apps/plugin-autostart");

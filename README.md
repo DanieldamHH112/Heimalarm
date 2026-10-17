@@ -1,20 +1,35 @@
 <p align="center"><img src="docs/logo.svg" width="88" alt="Heimalarm Logo"></p>
 
 <h1 align="center">Heimalarm</h1>
-<p align="center">Feuerwehr-Alarm zuhause weitergeben: PC in den Ruhezustand, Licht an.<br>Lokal, kostenlos, ohne Cloud.</p>
+<p align="center">Einsatz-Alarme zuhause weitergeben.</p>
 
 ---
+
+## Was ist Heimalarm?
+
+Heimalarm ist für Einsatzkräfte der Feuerwehr gedacht, die zuhause alarmiert werden. Wenn der Melder in der Ladeschale auslöst, reagiert das Zuhause mit:
+
+- **PC:** Ein Vollbild fragt „Fährst du?“. Ohne Gegenrede geht der PC in den Ruhezustand – offene Programme bleiben erhalten.
+- **Licht & Geräte:** Routinen schalten z. B. nachts das Flurlicht gedimmt an.
+- **Handy:** Benachrichtigung, Übersicht und Steuerung von unterwegs im Heimnetz.
+
+Alles läuft lokal im Heimnetz, ohne Cloud und ohne laufende Kosten. Der Melder bleibt die eigentliche Alarmierung – Heimalarm ist eine Komfortfunktion.
+
+<p align="center">
+  <img src="docs/screenshots/pc-uebersicht.png" width="68%" alt="Übersicht am PC">
+  <img src="docs/screenshots/handy-uebersicht.png" width="22%" alt="Übersicht am Handy">
+</p>
 
 ## So funktioniert es
 
 ```
-Melder (Ladeschale) ──► ESP32 ──► Zentrale (Mosquitto) ──► Heimalarm (PC / Handy)
-                                                         └─► Licht & Geräte (Zigbee, geplant)
+Melder (Ladeschale) ──► ESP32 ──► Zentrale (Mosquitto + Dienst) ──► Heimalarm (PC / Handy)
+                                         └──► Zigbee2MQTT ──► Licht & Geräte
 ```
 
-1. Der **ESP32** erkennt den Relaiskontakt der Ladeschale und meldet `alarm/<kennung>`.
-2. Die **Zentrale** im Heimnetz verteilt die Meldung.
-3. **Heimalarm** am PC fragt „Fährst du?“. Ohne Gegenrede geht der PC in den Ruhezustand.
+1. Ein **ESP32** liest den Relaiskontakt der Ladeschale und meldet `alarm/<kennung>`.
+2. Die **Zentrale** (z. B. Raspberry Pi) verteilt die Meldung und führt Routinen aus.
+3. **Heimalarm** am PC fragt „Fährst du?“, am Handy kommt eine Benachrichtigung.
 
 ## Inhalt
 
@@ -22,8 +37,8 @@ Melder (Ladeschale) ──► ESP32 ──► Zentrale (Mosquitto) ──► Hei
 |---|---|
 | `app/` | App für Windows und Android (Tauri 2, HTML/CSS/JS) |
 | `esp32/` | ESPHome-Konfiguration für den ESP32 |
-| `zentrale/` | Docker-Setup für Mosquitto (Zigbee2MQTT vorbereitet) |
-| `docs/` | Konzept (PDF) und Logo |
+| `zentrale/` | Docker-Setup: Mosquitto, Heimalarm-Dienst, Zigbee2MQTT |
+| `docs/` | Konzept (PDF), Logo, Bildschirmfotos |
 
 Details, Regeln und Funktionsliste: **[Context.md](Context.md)**
 
@@ -31,7 +46,9 @@ Details, Regeln und Funktionsliste: **[Context.md](Context.md)**
 
 **1 · Zentrale** (Raspberry Pi mit Docker)
 ```bash
-cd zentrale && docker compose up -d
+cd zentrale
+docker compose up -d                     # ohne Zigbee
+docker compose --profile zigbee up -d    # mit Zigbee-USB-Stick
 ```
 
 **2 · ESP32**
@@ -49,14 +66,10 @@ cd app
 npm install
 npm run dev          # Oberfläche im Browser (ohne PC-Funktionen)
 npx tauri dev        # als Desktop-Programm
+npm run lint         # Oxlint
 ```
 
-## Release
-
-```bash
-git tag v0.1.0 && git push origin v0.1.0
-```
-Baut Windows-Installer und Android-APK und hängt beide an das Release. Bewusst ohne Tests, damit es schnell geht.
+Ohne Hardware testen (in `zentrale/dienst`, nach `npm install`): `npm run devbroker`, dann `MQTT_URL=mqtt://127.0.0.1:1883 npm start` und `node tools/sim.js` – simuliert ESP32 und Zigbee-Geräte.
 
 ---
 

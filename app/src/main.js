@@ -6,27 +6,41 @@ import { settings } from "./core/settings.js";
 import { log } from "./core/log.js";
 import { applyTheme, themeToggle } from "./ui/theme.js";
 import { syncAutostart } from "./core/pc.js";
-import { ensurePermission } from "./core/notify.js";
+import { ensurePermission, notify } from "./core/notify.js";
 import { isAndroid } from "./core/platform.js";
 import { h, toast } from "./ui/dom.js";
 import { overview } from "./views/overview.js";
 import { logView } from "./views/log.js";
 import { settingsView } from "./views/settings.js";
 import { showTakeover } from "./views/takeover.js";
+import { devicesView } from "./views/devices.js";
+import { routinesView } from "./views/routines.js";
+import { diagnoseView } from "./views/diagnose.js";
+import { initAndroid } from "./core/android.js";
+import { appLock } from "./core/admin.js";
 
-const routes = { uebersicht: overview, protokoll: logView, einstellungen: settingsView };
+const routes = {
+  uebersicht: overview, geraete: devicesView, routinen: routinesView,
+  protokoll: logView, einstellungen: settingsView, diagnose: diagnoseView,
+};
+const NAV_OF = { diagnose: "einstellungen" };
 const view = document.getElementById("view");
 
 function current() {
-  const r = location.hash.replace("#/", "");
+  const r = location.hash.replace("#/", "").split("/")[0];
   return routes[r] ? r : "uebersicht";
 }
+const anchor = () => location.hash.replace("#/", "").split("/")[1];
 
 function render() {
   const name = current();
+  const y = window.scrollY;
   view.replaceChildren(routes[name](render));
+  const sub = anchor();
+  if (sub) document.getElementById(sub)?.scrollIntoView({ block: "start" });
+  else window.scrollTo(0, y);
   document.querySelectorAll(".nav-item").forEach((a) => {
-    if (a.dataset.route === name) a.setAttribute("aria-current", "page");
+    if (a.dataset.route === (NAV_OF[name] || name)) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
   renderConn();
@@ -39,8 +53,13 @@ function renderConn() {
     : h("span.chip" + (settings().broker.host ? ".bad" : ""), {}, h("span.chip-label", {}, settings().broker.host ? "Getrennt" : "Nicht eingerichtet")));
 }
 
-// Neu zeichnen, ohne Eingaben in den Einstellungen zu stören
-const live = () => { if (current() !== "einstellungen") render(); else renderConn(); };
+// Neu zeichnen, ohne Eingaben, Dialoge oder Regler zu stören
+let pending = 0;
+const busy = () => document.querySelector(".dialog-wrap") || ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName);
+const live = () => {
+  clearTimeout(pending);
+  pending = setTimeout(() => { if (current() === "einstellungen" || busy()) renderConn(); else render(); }, 120);
+};
 
 applyTheme();
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
@@ -48,20 +67,30 @@ initEngine();
 on("conn", live);
 on("devices", live);
 on("log", live);
+on("shared", live);
+on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => { window.scrollTo(0, 0); render(); });
 
-// A8 – Offline-Warnung für den eigenen ESP32
+// A8 – Offline-Warnung, A9 – fehlendes Lebenszeichen für den eigenen ESP32
 setInterval(() => {
-  const dev = state.devices[settings().alarm.me];
-  if (dev && !dev.online && !dev.warned && Date.now() - dev.since > settings().alarm.offlineWarnSec * 1000) {
+  const a = settings().alarm;
+  const dev = state.devices[a.me];
+  if (!dev || dev.warned) return;
+  if (dev.online === false && Date.now() - dev.since > a.offlineWarnSec * 1000) {
     dev.warned = true;
     log("warn", "ESP32 ist länger offline", "Stromversorgung und WLAN prüfen");
+    notify("Heimalarm: ESP32 offline", "Alarme vom Melder kommen gerade nicht an.");
+  } else if (dev.online && dev.lastSeen && Date.now() - dev.lastSeen > a.heartbeatSec * 1000) {
+    dev.warned = true;
+    log("warn", "ESP32 sendet kein Lebenszeichen", `seit über ${a.heartbeatSec} s`);
   }
 }, 10000);
 
+await appLock();
 connect();
+initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
 if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);
 render();

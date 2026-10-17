@@ -12,7 +12,7 @@ h1 { font-size: var(--fs-xl); font-weight: 750; font-variation-settings: "wdth" 
 h2 { font-size: var(--fs-lg); font-weight: 680; }
 h3 { font-size: var(--fs-md); font-weight: 650; }
 p { margin: 0; }
-code, .mono { font-family: var(--mono); font-size: 0.9em; }
+code, .mono { font-family: var(--mono); font-size: max(0.9em, 0.875rem); }
 a { color: inherit; }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }

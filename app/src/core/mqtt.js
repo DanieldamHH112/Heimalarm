@@ -1,29 +1,37 @@
-// Verbindung zur Zentrale (Mosquitto, WebSocket-Listener).
-//
-// Vom ESP32 (ESPHome, topic_prefix alarm/<kennung>):
-//   alarm/<kennung>                         "ALARM"
-//   alarm/<kennung>/status                  "online" | "offline"
-//   alarm/<kennung>/sensor/<id>/state       z. B. wifi_signal, uptime
-//   alarm/<kennung>/text_sensor/<id>/state  z. B. ip, version
-// Von Heimalarm-Apps (Anwesenheit, retained, mit Last Will):
-//   heimalarm/clients/<id>                  JSON { name, platform, version, online, ts }
-// Von Zigbee2MQTT (falls vorhanden):
-//   zigbee2mqtt/bridge/devices              JSON-Liste der Geräte
+// Verbindung zur Zentrale (Mosquitto, WebSocket-Listener). Alle Topics siehe Context.md.
 import mqtt from "mqtt";
 import { settings } from "./settings.js";
 import { emit } from "./events.js";
 import { log } from "./log.js";
 import { platformName } from "./platform.js";
+import { receive as receiveShared, bindPublisher } from "./shared.js";
 
-const APP_VERSION = import.meta.env.PACKAGE_VERSION || "0.1.0";
+export const APP_VERSION = import.meta.env.PACKAGE_VERSION || "0.0.0";
 
 let client = null;
-/** devices: kennung -> { online, since, ip, rssi, uptime, version } · clients: id -> Info · zigbee: Liste | null */
-export const state = { connected: false, devices: {}, clients: {}, zigbee: null };
+
+/** Live-Zustand für die Ansichten. */
+export const state = {
+  connected: false,
+  devices: {},     // ESP32: kennung -> { online, since, ip, rssi, uptime, version, lastSeen }
+  clients: {},     // Apps: id -> { name, platform, version, online, ts, mac }
+  zigbee: null,    // Zigbee2MQTT-Geräteliste (null = kein Zigbee2MQTT)
+  zstate: {},      // Zigbee: friendly_name -> letzter Zustand
+  zavail: {},      // Zigbee: friendly_name -> "online" | "offline"
+  groups: [],      // Zigbee-Gruppen
+  bridge: null,    // Zigbee2MQTT: "online" | "offline"
+  permitJoinUntil: 0,
+  networkmap: null,
+  dienst: null,    // Zentralen-Dienst: { online, version }
+  report: null,    // I4 – letzter Selbsttest
+  zlog: [],        // F5 – Protokoll der Zentrale
+  pong: null,      // I3 – Antwort auf Verbindungstest
+};
 
 const clientTopic = () => `heimalarm/clients/${settings().device.id}`;
 const presence = (online) => JSON.stringify({
-  name: settings().device.name || platformName, platform: platformName, version: APP_VERSION, online, ts: Date.now(),
+  name: settings().device.name || platformName, platform: platformName, version: APP_VERSION,
+  online, ts: Date.now(), mac: settings().pc.wolMac || undefined,
 });
 
 export function connect() {
@@ -39,10 +47,11 @@ export function connect() {
     connectTimeout: 8000,
     will: { topic: clientTopic(), payload: presence(false), retain: true, qos: 1 },
   });
+  bindPublisher((t, m, o) => client?.publish(t, m, o));
 
   client.on("connect", () => {
     state.connected = true;
-    client.subscribe(["alarm/#", "heimalarm/clients/+", "zigbee2mqtt/bridge/devices"], { qos: 1 });
+    client.subscribe(["alarm/#", "heimalarm/#", "zigbee2mqtt/#"], { qos: 1 });
     client.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
     log("ok", "Mit Zentrale verbunden", url);
     emit("conn", state);
@@ -53,49 +62,88 @@ export function connect() {
     emit("conn", state);
   });
   client.on("error", (err) => emit("conn-error", err.message));
-  client.on("message", (topic, payload) => handle(topic, payload.toString().trim()));
+  client.on("message", (topic, payload, packet) => {
+    try { handle(topic, payload.toString().trim(), packet.retain); }
+    catch (e) { console.warn("MQTT", topic, e); }
+  });
 }
 
-function device(who) {
-  return (state.devices[who] ||= { online: null, since: Date.now() });
-}
+const device = (who) => (state.devices[who] ||= { online: null, since: Date.now() });
 
-function handle(topic, msg) {
-  const parts = topic.split("/");
+function handle(topic, msg, retained) {
+  const p = topic.split("/");
+  if (p[0] === "heimalarm") return handleHeimalarm(p, msg);
+  if (p[0] === "zigbee2mqtt") return handleZigbee(p, msg);
+  if (p[0] !== "alarm" || !p[1]) return;
 
-  if (parts[0] === "heimalarm" && parts[1] === "clients") {
-    try { state.clients[parts[2]] = JSON.parse(msg); } catch { return; }
-    emit("devices", state);
-    return;
-  }
-  if (parts[0] === "zigbee2mqtt") {
-    try { state.zigbee = JSON.parse(msg).filter((d) => d.type !== "Coordinator"); } catch { return; }
-    emit("devices", state);
-    return;
-  }
-
-  const who = parts[1];
-  if (parts[0] !== "alarm" || !who) return;
-
-  if (parts.length === 2) {
-    if (/^alarm$/iu.test(msg)) emit("alarm-in", { who, source: "ESP32", ts: Date.now() });
+  const who = p[1];
+  if (p.length === 2) {
+    if (retained) return; // alte Alarme beim Verbinden nicht erneut auslösen
+    const data = parseAlarm(msg);
+    if (data) emit("alarm-in", { who, ts: Date.now(), ...data });
     return;
   }
   const d = device(who);
-  if (parts[2] === "status") {
+  d.lastSeen = Date.now();
+  if (p[2] === "status") {
     const online = msg === "online";
     if (d.online !== online) {
       d.online = online; d.since = Date.now(); d.warned = false;
       log(online ? "ok" : "warn", `ESP32 „${who}“ ${online ? "online" : "offline"}`);
     }
-  } else if (parts.at(-1) === "state") {
-    // ESPHome-Sensoren: Werte für die Übersicht merken
-    const id = parts[parts.length - 2];
+  } else if (p.at(-1) === "state") {
+    const id = p.at(-2);
     if (id === "wifi_signal") d.rssi = Number(msg);
     else if (id === "uptime") d.uptime = Number(msg);
     else if (id === "ip") d.ip = msg;
     else if (id === "version") d.version = msg;
+    else if (id === "min_duration") d.minDuration = Number(msg);
   }
+  emit("devices", state);
+}
+
+/** "ALARM" vom ESP32 oder JSON { source, keyword, unit, test, probe } */
+export function parseAlarm(msg) {
+  if (/^alarm$/iu.test(msg)) return { source: "ESP32" };
+  if (msg.startsWith("{")) { try { return { source: "Zentrale", ...JSON.parse(msg) }; } catch { return null; } }
+  return null;
+}
+
+function handleHeimalarm(p, msg) {
+  const json = () => JSON.parse(msg || "null");
+  if (p[1] === "clients" && p[2]) {
+    state.clients[p[2]] = json();
+    // Verspätetes "offline" einer alten Verbindung (Last Will) überschreiben
+    if (p[2] === settings().device.id && state.connected && !state.clients[p[2]]?.online) {
+      client.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
+    }
+  }
+  else if (p[1] === "config" && p[2] === "shared") return receiveShared(msg);
+  else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
+  else if (p[1] === "report") state.report = json();
+  else if (p[1] === "pong") state.pong = { ...json(), at: Date.now() };
+  else if (p[1] === "log" && p[2] === "recent") state.zlog = json() || [];
+  else if (p[1] === "log" && !p[2]) { state.zlog.unshift(json()); state.zlog.length = Math.min(state.zlog.length, 200); }
+  else return;
+  emit("devices", state);
+}
+
+function handleZigbee(p, msg) {
+  const json = () => (msg.startsWith("{") || msg.startsWith("[") ? JSON.parse(msg) : msg);
+  if (p[1] === "bridge") {
+    if (p[2] === "devices") state.zigbee = json().filter((d) => d.type !== "Coordinator");
+    else if (p[2] === "groups") state.groups = json();
+    else if (p[2] === "state") state.bridge = typeof json() === "object" ? json().state : msg;
+    else if (p[2] === "info") { const i = json(); state.permitJoinUntil = i.permit_join ? Date.now() + (i.permit_join_timeout || 0) * 1000 : 0; }
+    else if (p[2] === "response" && p[3] === "networkmap") state.networkmap = json().data?.value || null;
+    else if (p[2] === "response") { const r = json(); if (r.status === "error") log("warn", "Zigbee2MQTT meldet einen Fehler", r.error); }
+    else return;
+  } else if (p.length === 2) {
+    state.zstate[p[1]] = { ...state.zstate[p[1]], ...json() };
+  } else if (p[2] === "availability") {
+    const v = json();
+    state.zavail[p[1]] = typeof v === "object" ? v.state : v;
+  } else return;
   emit("devices", state);
 }
 
@@ -109,6 +157,13 @@ export function disconnect() {
   emit("conn", state);
 }
 
-export function publish(topic, message) {
-  client?.publish(topic, message, { qos: 1 });
+export function publish(topic, message, opts = {}) {
+  if (!client || !state.connected) { log("warn", "Nicht mit der Zentrale verbunden", topic); return false; }
+  client.publish(topic, typeof message === "string" ? message : JSON.stringify(message), { qos: 1, ...opts });
+  return true;
 }
+
+/** Zigbee2MQTT-Befehl, z. B. z2m("device/rename", { from, to }) */
+export const z2m = (cmd, payload = {}) => publish(`zigbee2mqtt/bridge/request/${cmd}`, payload);
+/** Gerät/Gruppe schalten, z. B. setDevice("Flur", { state: "ON", brightness: 3 }) */
+export const setDevice = (name, payload) => publish(`zigbee2mqtt/${name}/set`, payload);
