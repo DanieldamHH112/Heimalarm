@@ -20,6 +20,8 @@ import { initAndroid } from "./core/android.js";
 import { appLock } from "./core/admin.js";
 import { restartDivera } from "./core/divera.js";
 import { has } from "./core/features.js";
+import { startReceiver } from "./core/direct.js";
+import { initLocalRoutines } from "./core/routines-local.js";
 
 const routes = {
   uebersicht: overview, geraete: devicesView, routinen: routinesView,
@@ -42,7 +44,7 @@ function render() {
   if (sub) document.getElementById(sub)?.scrollIntoView({ block: "start" });
   else window.scrollTo(0, y);
   // Geräte und Routinen gibt es nur mit Zentrale
-  document.querySelectorAll('.nav-item[data-route="geraete"], .nav-item[data-route="routinen"]').forEach((a) => { a.hidden = !has.pi(); });
+  document.querySelectorAll('.nav-item[data-route="geraete"], .nav-item[data-route="routinen"]').forEach((a) => { a.hidden = !has.routines(); });
   document.querySelectorAll(".nav-item").forEach((a) => {
     if (a.dataset.route === (NAV_OF[name] || name)) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
@@ -52,7 +54,7 @@ function render() {
 
 function renderConn() {
   const el = document.getElementById("conn-badge");
-  if (!settings().broker.host) return el.replaceChildren(themeToggle());
+  if (!has.pi()) return el.replaceChildren(themeToggle());
   el.replaceChildren(themeToggle(), state.connected
     ? h("span.chip.ok", {}, h("span.chip-label", {}, "Verbunden"))
     : h("span.chip" + (settings().broker.host ? ".bad" : ""), {}, h("span.chip-label", {}, settings().broker.host ? "Getrennt" : "Nicht eingerichtet")));
@@ -69,11 +71,13 @@ const live = () => {
 applyTheme();
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
 initEngine();
+initLocalRoutines();
 on("conn", live);
 on("devices", live);
 on("log", live);
 on("shared", live);
 on("divera", live);
+on("direct", live);
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
@@ -98,6 +102,7 @@ setInterval(() => {
 await appLock();
 connect();
 restartDivera();
+startReceiver();
 initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
 if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);

@@ -3,7 +3,7 @@
 // Der Zentralen-Dienst liest dieselben Daten und führt die Routinen aus.
 // `common` enthält die synchronisierten allgemeinen Einstellungen (SYNC_KEYS) für Handy und PC.
 import { emit, on } from "./events.js";
-import { settings, replace, SYNC_KEYS } from "./settings.js";
+import { settings, replace, SYNC_KEYS, mode } from "./settings.js";
 
 const TOPIC = "heimalarm/config/shared";
 
@@ -16,9 +16,16 @@ export const sharedDefaults = {
   webhookSecret: "",                              // H2
   adminPinHash: "",                               // G3
   common: null,                                   // synchronisierte Einstellungen
+  wifi: [],                                       // WLAN-Geräte [{ id, name, type, host, user, target }]
+  voicemonkey: { token: "" },                     // Alexa-Routinen über Voice Monkey (Cloud)
 };
 
-let data = structuredClone(sharedDefaults);
+// Ohne Zentrale liegen die gemeinsamen Daten (Routinen, Geräte, Personen) auf diesem Gerät.
+const LOCAL_KEY = "heimalarm.shared.local";
+const loadLocal = () => { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || "null"); } catch { return null; } };
+const saveLocal = (d) => { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(d)); } catch { /* voll */ } };
+
+let data = { ...structuredClone(sharedDefaults), ...loadLocal() };
 let loaded = false;
 let publishFn = null;
 
@@ -31,6 +38,7 @@ export function bindPublisher(fn) { publishFn = fn; }
 export function receive(msg) {
   try { data = { ...structuredClone(sharedDefaults), ...JSON.parse(msg || "{}") }; } catch { return; }
   loaded = true;
+  saveLocal(data);
   // Allgemeine Einstellungen von anderen Geräten übernehmen
   if (settings().sync.enabled && data.common) {
     for (const k of SYNC_KEYS) {
@@ -46,7 +54,8 @@ export function receive(msg) {
 /** Änderung speichern und an alle Geräte verteilen. */
 export function updateShared(patch) {
   data = { ...data, ...patch };
-  publishFn?.(TOPIC, JSON.stringify(data), { retain: true, qos: 1 });
+  saveLocal(data);
+  if (mode() === "zentrale") publishFn?.(TOPIC, JSON.stringify(data), { retain: true, qos: 1 });
   emit("shared", data);
 }
 

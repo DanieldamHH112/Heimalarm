@@ -203,3 +203,25 @@ Nummern wie im Konzept. Alle Punkte A–I sind in einer ersten Version umgesetzt
 ### Nur zeigen, was eingerichtet ist
 
 `app/src/core/features.js` (`has.pi/esp/zigbee/sybos/apager/divera/diveraApi`, `activeSources()`): Übersicht, Diagnose, Protokoll-Filter und Navigation (Geräte/Routinen nur mit Zentrale) blenden alles aus, was nicht eingerichtet ist. **Einstellungen zeigen immer alles.** Neue Ansichten/Karten immer über `has.*` freischalten.
+
+### Ohne Zentrale (Betriebsart „direkt“)
+
+- `settings.mode`: `"zentrale"` | `"direkt"` (leer = automatisch: mit eingetragener Zentrale → zentrale). `isConfigured()` gilt nur im Zentrale-Betrieb.
+- **Direktverbindung:** PC startet Empfänger (`src-tauri/src/direct.rs`, Port 8765, `GET /ping`, `POST /alarm`, Kopfzeile `X-Heimalarm-Key` = 8-stelliger Code). Handy sendet jeden erkannten Alarm an alle `settings.direct.peers` (`core/direct.js`). Windows-Firewall fragt beim ersten Start.
+- **Gemeinsame Daten** (`shared`: Routinen, Personen, WLAN-Geräte, Voice Monkey) liegen ohne Zentrale lokal (`localStorage heimalarm.shared.local`).
+- **Routinen ohne Zentrale:** `core/routines-local.js`, läuft standardmäßig nur auf dem Handy (`direct.routines`). Bedingung „Jemand zuhause“ und „Vorher-Zustand“ gibt es nur mit Zentrale.
+- **WLAN-Geräte:** `core/wifi.js` = `zentrale/dienst/src/wifi.js` (gleicher Code, beide anpassen): Shelly (Gen1–3), Hue Bridge (API v1, Koppeln per Knopf), WLED, Tasmota. Routinen-Aktion „device“ schaltet WLAN-Geräte über den Namen; mit Zentrale führt der Dienst sie aus.
+- **Voice Monkey:** `GET https://api-v3.voicemonkey.io/trigger?token&device` – Aktion `voicemonkey` in Routinen, Token in `shared.voicemonkey.token`.
+- HTTP-Scope (`capabilities/default.json`): `http://*:*/*` fürs Heimnetz, Divera, Alamos, Voice Monkey.
+
+### Entwickeln (aus der README hierher verschoben)
+
+```bash
+cd app && npm install && npm run dev      # Browser, ?demo = Beispieldaten
+npx tauri dev                             # Windows-Programm
+npm run lint                              # Oxlint
+cd zentrale/dienst && npm install && npm run devbroker   # Test-Broker
+MQTT_URL=mqtt://127.0.0.1:1883 npm start                 # Dienst
+node tools/sim.js                                        # ESP32/Zigbee-Simulator
+git tag vX.Y.Z && git push --tags                        # Release (.exe + .apk)
+```

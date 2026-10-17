@@ -25,6 +25,21 @@
         },
         {
           "url": "https://alamos-backend.ey.r.appspot.com/*"
+        },
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "http://*/*"
+        },
+        {
+          "url": "http://*:*"
+        },
+        {
+          "url": "http://*:*/*"
+        },
+        {
+          "url": "https://api-v3.voicemonkey.io/*"
         }
       ]
     }

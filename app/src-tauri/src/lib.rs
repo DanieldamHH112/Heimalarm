@@ -134,6 +134,8 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
     Ok(())
 }
 
+mod direct;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -150,7 +152,8 @@ pub fn run() {
             hibernate_enabled,
             enable_hibernate,
             mac_address,
-            wake_on_lan
+            wake_on_lan,
+            direct::direct_server
         ])
         .run(tauri::generate_context!())
         .expect("Heimalarm konnte nicht starten");

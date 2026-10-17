@@ -1,7 +1,10 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
 import { h, toast } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
-import { settings, set, get, replace, isConfigured } from "../core/settings.js";
+import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
+import { has } from "../core/features.js";
+import { direct, startReceiver, renewCode, pingPeer, addPeer, removePeer } from "../core/direct.js";
+import { runsHere } from "../core/routines-local.js";
 import { shared, updateShared, sha256, newId } from "../core/shared.js";
 import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
 import { ACTIONS, setAutostart, hibernateEnabled, enableHibernate, macAddress } from "../core/pc.js";
@@ -20,6 +23,57 @@ let hibernateOn = null;
 let android = null;
 
 // ── Abschnitte ─────────────────────────────────────
+function addPeerDialog(rerender) {
+  const host = h("input.input", { placeholder: "z. B. 192.168.1.20", inputmode: "url" });
+  const code = h("input.input", { placeholder: "8-stelliger Code", inputmode: "numeric" });
+  const name = h("input.input", { placeholder: "z. B. PC Arbeitszimmer" });
+  const close = dialog("PC hinzufügen", field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb."), field("Code", code), field("Name", name),
+    h("div.row", {}, h("button.btn.primary", { onclick: async () => {
+      const peer = { host: host.value.trim(), code: code.value.replace(/\D/gu, ""), name: name.value.trim() || host.value.trim() };
+      if (!peer.host || peer.code.length !== 8) return toast("Adresse und 8-stelligen Code eintragen");
+      addPeer(peer); close(); rerender();
+      const p = settings().direct.peers.at(-1);
+      toast((await pingPeer(p)) ? `„${p.name}“ verbunden` : "Gespeichert, aber PC nicht erreicht");
+    } }, "Hinzufügen")));
+}
+
+// ── Betrieb: mit oder ohne Zentrale ─────────────────
+function betrieb(rerender) {
+  const m = mode();
+  const d = settings().direct;
+  const pcPart = () => h("div.item", {},
+    h("div.item-head", {}, h("b", {}, "Handy koppeln"), direct.error ? h("span.chip.bad", {}, "Fehler") : direct.ip ? h("span.chip.ok", {}, "bereit") : h("span.chip", {}, "startet …")),
+    h("p.meta", {}, "Am Handy unter Einstellungen → Betrieb → „PC hinzufügen“ eintragen:"),
+    h("div.pair-big", {},
+      h("div", {}, h("small", {}, "Adresse"), h("code", {}, direct.ip ? `${direct.ip}` : "–")),
+      h("div", {}, h("small", {}, "Code"), h("code", {}, (d.code || "–").replace(/(\d{4})(\d{4})/u, "$1 $2")))),
+    direct.error && h("p.meta.err", {}, direct.error),
+    h("div.row", {}, h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Code erzeugen? Gekoppelte Handys müssen neu koppeln.")) { await renewCode(); rerender(); } } }, "Neuer Code")),
+    h("small.meta", {}, "Windows fragt beim ersten Mal nach der Firewall – „Private Netzwerke“ erlauben."));
+  const phonePart = () => {
+    const peers = d.peers || [];
+    return h("div.item", {},
+      h("div.item-head", {}, h("b", {}, "Gekoppelte PCs"), h("button.btn.small", { onclick: () => addPeerDialog(rerender) }, "PC hinzufügen")),
+      peers.length === 0 ? h("p.meta", {}, "Noch kein PC. Ohne PC gibt es nur Meldung, Rückmeldung und Licht.")
+        : h("ul.rows.compact", {}, peers.map((p) => {
+            const st = direct.peers[p.id];
+            return h("li", {}, h("div.row-main", {},
+              h("b", {}, p.name, st && h("span.badge" + (st.ok ? "" : ".bad"), {}, st.ok ? "erreichbar" : st.error)),
+              h("div.row", {},
+                h("button.btn.small.ghost", { onclick: () => pingPeer(p).then(rerender) }, "Prüfen"),
+                h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${p.name}“ entfernen?`)) { removePeer(p.id); rerender(); } } }, "Entfernen"))));
+          })),
+      h("small.meta", {}, "Handy und PC müssen im selben WLAN sein."));
+  };
+  return section("betrieb", "Betrieb", "Mit Zentrale (Raspberry Pi) läuft alles auch, wenn Handy und PC aus sind. Ohne Zentrale arbeiten Handy und PC direkt zusammen.",
+    h("div.field", {}, h("span", {}, "Betriebsart"),
+      segmented([["zentrale", "Mit Zentrale"], ["direkt", "Ohne Zentrale"]], m, (v) => { set("mode", v); connect(); startReceiver(); rerender(); })),
+    m === "direkt" && (hasPcFeatures ? pcPart() : phonePart()),
+    m === "direkt" && switchRow("Routinen auf diesem Gerät ausführen", hasPcFeatures ? "Normalerweise macht das das Handy. Nur einschalten, wenn kein Handy Routinen ausführt." : "Licht und Alexa bei Alarm. Nur auf einem Gerät einschalten.",
+      runsHere(), (v) => { set("direct.routines", v); rerender(); }),
+  );
+}
+
 function verbindung(rerender) {
   const host = settings().broker.host;
   return section("verbindung", "Verbindung", "Die Zentrale (Raspberry Pi) mit Mosquitto. Ohne sie gibt es keine Alarme.",
@@ -149,7 +203,7 @@ function quellen(rerender) {
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
   return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
     h("div.sources", {},
-      sourceRow({ id: "esp32", title: "Melder (ESP32)", summary: "Relaiskontakt der Ladeschale. Hauptweg.", on: a.mqtt, onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
+      sourceRow({ id: "esp32", title: "Melder (ESP32)", summary: mode() === "zentrale" ? "Relaiskontakt der Ladeschale. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
         summary: "Benachrichtigung der SYBOS-App mitlesen.",
         onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
@@ -186,9 +240,20 @@ function sprache(rerender) {
     : !cfg.enabled ? h("span.chip", {}, "aus")
     : v.running ? h("span.chip" + (v.commissioned ? ".ok" : ".warn"), {}, v.commissioned ? `gekoppelt · ${v.fabrics?.length || 1}` : "bereit zum Koppeln")
     : h("span.chip.bad", {}, "startet nicht");
-  return section("sprache", "Alexa & Google Home", "Lokal über Matter – ohne Cloud-Konto bei Heimalarm.",
+  const vm = shared().voicemonkey || {};
+  const vmItem = h("div.item", {},
+    h("div.item-head", {}, h("b", {}, "Alexa über Voice Monkey"), h("span.chip" + (vm.token ? ".ok" : ""), {}, vm.token ? "eingerichtet" : "aus")),
+    h("p.meta", {}, "Startet Alexa-Routinen per Internet – geht auch ohne Zentrale. In Routinen als Aktion „+ Alexa“."),
+    field("API-Token", h("input.input", { type: "password", autocomplete: "off", value: vm.token || "", placeholder: "aus voicemonkey.io → Dashboard → API",
+      onchange: async (e) => { if (await requireAdmin()) { updateShared({ voicemonkey: { token: e.target.value.trim() } }); rerender(); } } }),
+      "In Voice Monkey einen „Routine Trigger“ anlegen und in der Alexa-App als Auslöser einer Routine wählen."));
+  if (!has.pi()) {
+    return section("sprache", "Alexa & Google Home", "Ohne Zentrale über Voice Monkey (Alexa). Matter und Google brauchen die Zentrale.", vmItem);
+  }
+  return section("sprache", "Alexa & Google Home", "Lokal über Matter – oder Alexa per Voice Monkey.",
+    vmItem,
     h("div.item", {},
-      h("div.item-head", {}, h("b", {}, "Alarm als Auslöser"), statusChip),
+      h("div.item-head", {}, h("b", {}, "Alarm als Auslöser (Matter)"), statusChip),
       h("p.meta", {}, "Die Zentrale meldet sich als Kontaktsensor. Bei Alarm öffnet er sich kurz – damit startest du in Alexa oder Google Home eine Routine, z. B. Ansage „Einsatz!“ auf allen Lautsprechern."),
       switchRow("Sensoren bereitstellen", "Gilt für die ganze Zentrale.", cfg.enabled, (on) => setCfg({ enabled: on })),
       cfg.enabled && v?.error && !v.running && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Matter startet nicht"), v.error)),
@@ -392,8 +457,10 @@ function darstellung() {
 }
 
 export function settingsView(rerender) {
+  const z = mode() === "zentrale";
   const parts = [
-    ["verbindung", "Verbindung", verbindung(rerender)],
+    ["betrieb", "Betrieb", betrieb(rerender)],
+    z && ["verbindung", "Verbindung", verbindung(rerender)],
     ["quellen", "Alarmquellen", quellen(rerender)],
     ["alarm", "Alarm", alarm()],
     isConfigured() && ["esp32", "ESP32", esp32()],
@@ -402,7 +469,7 @@ export function settingsView(rerender) {
     ["geraet", "Dieses Gerät", geraet()],
     ["personen", "Personen", personen(rerender)],
     ["sprache", "Alexa & Google", sprache(rerender)],
-    ["zentrale", "Zentrale", zentrale(rerender)],
+    z && ["zentrale", "Zentrale", zentrale(rerender)],
     ["sicherheit", "Sicherheit", sicherheit(rerender)],
     ["backup", "Backup", backup(rerender)],
     ["darstellung", "Darstellung", darstellung()],

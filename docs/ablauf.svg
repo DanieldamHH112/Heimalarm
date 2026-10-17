@@ -13,7 +13,7 @@
     <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7cb0e4"/></marker>
   </defs>
   <rect class="bg" width="1000" height="380" rx="16"/>
-  <text class="h" x="28" y="34">ALARM KOMMT AN</text><text class="h" x="500" y="34">ZENTRALE</text><text class="h" x="752" y="34">ZUHAUSE PASSIERT</text>
+  <text class="h" x="28" y="34">ALARM KOMMT AN</text><text class="h" x="500" y="34">MIT ZENTRALE</text><text class="h" x="752" y="34">ZUHAUSE PASSIERT</text>
 
   <rect class="box" x="28" y="52" width="190" height="72" rx="10"/><text class="t" x="46" y="83">Melder</text><text class="s" x="46" y="104">Relais der Ladeschale</text>
   <rect class="box" x="268" y="52" width="170" height="72" rx="10"/><text class="t" x="286" y="83">ESP32</text><text class="s" x="286" y="104">meldet per WLAN</text>
@@ -34,7 +34,7 @@
 
   <rect class="box" x="752" y="52" width="220" height="56" rx="10"/><text class="t" x="770" y="77">PC</text><text class="s" x="770" y="97">„Fährst du?“ · Ruhezustand</text>
   <rect class="box" x="752" y="120" width="220" height="56" rx="10"/><text class="t" x="770" y="145">Handy</text><text class="s" x="770" y="165">Meldung · Rückmeldung</text>
-  <rect class="box" x="752" y="188" width="220" height="56" rx="10"/><text class="t" x="770" y="213">Licht &amp; Geräte</text><text class="s" x="770" y="233">nachts gedimmt an</text>
-  <rect class="box" x="752" y="256" width="220" height="56" rx="10"/><text class="t" x="770" y="281">Alexa &amp; Google</text><text class="s" x="770" y="301">Ansage, Routinen</text>
+  <rect class="box" x="752" y="188" width="220" height="56" rx="10"/><text class="t" x="770" y="213">Licht &amp; Geräte</text><text class="s" x="770" y="233">Zigbee und WLAN</text>
+  <rect class="box" x="752" y="256" width="220" height="56" rx="10"/><text class="t" x="770" y="281">Alexa &amp; Google</text><text class="s" x="770" y="301">Matter oder Voice Monkey</text>
   <path class="o" d="M700 80H748" marker-end="url(#ag)"/><path class="o" d="M700 148H748" marker-end="url(#ag)"/><path class="o" d="M700 216H748" marker-end="url(#ag)"/><path class="o" d="M700 284H748" marker-end="url(#ag)"/>
 </svg>

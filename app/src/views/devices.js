@@ -5,6 +5,8 @@ import { dialog, field, select } from "../ui/form.js";
 import { state, z2m, setDevice } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
 import { log } from "../core/log.js";
+import { has } from "../core/features.js";
+import { wifiSection } from "./wifi.js";
 
 /** Alle Eigenschaften (property) aus den Zigbee2MQTT-"exposes" sammeln. */
 function props(dev) {
@@ -122,7 +124,16 @@ function networkSection() {
   );
 }
 
-export function devicesView() {
+export function devicesView(rerender) {
+  if (!has.pi()) {
+    return h("div.page", {},
+      h("header.page-head", {}, h("div", {}, h("h1", {}, "Licht & Geräte"), h("p", {}, "WLAN-Geräte direkt im Heimnetz. Zigbee gibt es mit Zentrale."))),
+      wifiSection(rerender));
+  }
+  return zigbeeView(rerender);
+}
+
+function zigbeeView(rerender) {
   const joinLeft = Math.max(0, Math.round((state.permitJoinUntil - Date.now()) / 1000));
   const join = asked(() => { z2m("permit_join", { time: 120 }); toast("Gerät jetzt in den Kopplungsmodus versetzen (meist 5 s Knopf halten)"); });
 
@@ -133,7 +144,7 @@ export function devicesView() {
       : h("button.btn.primary", { onclick: join }, "Gerät anlernen")));
 
   if (!state.zigbee) {
-    return h("div.page", {}, head, h("section.card", {},
+    return h("div.page", {}, head, wifiSection(rerender), h("section.card", {},
       h("h2", {}, "Zigbee2MQTT noch nicht gefunden"),
       h("ol.steps", {},
         h("li", {}, h("div", {}, "Zigbee-USB-Stick an die Zentrale stecken")),
@@ -143,6 +154,7 @@ export function devicesView() {
   }
 
   return h("div.page", {}, head,
+    wifiSection(rerender),
     state.bridge === "offline" && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zigbee2MQTT ist offline"), "Stick und Container auf der Zentrale prüfen.")),
     h("section.card", {},
       h("div.card-head", {}, h("h2", {}, "Geräte"), h("span.chip", {}, `${state.zigbee.length}`)),

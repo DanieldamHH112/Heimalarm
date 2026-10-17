@@ -9,6 +9,7 @@
 // Bedingungen: time {from,to} · weekday {days:[1..7]} · sun {is:"dark"|"light"} ·
 //              home {who:"any"|clientId} · keyword {contains} · unit {contains} · night {}
 import SunCalc from "suncalc";
+import { wifiSet, voiceMonkey } from "./wifi.js";
 
 export function createRules(ctx, log) {
   const lastAlarm = new Map();   // Sperrzeit je Person
@@ -17,6 +18,17 @@ export function createRules(ctx, log) {
   let clock = null;
 
   const pub = (topic, payload) => ctx.client.publish(topic, typeof payload === "string" ? payload : JSON.stringify(payload), { qos: 1 });
+  const wifiDev = (name) => (ctx.config.wifi || []).find((d) => d.name === name);
+  /** Zigbee-Payload ({ state, brightness 0–254 }) auf WLAN-Gerät anwenden. */
+  const setWifi = (dev, payload) => wifiSet(dev, {
+    on: String(payload.state || "ON").toUpperCase() !== "OFF",
+    bri: payload.brightness != null ? (Number(payload.brightness) / 254) * 100 : null,
+  }, fetch).catch((e) => log.warn(`WLAN-Gerät ${dev.name}`, e.message));
+  /** Gerät oder Gruppe schalten – Zigbee über MQTT, WLAN direkt. */
+  const switchDevice = (name, payload) => {
+    const w = wifiDev(name);
+    if (w) setWifi(w, payload); else pub(`zigbee2mqtt/${name}/set`, payload);
+  };
   const later = (ms, fn) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
 
   // ── Bedingungen ───────────────────────────────────
@@ -76,10 +88,14 @@ export function createRules(ctx, log) {
       const run = () => {
         if (dry) return log.info(`Probe: ${describe(a)}`, routine.name);
         if (a.type === "device") {
-          pub(`zigbee2mqtt/${a.device}/set`, { ...a.payload, ...(a.transition ? { transition: Number(a.transition) } : {}) });
-          if (Number(a.offAfterSec) > 0) later(Number(a.offAfterSec) * 1000, () => pub(`zigbee2mqtt/${a.device}/set`, { state: "OFF" })); // B7
+          switchDevice(a.device, { ...a.payload, ...(a.transition && !wifiDev(a.device) ? { transition: Number(a.transition) } : {}) });
+          if (Number(a.offAfterSec) > 0) later(Number(a.offAfterSec) * 1000, () => switchDevice(a.device, { state: "OFF" })); // B7
         } else if (a.type === "group") {
           pub(`zigbee2mqtt/${a.group}/set`, a.payload || { state: "ON" });
+        } else if (a.type === "voicemonkey") {
+          const token = ctx.config.voicemonkey?.token;
+          if (!token) log.warn("Voice Monkey: kein Token eingetragen");
+          else voiceMonkey(token, a.device, fetch).then(() => log.action("Alexa-Routine gestartet", a.device)).catch((e) => log.warn("Voice Monkey", e.message));
         } else if (a.type === "publish") {
           pub(a.topic, a.payload ?? "");
         } else if (a.type === "restore") {
@@ -93,6 +109,7 @@ export function createRules(ctx, log) {
   function describe(a) {
     if (a.type === "device") return `${a.device}: ${JSON.stringify(a.payload)}`;
     if (a.type === "group") return `Gruppe ${a.group}`;
+    if (a.type === "voicemonkey") return `Alexa-Routine ${a.device}`;
     return a.type;
   }
 

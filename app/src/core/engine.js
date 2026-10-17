@@ -2,7 +2,8 @@
 // Ruhezeiten und Ausnahmen am PC, Ablauf nach „Fährst du?“.
 // Routinen (Licht usw.) laufen im Zentralen-Dienst, damit sie auch ohne Handy/PC funktionieren.
 import { on, emit } from "./events.js";
-import { settings } from "./settings.js";
+import { settings, mode } from "./settings.js";
+import { sendToPeers } from "./direct.js";
 import { log } from "./log.js";
 import { hasPcFeatures } from "./platform.js";
 import { ACTIONS, runPcAction, runningProcesses, stopMedia } from "./pc.js";
@@ -23,6 +24,11 @@ export function init() {
 /** Alarm aus einer App-Quelle (Benachrichtigung, Divera): über die Zentrale an alle Geräte, ohne Verbindung nur hier. */
 function forward(data) {
   const me = settings().alarm.me;
+  if (mode() === "direkt") {
+    handleAlarm({ who: me, ts: Date.now(), ...data });
+    if (!hasPcFeatures) sendToPeers(data);   // Handy → gekoppelte PCs
+    return;
+  }
   if (!(state.connected && publish(`alarm/${me}`, data))) handleAlarm({ who: me, ts: Date.now(), ...data });
 }
 
@@ -79,7 +85,7 @@ export function testAlarm() {
 export const simulateContact = () => publish(`alarm/${settings().alarm.me}`, { source: "Simulation", test: true });
 
 /** I2 – Komplettprobe: Routinen schalten wirklich, PC-Aktion wird nur angezeigt. */
-export const fullProbe = () => publish(`alarm/${settings().alarm.me}`, { source: "Komplettprobe", probe: true });
+export const fullProbe = () => (mode() === "direkt" ? (forward({ source: "Komplettprobe", probe: true }), true) : publish(`alarm/${settings().alarm.me}`, { source: "Komplettprobe", probe: true }));
 
 /** Alarm aus einer Android-Benachrichtigung (A1/A6). */
 export function alarmFromNotification({ app, title, text }) {

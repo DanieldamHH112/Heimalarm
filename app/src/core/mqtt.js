@@ -1,6 +1,6 @@
 // Verbindung zur Zentrale (Mosquitto, WebSocket-Listener). Alle Topics siehe Context.md.
 import mqtt from "mqtt";
-import { settings } from "./settings.js";
+import { settings, isConfigured } from "./settings.js";
 import { emit } from "./events.js";
 import { log } from "./log.js";
 import { platformName } from "./platform.js";
@@ -38,7 +38,7 @@ const presence = (online) => JSON.stringify({
 export function connect() {
   disconnect();
   const b = settings().broker;
-  if (!b.host) return;
+  if (!b.host || !isConfigured()) return;
   const url = `${b.tls ? "wss" : "ws"}://${b.host}:${b.port}`;
   client = mqtt.connect(url, {
     username: b.user || undefined,

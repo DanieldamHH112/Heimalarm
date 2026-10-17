@@ -6,6 +6,15 @@ import { emit } from "./events.js";
 const KEY = "heimalarm.settings.v1";
 
 export const defaults = {
+  // Betrieb: "zentrale" (Raspberry Pi) oder "direkt" (Handy und PC ohne Pi)
+  mode: "",               // leer = automatisch: mit eingetragener Zentrale → "zentrale"
+  // Direktverbindung ohne Zentrale: PC empfängt, Handy sendet
+  direct: {
+    port: 8765,
+    code: "",             // PC: Kopplungscode (wird erzeugt)
+    peers: [],            // Handy: gekoppelte PCs [{ id, name, host, port, code }]
+    routines: null,       // Routinen auf diesem Gerät ausführen (null = automatisch: nur Handy)
+  },
   // F1, F2, H1 – Verbindung zur Zentrale (Mosquitto über WebSocket)
   broker: { host: "", port: 9001, tls: false, user: "", pass: "" },
   // A – Alarmeingang
@@ -127,4 +136,6 @@ export function replace(section, value, { silent = true } = {}) {
   emit("settings", { path: section, value, silent });
 }
 
-export const isConfigured = () => Boolean(current.broker.host);
+/** Betriebsart: mit Zentrale (Pi) oder direkt zwischen Handy und PC. */
+export const mode = () => current.mode || (current.broker.host ? "zentrale" : "direkt");
+export const isConfigured = () => mode() === "zentrale" && Boolean(current.broker.host);

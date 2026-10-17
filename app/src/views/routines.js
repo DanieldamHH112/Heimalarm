@@ -4,6 +4,8 @@ import { dialog, field, select, switchRow, copyText, download } from "../ui/form
 import { shared, updateShared, newId } from "../core/shared.js";
 import { state, publish } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
+import { has } from "../core/features.js";
+import { fireLocal } from "../core/routines-local.js";
 
 const TRIGGERS = [["alarm", "Bei Alarm"], ["time", "Zu einer Uhrzeit"], ["device", "Wenn ein Gerät …"], ["manual", "Nur per Knopf"]];
 const CONDS = {
@@ -35,7 +37,13 @@ function describe(r) {
 }
 
 const save = (routines) => updateShared({ routines });
-const devNames = () => [["", "– Gerät wählen –"], ...(state.zigbee || []).map((d) => [d.friendly_name, d.friendly_name]), ...state.groups.map((g) => [g.friendly_name, `Gruppe: ${g.friendly_name}`])];
+const devNames = () => [["", "– Gerät wählen –"],
+  ...(has.pi() ? (state.zigbee || []).map((d) => [d.friendly_name, d.friendly_name]) : []),
+  ...(has.pi() ? state.groups.map((g) => [g.friendly_name, `Gruppe: ${g.friendly_name}`]) : []),
+  ...(shared().wifi || []).map((d) => [d.name, `${d.name} (WLAN)`])];
+
+/** Routine ausführen – mit Zentrale dort, ohne Zentrale hier. */
+const run = (r, test = false) => (has.pi() ? publish("heimalarm/cmd/run", { id: r.id, test }) : fireLocal(r, { manual: true, test }));
 
 // ── Editor ─────────────────────────────────────────
 const condRow = (c, del) => h("div.item", {},
@@ -53,6 +61,8 @@ const condRow = (c, del) => h("div.item", {},
 const actionRow = (a, del) => {
     if (a.type === "delay") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Warten"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
       field("Sekunden", h("input.input", { type: "number", min: 1, value: a.sec, onchange: (e) => (a.sec = Number(e.target.value)) })));
+    if (a.type === "voicemonkey") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Alexa-Routine (Voice Monkey)"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+      field("Auslöser-ID", h("input.input", { value: a.device || "", placeholder: "z. B. heimalarm-einsatz", onchange: (e) => (a.device = e.target.value.trim()) }), "In Voice Monkey als „Routine Trigger“ angelegt."));
     if (a.type === "restore") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vorherigen Zustand wiederherstellen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")));
     a.payload ||= {};
     return h("div.item", {},
@@ -104,7 +114,8 @@ function editor(routine, rerender) {
       h("div.row", {},
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "device", device: "", payload: { state: "ON" }, transition: 1 }); paint(); } }, "+ Gerät"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "delay", sec: 5 }); paint(); } }, "+ Warten"),
-        h("button.btn.small", { onclick: () => { r.actions.push({ type: "restore" }); paint(); } }, "+ Vorher-Zustand"))),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "voicemonkey", device: "" }); paint(); } }, "+ Alexa"),
+        has.pi() && h("button.btn.small", { onclick: () => { r.actions.push({ type: "restore" }); paint(); } }, "+ Vorher-Zustand"))),
 
     // B8 – Rückkehr
     field("Vorherigen Zustand wiederherstellen nach (Minuten)", h("input.input", { type: "number", min: 0, value: r.restoreAfterMin || 0, onchange: (e) => (r.restoreAfterMin = Number(e.target.value)) }), "0 = nicht automatisch. „Wieder da“ geht immer per Knopf."),
@@ -140,17 +151,17 @@ export function routinesView(rerender) {
 
   return h("div.page", {},
     h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Routinen"), h("p", {}, "Was bei Alarm, zu einer Uhrzeit oder per Knopf passiert. Läuft auf der Zentrale.")),
+      h("div", {}, h("h1", {}, "Routinen"), h("p", {}, `Was bei Alarm, zu einer Uhrzeit oder per Knopf passiert. Läuft ${has.pi() ? "auf der Zentrale" : "auf dem Handy"}.`)),
       h("div.row", {},
         h("button.btn", { onclick: edit(template()) }, "Vorlage"),
         h("button.btn.primary", { onclick: edit(blank()) }, "Neue Routine"))),
 
-    !state.dienst?.online && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zentralen-Dienst nicht erreichbar"), "Routinen werden gespeichert, laufen aber erst, wenn der Dienst auf der Zentrale läuft.")),
+    has.pi() && !state.dienst?.online && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zentralen-Dienst nicht erreichbar"), "Routinen werden gespeichert, laufen aber erst, wenn der Dienst auf der Zentrale läuft.")),
 
     h("section.card", {},
       switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ (B9).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
       h("div.row", {},
-        h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"),
+        has.pi() && h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"),
         h("button.btn.ghost", { onclick: async () => { if (await copyText(exportJson())) toast("In die Zwischenablage kopiert"); download("heimalarm-routinen.json", exportJson()); } }, "Exportieren"),
         h("button.btn.ghost", { onclick: importDialog }, "Importieren"))),
 
@@ -162,8 +173,8 @@ export function routinesView(rerender) {
               onchange: async (e) => { if (await requireAdmin()) save(list.map((x) => (x.id === r.id ? { ...x, enabled: e.target.checked } : x))); else rerender(); } })),
           h("p.meta", {}, describe(r)),
           h("div.row", {},
-            h("button.btn.small", { onclick: () => { publish("heimalarm/cmd/run", { id: r.id }); toast(`„${r.name}“ wird ausgeführt`); } }, "Ausführen"),
-            h("button.btn.small.ghost", { onclick: () => { publish("heimalarm/cmd/run", { id: r.id, test: true }); toast("Test: nur im Protokoll der Zentrale"); } }, "Test"),
+            h("button.btn.small", { onclick: () => { run(r); toast(`„${r.name}“ wird ausgeführt`); } }, "Ausführen"),
+            h("button.btn.small.ghost", { onclick: () => { run(r, true); toast("Test: nur im Protokoll"); } }, "Test"),
             h("button.btn.small.ghost", { onclick: edit(r) }, "Bearbeiten"),
             h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && confirm(`„${r.name}“ löschen?`)) { save(list.filter((x) => x.id !== r.id)); rerender(); } } }, "Löschen")),
         ))),

@@ -229,3 +229,9 @@ details.more > .field { margin-top: var(--s3); }
 .tile .chip.wrap { white-space: normal; line-height: 1.35; }
 .tile .chip.wrap { border-radius: 10px; }
 @media (max-width: 560px) { .tiles > .tile:first-child { grid-column: 1 / -1; } }
+
+/* Koppeln ohne Zentrale: Adresse und Code groß zum Abtippen */
+.pair-big { display: flex; flex-wrap: wrap; gap: var(--s3); }
+.pair-big > div { display: grid; gap: 4px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); min-width: 180px; }
+.pair-big small { color: var(--text-2); font-size: var(--fs-xs); font-weight: 600; }
+.pair-big code { font-size: 1.5rem; font-weight: 650; letter-spacing: .05em; font-variant-numeric: tabular-nums; background: none; padding: 0; }

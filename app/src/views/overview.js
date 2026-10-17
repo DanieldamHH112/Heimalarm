@@ -6,6 +6,8 @@ import { settings, isConfigured } from "../core/settings.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
 import { has, activeSources } from "../core/features.js";
+import { direct } from "../core/direct.js";
+import { fireLocal } from "../core/routines-local.js";
 import { testAlarm, simulateContact, engine, answerApps } from "../core/engine.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
@@ -50,6 +52,8 @@ function tiles() {
   const src = activeSources();
   return h("div.tiles", {},
     tile("Alarmquellen", src.length ? String(src.length) : "Keine", h("span.chip.wrap" + (src.length ? ".ok" : ""), {}, src.length ? src.join(" · ") : "nicht eingerichtet")),
+    has.direct() && hasPcFeatures && tile("Empfang vom Handy", direct.error ? "Fehler" : direct.ip ? "Bereit" : "Startet", chip(direct.error ? "bad" : direct.ip ? "ok" : "", direct.error ? "siehe Einstellungen" : direct.ip || "…")),
+    has.direct() && !hasPcFeatures && tile("Gekoppelte PCs", String(s.direct.peers.length), chip(s.direct.peers.length ? "ok" : "", s.direct.peers.length ? s.direct.peers.map((p) => p.name).join(" · ") : "keiner")),
     has.pi() && tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
       state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
     has.esp() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
@@ -89,14 +93,14 @@ function wake(c) {
 
 /** Schnellaktionen (statt Startbildschirm-Widget): Testalarm, Wieder da, manuelle Routinen */
 function quickCard() {
-  const manual = has.pi() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
+  const manual = has.routines() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "Schnellaktionen")),
     h("div.quick", {},
       h("button.btn", { onclick: testAlarm }, "Testalarm"),
       has.esp() && h("button.btn", { onclick: () => simulateContact() && toast("Simulierter Alarm gesendet") }, "Kontakt simulieren"),
       has.zigbee() && h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
-      ...manual.map((r) => h("button.btn", { onclick: () => publish("heimalarm/cmd/run", { id: r.id }) && toast(`„${r.name}“ läuft`) }, r.name))),
+      ...manual.map((r) => h("button.btn", { onclick: () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); } }, r.name))),
   );
 }
 
