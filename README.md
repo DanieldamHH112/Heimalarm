@@ -7,7 +7,7 @@
 
 ## Was ist Heimalarm?
 
-Heimalarm ist für Einsatzkräfte, die zuhause alarmiert werden – egal ob Feuerwehr, Rettungsdienst, THW oder Katastrophenschutz. Wenn der Alarm kommt, reagiert das Zuhause mit:
+Heimalarm ist für Einsatzkräfte, die zuhause alarmiert werden – egal ob Feuerwehr, Rettungsdienst, Wasserwacht oder Katastrophenschutz. Wenn der Alarm kommt, reagiert das Zuhause mit:
 
 - **PC:** Ein Vollbild fragt „Fährst du?“. Ohne Gegenrede geht der PC in den Ruhezustand – offene Programme bleiben erhalten.
 - **Handy:** Meldung mit Stichwort und Adresse, Rückmeldung mit einem Tipp.
