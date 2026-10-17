@@ -5,7 +5,7 @@
 
 ## Was ist Heimalarm?
 
-Eine eigene App für **Windows-PC und Android-Handy**, die einen Feuerwehr-Alarm zuhause weitergibt:
+Eine eigene App für **Windows-PC und Android-Handy**, die einen Einsatz-Alarm zuhause weitergibt (Feuerwehr, Rettungsdienst, THW, Katastrophenschutz …):
 
 - Ein **ESP32** liest bei Alarm den Relaiskontakt der Ladeschale des Melders (Motorola TPG2200).
 - Eine kleine **Zentrale** im Heimnetz (Raspberry Pi mit Mosquitto, später Zigbee2MQTT) verteilt das Signal.

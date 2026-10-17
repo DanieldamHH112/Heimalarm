@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="1000" height="300" role="img" aria-label="Projektteile und Release-Ablauf">
+  <style>
+    .bg{fill:#0e1013}.box{fill:#171a1f;stroke:#2c313a;stroke-width:1.5}.ci{fill:#1d1414;stroke:#e5432f;stroke-width:2}
+    .t{font:600 16px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#f1f2f4}.s{font:400 13px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#9aa1ad}
+    .c{font:500 12.5px ui-monospace,"Cascadia Code",Consolas,monospace;fill:#7cb0e4}
+    .h{font:600 12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#9aa1ad;letter-spacing:.04em}
+    .a{stroke:#e5432f;stroke-width:2.5;fill:none}
+    @media (prefers-color-scheme: light){.bg{fill:#f6f6f4}.box{fill:#fff;stroke:#d9dbe0}.ci{fill:#fdf0ee}.t{fill:#16181c}.s,.h{fill:#5b6270}.c{fill:#2d6aa8}}
+  </style>
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e5432f"/></marker></defs>
+  <rect class="bg" width="1000" height="300" rx="16"/>
+  <text class="h" x="28" y="34">DREI TEILE</text><text class="h" x="700" y="34">RELEASE</text>
+
+  <rect class="box" x="28" y="50" width="200" height="222" rx="10"/>
+  <text class="t" x="46" y="80">app/</text><text class="s" x="46" y="102">Windows + Android</text>
+  <text class="s" x="46" y="130">Oberfläche: HTML, CSS, JS</text><text class="s" x="46" y="150">Kern: Tauri 2 (Rust)</text><text class="s" x="46" y="170">Android: Kotlin-Plugin</text>
+  <text class="c" x="46" y="208">npm run dev</text><text class="c" x="46" y="228">npx tauri dev</text><text class="c" x="46" y="248">npm run lint</text>
+
+  <rect class="box" x="248" y="50" width="200" height="222" rx="10"/>
+  <text class="t" x="266" y="80">zentrale/</text><text class="s" x="266" y="102">Raspberry Pi, Docker</text>
+  <text class="s" x="266" y="130">Mosquitto, Zigbee2MQTT</text><text class="s" x="266" y="150">Dienst: Node.js</text><text class="s" x="266" y="170">Matter, Matterbridge</text>
+  <text class="c" x="266" y="208">npm run devbroker</text><text class="c" x="266" y="228">npm start</text><text class="c" x="266" y="248">node tools/sim.js</text>
+
+  <rect class="box" x="468" y="50" width="200" height="222" rx="10"/>
+  <text class="t" x="486" y="80">esp32/</text><text class="s" x="486" y="102">Melder-Kontakt</text>
+  <text class="s" x="486" y="130">ESPHome, MQTT</text><text class="s" x="486" y="150">Update per WLAN</text><text class="s" x="486" y="170">Zugangsdaten: secrets</text>
+  <text class="c" x="486" y="208">esphome config</text><text class="c" x="486" y="228">  alarm-ich.yaml</text>
+
+  <rect class="ci" x="700" y="50" width="272" height="64" rx="10"/><text class="t" x="718" y="78">Tag v1.2.3 pushen</text><text class="c" x="718" y="100">git tag v1.2.3 &amp;&amp; git push --tags</text>
+  <path class="a" d="M836 114V138" marker-end="url(#ar)"/>
+  <rect class="box" x="700" y="142" width="272" height="56" rx="10"/><text class="t" x="718" y="167">GitHub Actions</text><text class="s" x="718" y="187">nur Build, keine Selbsttests</text>
+  <path class="a" d="M836 198V222" marker-end="url(#ar)"/>
+  <rect class="box" x="700" y="226" width="272" height="46" rx="10"/><text class="t" x="718" y="255">.exe (Windows) · .apk (Android)</text>
+</svg>

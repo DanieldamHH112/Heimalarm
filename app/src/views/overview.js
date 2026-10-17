@@ -49,7 +49,7 @@ function tiles() {
   const alarms24 = getLog("alarm").filter((e) => Date.now() - e.ts < 86400e3).length;
   const src = activeSources();
   return h("div.tiles", {},
-    tile("Alarmquellen", src.length ? String(src.length) : "Keine", chip(src.length ? "ok" : "", src.length ? src.join(" · ") : "nicht eingerichtet")),
+    tile("Alarmquellen", src.length ? String(src.length) : "Keine", h("span.chip.wrap" + (src.length ? ".ok" : ""), {}, src.length ? src.join(" · ") : "nicht eingerichtet")),
     has.pi() && tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
       state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
     has.esp() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
