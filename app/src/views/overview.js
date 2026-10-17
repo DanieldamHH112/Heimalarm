@@ -5,6 +5,7 @@ import { shared } from "../core/shared.js";
 import { settings, isConfigured } from "../core/settings.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
+import { has, activeSources } from "../core/features.js";
 import { testAlarm, simulateContact, engine, answerApps } from "../core/engine.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
@@ -27,17 +28,17 @@ function signal(rssi) {
 }
 
 function setupCard() {
-  const me = settings().alarm.me;
   return h("section.card.span-all", {},
     h("div.card-head", {}, h("h2", {}, "In 3 Schritten startklar")),
     h("ol.steps", {},
-      h("li", {}, h("div", {}, "Zentrale eintragen", h("small", {}, "IP-Adresse des Raspberry Pi unter Einstellungen → Verbindung."))),
-      h("li", {}, h("div", {}, "Kennung prüfen", h("small", {}, `Muss zum ESP32 passen (alarm/${me}).`))),
+      h("li", {}, h("div", {}, "Alarmquellen wählen", h("small", {}, "Melder (ESP32 + Zentrale), SYBOS, aPager oder Divera – auch mehrere."))),
+      h("li", {}, h("div", {}, "Zentrale eintragen, falls vorhanden", h("small", {}, "IP des Raspberry Pi unter Einstellungen → Verbindung."))),
       h("li", {}, h("div", {}, "Testalarm auslösen", h("small", {}, "Zeigt die Abfrage, ohne dass etwas passiert."))),
     ),
-    h("div.row", {}, h("a.btn.primary", { href: "#/einstellungen" }, "Einrichten")),
+    h("div.row", {}, h("a.btn.primary", { href: "#/einstellungen/quellen" }, "Einrichten")),
   );
 }
+const needsSetup = () => activeSources().length === 0;
 
 const tile = (label, value, status) => h("div.tile", {}, h("span.tile-label", {}, label), h("b", {}, value), status);
 
@@ -46,12 +47,14 @@ function tiles() {
   const dev = state.devices[s.alarm.me];
   const apps = Object.values(state.clients).filter((c) => c.online).length;
   const alarms24 = getLog("alarm").filter((e) => Date.now() - e.ts < 86400e3).length;
+  const src = activeSources();
   return h("div.tiles", {},
-    tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
+    tile("Alarmquellen", src.length ? String(src.length) : "Keine", chip(src.length ? "ok" : "", src.length ? src.join(" · ") : "nicht eingerichtet")),
+    has.pi() && tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
       state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
-    tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
+    has.esp() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
       dev?.online ? chip("ok", `seit ${fmtAgo(dev.since).replace("vor ", "")}`) : chip(dev ? "bad" : "", dev ? `seit ${fmtTime(dev.since)}` : `alarm/${s.alarm.me}`)),
-    tile("Apps verbunden", String(apps), chip(apps > 0 ? "ok" : "", apps > 0 ? "inkl. dieser" : "keine")),
+    has.pi() && tile("Apps verbunden", String(apps), chip(apps > 0 ? "ok" : "", apps > 0 ? "inkl. dieser" : "keine")),
     tile("Alarme 24 h", String(alarms24), chip(alarms24 > 0 ? "bad" : "", alarms24 > 0 ? fmtAgo(getLog("alarm")[0].ts) : "ruhig")),
   );
 }
@@ -86,13 +89,13 @@ function wake(c) {
 
 /** Schnellaktionen (statt Startbildschirm-Widget): Testalarm, Wieder da, manuelle Routinen */
 function quickCard() {
-  const manual = (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual");
+  const manual = has.pi() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "Schnellaktionen")),
     h("div.quick", {},
       h("button.btn", { onclick: testAlarm }, "Testalarm"),
-      h("button.btn", { onclick: () => simulateContact() && toast("Simulierter Alarm gesendet") }, "Kontakt simulieren"),
-      h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
+      has.esp() && h("button.btn", { onclick: () => simulateContact() && toast("Simulierter Alarm gesendet") }, "Kontakt simulieren"),
+      has.zigbee() && h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
       ...manual.map((r) => h("button.btn", { onclick: () => publish("heimalarm/cmd/run", { id: r.id }) && toast(`„${r.name}“ läuft`) }, r.name))),
   );
 }
@@ -184,18 +187,18 @@ function diveraCard() {
 
 export function overview() {
   const s = settings();
-  if (divera.current === null && s.divera.key && s.alarm.apps.divera.on && !divera.loading) { divera.loading = true; loadDivera().catch(() => {}); }
+  if (divera.current === null && has.diveraApi() && !divera.loading) { divera.loading = true; loadDivera().catch(() => {}); }
   return h("div.page", {},
     h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, `${s.device.name || platformName} · Kennung `, h("code", {}, s.alarm.me))),
+      h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, s.device.name || platformName, has.pi() && " · Kennung ", has.pi() && h("code", {}, s.alarm.me))),
       h("div.row", {}, themeToggle("only-mobile"), h("button.btn.primary", { onclick: testAlarm }, "Testalarm")),
     ),
-    !isConfigured() && setupCard(),
+    needsSetup() && setupCard(),
     answerCard(),
     tiles(),
     h("div.dash", {},
-      h("div.dash-main", {}, alarmsCard(), espCard(), zigbeeCard()),
-      h("div.dash-side", {}, diveraCard(), quickCard(), hasPcFeatures && pcCard(), appsCard(), eventsCard()),
+      h("div.dash-main", {}, alarmsCard(), has.esp() && espCard(), has.zigbee() && zigbeeCard()),
+      h("div.dash-side", {}, has.diveraApi() && diveraCard(), quickCard(), hasPcFeatures && pcCard(), has.pi() && appsCard(), eventsCard()),
     ),
   );
 }

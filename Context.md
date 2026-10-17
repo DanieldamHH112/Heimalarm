@@ -199,3 +199,7 @@ Nummern wie im Konzept. Alle Punkte A–I sind in einer ersten Version umgesetzt
 - Android-APK ist vorerst **debug-signiert** (installierbar, aber Updates nur mit gleichem Schlüssel). Fester Signierschlüssel als GitHub-Secret folgt.
 - Android-Release erlaubt `ws://` nur mit Cleartext-Freigabe; bei Bedarf TLS (`wss://`) an der Zentrale aktivieren.
 - Teilen von Alarmen zwischen Haushalten (Zentralen-Kopplung über VPN, „nur benachrichtigen“) ist als Idee notiert, nicht geplant.
+
+### Nur zeigen, was eingerichtet ist
+
+`app/src/core/features.js` (`has.pi/esp/zigbee/sybos/apager/divera/diveraApi`, `activeSources()`): Übersicht, Diagnose, Protokoll-Filter und Navigation (Geräte/Routinen nur mit Zentrale) blenden alles aus, was nicht eingerichtet ist. **Einstellungen zeigen immer alles.** Neue Ansichten/Karten immer über `has.*` freischalten.

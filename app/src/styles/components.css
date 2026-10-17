@@ -225,3 +225,4 @@ details.more > .field { margin-top: var(--s3); }
 .source-body .group { padding-top: var(--s4); }
 .source-body .group:first-child { padding-top: 0; }
 .group-cont { margin-top: 0; }
+.nav-item[hidden] { display: none !important; }

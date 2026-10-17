@@ -1,0 +1,19 @@
+// Was ist eingerichtet? Ansichten zeigen nur, was es wirklich gibt (Einstellungen zeigen immer alles).
+import { settings, isConfigured } from "./settings.js";
+import { state } from "./mqtt.js";
+
+export const has = {
+  pi: () => isConfigured(),                                            // Zentrale (Raspberry Pi)
+  esp: () => isConfigured() && settings().alarm.mqtt !== false,         // Melder über ESP32
+  zigbee: () => isConfigured() && state.zigbee !== null,                // Zigbee2MQTT meldet sich
+  voice: () => isConfigured() && Boolean(state.voice?.enabled),
+  sybos: () => Boolean(settings().alarm.apps?.sybos?.on),
+  apager: () => Boolean(settings().alarm.apps?.apager?.on),
+  divera: () => Boolean(settings().alarm.apps?.divera?.on),
+  diveraApi: () => Boolean(settings().alarm.apps?.divera?.on && settings().divera.key),
+};
+
+/** Aktive Alarmquellen als Namen, z. B. ["Melder", "SYBOS"]. */
+export const activeSources = () => [
+  has.esp() && "Melder", has.sybos() && "SYBOS", has.apager() && "aPager", has.divera() && "Divera",
+].filter(Boolean);

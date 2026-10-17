@@ -1,9 +1,10 @@
+import { has } from "../core/features.js";
 import { h, fmtTime, fmtDate } from "../ui/dom.js";
 import { getLog, clearLog } from "../core/log.js";
 import { state } from "../core/mqtt.js";
 
 const FILTERS = [
-  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale"],
+  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
 ];
 let filter = "";
 
@@ -23,7 +24,7 @@ export function logView(rerender) {
       h("button.btn.ghost", { onclick: () => { if (confirm("Protokoll wirklich leeren?")) { clearLog(); rerender(); } } }, "Leeren"),
     ),
     h("div.segmented", { role: "group", "aria-label": "Filter" },
-      FILTERS.map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; rerender(); } }, label)),
+      FILTERS.filter(([, , show]) => !show || show()).map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; rerender(); } }, label)),
     ),
     h("section.card", {}, items.length ? list : h("p.empty", {}, "Noch keine Einträge.")),
   );
