@@ -34,6 +34,7 @@ export function showTakeover(alarm) {
     h("div.tag", {}, alarm.probe ? "Komplettprobe · PC-Aktion nur angezeigt" : test ? "Testalarm · es passiert nichts" : `Einsatz · ${fmtTime(alarm.ts)}`),
     h("h1", {}, p.title || "Fährst du?"),
     extra && h("p.meta-big", {}, extra),
+    alarm.address && h("p.meta", {}, alarm.address),
     ring,
     h("div.actions", {},
       h("button.btn.primary", { onclick: () => finish(true) }, p.goText || "Ich fahre"),

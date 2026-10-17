@@ -1,6 +1,7 @@
 # Heimalarm – Zentrale (z. B. Raspberry Pi)
 # Start ohne Zigbee:  docker compose up -d
 # Start mit Zigbee:   docker compose --profile zigbee up -d   (USB-Stick unten eintragen)
+# Licht für Alexa / Google Home zusätzlich:  docker compose --profile zigbee --profile matter up -d
 
 services:
   mosquitto:
@@ -16,11 +17,15 @@ services:
   dienst:
     build: ./dienst
     restart: unless-stopped
-    network_mode: host   # für Wake-on-LAN (Broadcast im Heimnetz)
+    network_mode: host   # für Wake-on-LAN und Matter (mDNS im Heimnetz)
     environment:
       MQTT_URL: mqtt://127.0.0.1:1883
       WEBHOOK_PORT: "8080"
+      MATTER_PORT: "5541"               # Alarm-Sensoren für Alexa / Google Home
+      MATTER_STORAGE: /app/data/matter  # Kopplungen bleiben bei Updates erhalten
       TZ: Europe/Berlin
+    volumes:
+      - ./dienst/data:/app/data
     depends_on: [mosquitto]
 
   zigbee2mqtt:
@@ -40,3 +45,18 @@ services:
       ZIGBEE2MQTT_CONFIG_SERIAL_PORT: /dev/ttyACM0
       ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
       ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "false"
+
+  # Gibt Zigbee-Lichter und -Gruppen per Matter an Alexa / Google Home weiter (lokal).
+  # Koppeln: Weboberfläche http://<zentrale>:8283 → QR-Code in der Alexa- bzw. Google-Home-App scannen.
+  matterbridge:
+    image: luligu/matterbridge:latest
+    profiles: ["matter"]
+    restart: unless-stopped
+    network_mode: host   # Matter braucht mDNS im Heimnetz
+    stop_grace_period: 60s
+    volumes:
+      - ./matterbridge/plugins:/root/Matterbridge
+      - ./matterbridge/storage:/root/.matterbridge
+      - ./matterbridge/cert:/root/.mattercert
+    environment:
+      TZ: Europe/Berlin

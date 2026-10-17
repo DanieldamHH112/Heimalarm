@@ -9,6 +9,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@matter/main": "^0.15.6",
     "mqtt": "^5.16.1",
     "suncalc": "^1.9.0"
   },

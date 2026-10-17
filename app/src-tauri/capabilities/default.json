@@ -13,6 +13,17 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-fullscreen",
     "notification:default",
-    "heimalarm:default"
+    "heimalarm:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://*.divera247.com/*"
+        },
+        {
+          "url": "https://divera247.com/*"
+        }
+      ]
+    }
   ]
 }

@@ -9,13 +9,29 @@ import { ACTIONS, runPcAction, runningProcesses, stopMedia } from "./pc.js";
 import { notify } from "./notify.js";
 import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
+import { setDiveraStatus } from "./divera.js";
 
 const lastByWho = new Map();
 export const engine = { last: null };
 
 export function init() {
   on("alarm-in", (a) => handleAlarm(a));
+  on("divera-alarm", (data) => forward(data));
 }
+
+/** Alarm aus einer App-Quelle (Benachrichtigung, Divera): über die Zentrale an alle Geräte, ohne Verbindung nur hier. */
+function forward(data) {
+  const me = settings().alarm.me;
+  if (!(state.connected && publish(`alarm/${me}`, data))) handleAlarm({ who: me, ts: Date.now(), ...data });
+}
+
+export const ALARM_APPS = {
+  sybos: { label: "SYBOS" },
+  apager: { label: "aPager PRO" },
+  divera: { label: "Divera 24/7" },
+};
+/** Zuletzt gesehene Apps mit Benachrichtigungen (nur Paketnamen), zum Erkennen des richtigen Pakets. */
+export const recentApps = new Map();
 
 const toMin = (t) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
 function inQuietTime() {
@@ -67,20 +83,30 @@ export const fullProbe = () => publish(`alarm/${settings().alarm.me}`, { source:
 /** Alarm aus einer Android-Benachrichtigung (A1/A6). */
 export function alarmFromNotification({ app, title, text }) {
   const s = settings().alarm;
-  if (!s.notifications) return;
-  const apps = s.filterApps.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const pkg = String(app || "").toLowerCase();
+  if (pkg) { recentApps.delete(pkg); recentApps.set(pkg, Date.now()); if (recentApps.size > 12) recentApps.delete(recentApps.keys().next().value); }
+  // Welche aktivierte Alarm-App passt?
+  let source = null;
+  for (const [id, a] of Object.entries(s.apps || {})) {
+    if (a.on && a.pkg && pkg.includes(a.pkg.toLowerCase())) { source = ALARM_APPS[id]?.label || id; break; }
+  }
+  if (!source) {
+    const extra = s.filterApps.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    if (extra.some((x) => pkg.includes(x))) source = "Benachrichtigung";
+  }
+  if (!source) return;
   const words = s.filterWords.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const body = `${title} ${text}`.toLowerCase();
-  if (apps.length && !apps.some((x) => String(app).toLowerCase().includes(x))) return;
   if (words.length && !words.some((w) => body.includes(w))) return;
-  const data = { source: "Benachrichtigung", keyword: String(title || "").slice(0, 80) };
-  // Über die Zentrale verteilen (PC, Routinen); ohne Verbindung lokal auslösen
-  if (!(state.connected && publish(`alarm/${s.me}`, data))) handleAlarm({ who: s.me, ts: Date.now(), ...data });
+  forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 250) });
 }
 
 /** Ergebnis der Abfrage „Fährst du?“ */
 export async function decide(going, { test = false, timeout = false } = {}) {
   const p = settings().pc;
+  // Divera-Status setzen (nicht bei Tests, nicht ohne Antwort)
+  const dv = settings().divera;
+  if (!test && !timeout) setDiveraStatus(going ? dv.statusGo : dv.statusStay);
   if (!going) {
     log("info", timeout ? "Keine Antwort – keine Aktion (Einstellung „Abbrechen“)" : "„Ich fahre nicht“ – keine Aktion");
     return;

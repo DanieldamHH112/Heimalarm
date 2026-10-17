@@ -9,6 +9,9 @@ import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
 import { requireAdmin, isAdmin } from "../core/admin.js";
 import { androidStatus, openBatterySettings, openNotificationAccess, setBackgroundService } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
+import { recentApps } from "../core/engine.js";
+import { divera, testDivera, restartDivera, setDiveraStatus } from "../core/divera.js";
+import qrcode from "qrcode-generator";
 import { playAlarmTone } from "../ui/sound.js";
 
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$|[a-z0-9-]+\.local$|[a-z0-9-]+$)/iu;
@@ -32,17 +35,149 @@ function verbindung(rerender) {
 
 function alarm() {
   const me = settings().alarm.me;
-  return section("alarm", "Alarm", "Wann die App einen Alarm erkennt.",
+  return section("alarm", "Alarm", "Wie die App mit Alarmen umgeht – egal aus welcher Quelle.",
     h("div.fields", {},
       field("Meine Kennung", text("alarm.me", { autocomplete: "off" }), "Gleich wie im ESP32: alarm/<kennung>. Andere Kennungen werden nur gemeldet."),
-      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Weitere Signale derselben Person zählen als derselbe Einsatz.")),
-    toggle("alarm.mqtt", "Alarm vom ESP32", "Hauptweg: Relaiskontakt an der Ladeschale."),
-    isAndroid && toggle("alarm.notifications", "Alarm aus Benachrichtigungen", "SYBOS oder aPager auf diesem Handy mitlesen."),
-    isAndroid && settings().alarm.notifications && h("div.fields", {},
-      field("Apps (Paketnamen)", text("alarm.filterApps"), "Kommagetrennt, Teile reichen. SYBOS = at.syPhone"),
-      field("Schlüsselwörter", text("alarm.filterWords"), "Mindestens eines muss im Text stehen.")),
+      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Meldungen derselben Person kurz danach zählen als derselbe Einsatz – auch aus verschiedenen Quellen.")),
     toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – keine PC-Aktion (A11)."),
     h("p.meta", {}, "Aktuelle Kennung: ", h("code", {}, `alarm/${me}`)),
+  );
+}
+
+// ── Alarmquellen ───────────────────────────────────
+const APP_INFO = {
+  sybos: { hint: "Benachrichtigung der SYBOS-App mitlesen." },
+  apager: { hint: "Benachrichtigung von aPager PRO mitlesen. Der Webhook an die Zentrale steht unter „Zentrale“." },
+  divera: { hint: "Benachrichtigung der Divera-App mitlesen und/oder Alarme direkt bei Divera abfragen." },
+};
+
+/** Paketname per „Erkennen“: zuletzt gesehene Apps mit Benachrichtigungen zur Auswahl. */
+function pickPackage(path, rerender) {
+  const list = [...recentApps.keys()].toReversed();
+  const close = dialog("App erkennen",
+    h("p.meta", {}, list.length ? "Diese Apps haben zuletzt eine Benachrichtigung gezeigt. Tippe auf die Alarm-App." : "Noch keine Benachrichtigung gesehen. Lass dir in der Alarm-App eine Test-Meldung schicken und öffne diesen Dialog dann erneut."),
+    list.length && h("ul.rows.compact", {}, list.map((pkg) => h("li", {}, h("button.btn.ghost.pick", { onclick: () => { set(path, pkg); close(); rerender(); toast("Übernommen"); } }, h("code", {}, pkg))))));
+}
+
+function sourceRow(id, title, hint, on, onToggle, body, badge) {
+  return h("div.source" + (on ? ".on" : ""), {},
+    h("label.switch.source-head", {},
+      h("div", {}, h("b", {}, title, badge), h("small", {}, hint)),
+      h("input", { type: "checkbox", role: "switch", checked: on, "aria-label": `${title} als Alarmquelle`, onchange: (e) => onToggle(e.target.checked) })),
+    on && body && h("div.source-body", {}, ...[body].flat().filter(Boolean)));
+}
+
+function diveraBody(rerender) {
+  const d = settings().divera;
+  const status = (path, label, hint) => field(label,
+    d.statuses.length
+      ? select([["", "– nichts setzen –"], ...d.statuses.map((x) => [x.id, x.name])], get(path), (v) => set(path, v))
+      : text(path, { inputmode: "numeric", placeholder: "Status-ID" }), hint);
+  const test = async (e) => {
+    e.target.disabled = true;
+    try { const r = await testDivera(); toast(`Verbunden${r.unit ? " mit " + r.unit : ""} · ${r.statuses.length} Status geladen`); rerender(); }
+    catch (err) { toast(err.message); }
+    e.target.disabled = false;
+  };
+  return [
+    isAndroid && h("div.fields", {},
+      field("Paketname der Divera-App", text("alarm.apps.divera.pkg", { placeholder: "über „Erkennen“ ermitteln", autocomplete: "off" }), "Nur für das Mitlesen der Benachrichtigung."),
+      h("div.field.end", {}, h("button.btn.small", { onclick: () => pickPackage("alarm.apps.divera.pkg", rerender) }, "Erkennen"))),
+    h("div.field", {}, h("span", {}, "Persönlicher Accesskey"),
+      h("input.input", { type: "password", autocomplete: "off", spellcheck: "false", value: d.key, placeholder: "dvpat-…",
+        onchange: (e) => { set("divera.key", e.target.value.trim()); restartDivera(); rerender(); } }),
+      h("small", {}, "Divera → Profil → Login → API-Schlüssel. Bleibt nur auf diesem Gerät.")),
+    h("div.row", {},
+      h("button.btn.small", { onclick: test, disabled: !d.key }, "Verbindung prüfen"),
+      d.unit && h("span.chip.ok", {}, d.unit),
+      divera.ok === false && h("span.chip.bad", {}, divera.error)),
+    d.key && toggle("divera.poll", "Alarme bei Divera abfragen", "Funktioniert ohne Benachrichtigung, solange die App läuft. Erst sinnvoll, wenn eure Leitstelle über Divera alarmiert.", () => { restartDivera(); rerender(); }),
+    d.key && d.poll && field("Abfrage alle (Sekunden)", text("divera.pollSec", { type: "number", min: 10, max: 300 }, { onSave: restartDivera }), "Kürzer = schneller, aber mehr Anfragen. 15–30 s reichen."),
+    d.key && h("div.fields", {},
+      status("divera.statusGo", "Status bei „Ich fahre“", "Wird in Divera gesetzt, sobald du antwortest."),
+      status("divera.statusStay", "Status bei „Ich fahre nicht“", "Leer lassen, wenn nichts passieren soll.")),
+    d.key && d.statusGo && h("div.row", {}, h("button.btn.small.ghost", { onclick: () => setDiveraStatus(d.statusGo).then((ok) => toast(ok ? "Gesendet – bitte in Divera prüfen" : "Nicht gesendet")) }, "Status jetzt testweise setzen")),
+  ];
+}
+
+function quellen(rerender) {
+  const a = settings().alarm;
+  const apps = a.apps;
+  const appToggle = (id) => (v) => { set(`alarm.apps.${id}.on`, v); rerender(); };
+  const pkgField = (id, label) => isAndroid && h("div.fields", {},
+    field(label, text(`alarm.apps.${id}.pkg`, { autocomplete: "off" }), "Teil des Namens reicht."),
+    h("div.field.end", {}, h("button.btn.small", { onclick: () => pickPackage(`alarm.apps.${id}.pkg`, rerender) }, "Erkennen")));
+  const anyNotif = Object.values(apps).some((x) => x.on) || a.filterApps;
+  const diveraState = divera.ok === true ? h("span.badge", {}, "verbunden") : settings().divera.key && apps.divera.on && divera.ok === false ? h("span.badge.bad", {}, "Fehler") : null;
+  return section("quellen", "Alarmquellen", "Woher Alarme kommen. Mehrere gleichzeitig sind möglich – die Sperrzeit führt sie zu einem Einsatz zusammen.",
+    h("div.sources", {},
+      sourceRow("esp32", "Melder (ESP32)", "Hauptweg: Relaiskontakt an der Ladeschale.", a.mqtt, (v) => { set("alarm.mqtt", v); rerender(); }),
+      sourceRow("sybos", "SYBOS", APP_INFO.sybos.hint, apps.sybos.on, appToggle("sybos"), [pkgField("sybos", "Paketname"), !isAndroid && h("p.meta", {}, "Wird auf dem Handy mitgelesen und an die Zentrale gegeben.")]),
+      sourceRow("apager", "aPager PRO", APP_INFO.apager.hint, apps.apager.on, appToggle("apager"), [pkgField("apager", "Paketname"), !isAndroid && h("p.meta", {}, "Wird auf dem Handy mitgelesen. Der Webhook geht direkt an die Zentrale.")]),
+      sourceRow("divera", "Divera 24/7", APP_INFO.divera.hint, apps.divera.on, appToggle("divera"), diveraBody(rerender), diveraState),
+    ),
+    isAndroid && field("Weitere Apps", text("alarm.filterApps", { placeholder: "z. B. de.example.alarm" }), "Paketnamen, kommagetrennt."),
+    isAndroid && anyNotif && field("Schlüsselwörter", text("alarm.filterWords"), "Mindestens eines muss in der Benachrichtigung stehen. Leer = jede Meldung der App."),
+    isAndroid && anyNotif && android && !android.notificationAccess && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Benachrichtigungen mitlesen ist nicht erlaubt"), "Ohne diese Erlaubnis erkennt die App keine Alarme aus anderen Apps.",
+      h("div.row", { style: "margin-top:8px" }, h("button.btn.small", { onclick: () => openNotificationAccess() }, "Zugriff erlauben")))),
+  );
+}
+
+// ── Sprachassistenten ──────────────────────────────
+function qrSvg(textValue) {
+  const q = qrcode(0, "M");
+  q.addData(textValue); q.make();
+  const box = h("div.qr", { role: "img", "aria-label": "Matter-QR-Code" });
+  box.innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  return box;
+}
+
+function sprache(rerender) {
+  const v = state.voice;
+  const cfg = { enabled: true, openSec: 30, tests: false, ...shared().voice };
+  const setCfg = async (patch) => { if (await requireAdmin()) { updateShared({ voice: { ...cfg, ...patch } }); rerender(); } };
+  const host = settings().broker.host || "<zentrale>";
+  const sensors = v?.sensors || [];
+  const statusChip = !state.connected ? h("span.chip", {}, "Zentrale getrennt")
+    : !v ? h("span.chip", {}, "Dienst meldet nichts")
+    : !cfg.enabled ? h("span.chip", {}, "aus")
+    : v.running ? h("span.chip" + (v.commissioned ? ".ok" : ".warn"), {}, v.commissioned ? `gekoppelt · ${v.fabrics?.length || 1}` : "bereit zum Koppeln")
+    : h("span.chip.bad", {}, "startet nicht");
+  return section("sprache", "Alexa & Google Home", "Lokal über Matter – ohne Cloud-Konto bei Heimalarm.",
+    h("div.item", {},
+      h("div.item-head", {}, h("b", {}, "Alarm als Auslöser"), statusChip),
+      h("p.meta", {}, "Die Zentrale meldet sich als Kontaktsensor. Bei Alarm öffnet er sich kurz – damit startest du in Alexa oder Google Home eine Routine, z. B. Ansage „Einsatz!“ auf allen Lautsprechern."),
+      switchRow("Sensoren bereitstellen", "Gilt für die ganze Zentrale.", cfg.enabled, (on) => setCfg({ enabled: on })),
+      cfg.enabled && v?.error && !v.running && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Matter startet nicht"), v.error)),
+      cfg.enabled && v?.running && h("div.pair", {},
+        qrSvg(v.qr),
+        h("div.pair-text", {},
+          h("b", {}, v.commissioned ? "Weiteren Assistenten koppeln" : "So koppelst du"),
+          h("ol.pair-steps", {},
+            h("li", {}, h("b", {}, "Alexa: "), "Geräte → + → Gerät hinzufügen → Matter."),
+            h("li", {}, h("b", {}, "Google Home: "), "+ → Gerät einrichten → Neues Gerät → Matter."),
+            h("li", {}, "QR-Code scannen oder Code eingeben:")),
+          h("div.row", {}, h("code.pair-code", {}, v.manual.replace(/(\d{4})(\d{3})(\d{4})/u, "$1-$2-$3")),
+            h("button.btn.small.ghost", { onclick: () => copyText(v.manual).then(() => toast("Kopiert")) }, "Kopieren")),
+          h("small.meta", {}, "Ein Gerät kann mit Alexa und Google Home gleichzeitig gekoppelt sein. Für den zweiten Assistenten in der ersten App „Mit anderer App teilen“ wählen."))),
+      cfg.enabled && sensors.length > 0 && h("div.field", {}, h("span", {}, "Sensoren"),
+        h("div.row", {}, sensors.map((n) => h("span.badge", {}, n))),
+        h("small", {}, "„Heimalarm Einsatz“ bei jedem Alarm, dazu einer je Person aus „Personen“.")),
+      cfg.enabled && h("div.fields", {},
+        field("Sensor bleibt offen (Sekunden)", h("input.input", { type: "number", min: 5, max: 600, value: cfg.openSec, onchange: (e) => setCfg({ openSec: Math.max(5, Number(e.target.value) || 30) }) }), "Danach meldet er wieder „geschlossen“.")),
+      cfg.enabled && switchRow("Auch bei Testalarmen auslösen", "Sonst nur echte Alarme und Komplettprobe.", cfg.tests, (on) => setCfg({ tests: on })),
+      cfg.enabled && v?.running && h("div.row", {},
+        h("button.btn.small", { onclick: () => { if (publish("heimalarm/cmd/voice/test", {})) toast("Sensor geöffnet – Routine sollte starten"); } }, "Routine testen"),
+        v.commissioned && h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && confirm("Alle Kopplungen mit Alexa/Google Home löschen? Routinen dort müssen danach neu angelegt werden.")) publish("heimalarm/cmd/voice/reset", {}); } }, "Kopplungen löschen"))),
+    h("div.item", {},
+      h("div.item-head", {}, h("b", {}, "Licht & Geräte steuern")),
+      h("p.meta", {}, "Zigbee-Lichter und -Gruppen erscheinen in Alexa und Google Home – „Alexa, Flurlicht an“. Dafür läuft Matterbridge auf der Zentrale."),
+      h("ol.pair-steps", {},
+        h("li", {}, "Auf dem Pi: ", h("code", {}, "docker compose --profile zigbee --profile matter up -d")),
+        h("li", {}, "Oberfläche öffnen, Plugin ", h("code", {}, "matterbridge-zigbee2mqtt"), " hinzufügen."),
+        h("li", {}, "Den dort gezeigten QR-Code in Alexa bzw. Google Home scannen.")),
+      h("div.row", {}, h("a.btn.small", { href: `http://${host}:8283`, target: "_blank", rel: "noopener" }, "Matterbridge öffnen"))),
+    h("p.meta", {}, "Nötig: ein Echo mit Matter-Unterstützung bzw. ein Nest-Lautsprecher, Nest Hub oder Google TV im selben WLAN."),
   );
 }
 
@@ -216,12 +351,14 @@ function darstellung() {
 export function settingsView(rerender) {
   const parts = [
     ["verbindung", "Verbindung", verbindung(rerender)],
+    ["quellen", "Alarmquellen", quellen(rerender)],
     ["alarm", "Alarm", alarm()],
     isConfigured() && ["esp32", "ESP32", esp32()],
     hasPcFeatures && ["pc", "PC", pc(rerender)],
     isTauri && isAndroid && ["android", "Android", androidSection(rerender)],
     ["geraet", "Dieses Gerät", geraet()],
     ["personen", "Personen", personen(rerender)],
+    ["sprache", "Alexa & Google", sprache(rerender)],
     ["zentrale", "Zentrale", zentrale(rerender)],
     ["sicherheit", "Sicherheit", sicherheit(rerender)],
     ["backup", "Backup", backup(rerender)],

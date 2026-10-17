@@ -138,6 +138,7 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_heimalarm::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None));

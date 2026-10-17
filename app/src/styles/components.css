@@ -171,3 +171,31 @@ input.mini-switch:checked::after { transform: translateX(18px); }
   .nav-item .long { display: none; }
   .nav-item .short { display: inline; }
 }
+
+/* Alarmquellen: eine Liste mit Schalter je Quelle, Einstellungen klappen darunter auf */
+.sources { display: grid; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.source { border-top: 1px solid var(--line); background: var(--surface); transition: background .15s; }
+.source:first-child { border-top: 0; }
+.source.on { background: var(--surface-2); }
+.source-head.switch { padding: var(--s3) var(--s4); border-top: 0; cursor: pointer; }
+.source-head b { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-md); }
+.source-body { display: grid; gap: var(--s4); padding: 0 var(--s4) var(--s4); }
+.source-body .switch { padding-block: var(--s2); }
+.field.end { align-self: end; justify-items: start; }
+.badge.bad { background: var(--signal-soft); color: var(--signal); }
+.btn.pick { width: 100%; justify-content: flex-start; text-align: left; }
+
+/* Matter-Kopplung: QR-Code neben der Anleitung, auf dem Handy untereinander */
+.pair { display: grid; grid-template-columns: auto 1fr; gap: var(--s4); align-items: start; }
+.qr { width: 168px; aspect-ratio: 1; padding: 10px; border-radius: var(--radius-sm); background: #fff; }
+.qr svg { display: block; width: 100%; height: 100%; }
+.qr svg rect[fill="#ffffff"], .qr svg path[fill="#ffffff"] { fill: #fff; }
+.pair-text { display: grid; gap: var(--s2); min-width: 0; }
+.pair-steps { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--text-2); font-size: var(--fs-sm); }
+.pair-steps b { color: var(--text); }
+.pair-code { font-size: var(--fs-lg); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.answer .row .btn { flex: 1 1 160px; justify-content: center; }
+@media (max-width: 560px) {
+  .pair { grid-template-columns: 1fr; justify-items: center; }
+  .pair-text { justify-items: stretch; width: 100%; }
+}

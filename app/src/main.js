@@ -18,6 +18,7 @@ import { routinesView } from "./views/routines.js";
 import { diagnoseView } from "./views/diagnose.js";
 import { initAndroid } from "./core/android.js";
 import { appLock } from "./core/admin.js";
+import { restartDivera } from "./core/divera.js";
 
 const routes = {
   uebersicht: overview, geraete: devicesView, routinen: routinesView,
@@ -68,6 +69,7 @@ on("conn", live);
 on("devices", live);
 on("log", live);
 on("shared", live);
+on("divera", live);
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
@@ -90,6 +92,7 @@ setInterval(() => {
 
 await appLock();
 connect();
+restartDivera();
 initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
 if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);

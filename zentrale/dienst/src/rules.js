@@ -116,6 +116,7 @@ export function createRules(ctx, log) {
     if (!data.test && !data.probe) lastAlarm.set(who, Date.now());
     log.alarm(data.test ? "Testalarm" : data.probe ? "Komplettprobe" : "Alarm", `${data.source || "?"} · alarm/${who}${data.keyword ? " · " + data.keyword : ""}`);
     const event = { ...data, who, test: Boolean(data.test) };
+    ctx.onAlarmAccepted?.(event);
     for (const r of ctx.config.routines || []) {
       if (r.trigger?.type !== "alarm") continue;
       if (r.who?.length && !r.who.includes(who)) continue;   // G2 – Routinen pro Person

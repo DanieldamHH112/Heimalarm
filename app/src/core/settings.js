@@ -12,13 +12,19 @@ export const defaults = {
   alarm: {
     me: "ich",              // eigene Kennung, passend zum ESP32-Topic alarm/<kennung>
     mqtt: true,             // A1 – Alarm vom ESP32 über MQTT
-    notifications: false,   // A1 – Alarm aus Benachrichtigungen (nur Android)
+    notifications: false,   // (alt) – ersetzt durch alarm.apps
     lockoutSec: 60,         // A4 – Sperrzeit je Person
     offlineWarnSec: 120,    // A8 – Warnung, wenn ESP32 so lange offline ist
     heartbeatSec: 180,      // A9 – ohne Lebenszeichen so lange → Warnung
     minDurationMs: 50,      // A3 – Mindestdauer des Kontakts (wird an den ESP32 gesendet)
     testMode: false,        // A11 – alle Alarme nur als Test behandeln
-    filterApps: "at.syPhone, com.alamos",       // A6 – Paketnamen (Teile reichen)
+    // A1/A6 – Alarm-Apps auf dem Handy: Benachrichtigung mitlesen (nur Android). Mehrere gleichzeitig möglich.
+    apps: {
+      sybos:  { on: false, pkg: "at.syPhone" },
+      apager: { on: false, pkg: "org.xcrypt.apager.android2" },
+      divera: { on: false, pkg: "" },     // Paketname über „Erkennen“ ermitteln
+    },
+    filterApps: "",                             // weitere Apps (Paketnamen, Teile reichen)
     filterWords: "ALARMIERUNG, Alarm, Einsatz", // A6 – Schlüsselwörter
   },
   // D – Windows-PC
@@ -37,6 +43,16 @@ export const defaults = {
     quietFrom: "",          // D12 – Zeitfenster ohne Reaktion (leer = aus)
     quietTo: "",
     wolMac: "",             // D11 – MAC dieses PCs zum Aufwecken (wird angezeigt)
+  },
+  // Divera 24/7 – persönlicher Zugang. Bleibt auf diesem Gerät (wird nicht abgeglichen).
+  divera: {
+    key: "",                // persönlicher Accesskey (Divera → Profil → Login → API-Schlüssel)
+    poll: false,            // Alarme direkt bei Divera abfragen
+    pollSec: 20,
+    statusGo: "",           // Status-ID bei „Ich fahre“ (leer = nichts setzen)
+    statusStay: "",         // Status-ID bei „Ich fahre nicht“
+    unit: "",               // Name der Einheit (nur Anzeige)
+    statuses: [],           // [{ id, name, color }] aus Divera geladen
   },
   // E – dieses Gerät
   device: { id: "", name: "" },
@@ -67,6 +83,11 @@ function load() {
 }
 
 let current = load();
+// Alte Standardwerte (vor den Alarm-Apps) übernehmen
+if (/^\s*at\.syPhone,\s*com\.alamos\s*$/u.test(current.alarm.filterApps)) {
+  current.alarm.filterApps = "";
+  if (current.alarm.notifications) { current.alarm.apps.sybos.on = true; current.alarm.apps.apager.on = true; }
+}
 if (current.ui.theme !== "light") current.ui.theme = "dark";
 if (!current.device.id) current.device.id = Math.random().toString(36).slice(2, 10);
 save();

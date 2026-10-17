@@ -19,3 +19,5 @@ zentrale/zigbee2mqtt/
 # System
 .DS_Store
 Thumbs.db
+zentrale/dienst/data/
+zentrale/matterbridge/

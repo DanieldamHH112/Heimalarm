@@ -5,7 +5,8 @@ import { shared } from "../core/shared.js";
 import { settings, isConfigured } from "../core/settings.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
-import { testAlarm, simulateContact } from "../core/engine.js";
+import { testAlarm, simulateContact, engine } from "../core/engine.js";
+import { setDiveraStatus } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { themeToggle } from "../ui/theme.js";
 
@@ -152,6 +153,21 @@ function pcCard() {
   );
 }
 
+/** Eigener Einsatz läuft (max. 30 min): Rückmeldung an Divera direkt vom Handy. */
+function answerCard() {
+  const a = engine.last, d = settings().divera;
+  if (hasPcFeatures || !a?.own || a.test || Date.now() - a.ts > 30 * 60_000 || !(d.statusGo || d.statusStay)) return null;
+  const name = (id) => d.statuses.find((x) => x.id === String(id))?.name || `Status ${id}`;
+  const send = (id) => setDiveraStatus(id).then((ok) => toast(ok ? `An Divera gemeldet: ${name(id)}` : "Divera nicht erreichbar"));
+  return h("section.card.span-all.answer", {},
+    h("div.card-head", {}, h("h2", {}, `Einsatz · ${fmtTime(a.ts)}`), a.keyword && h("span.chip.bad", {}, a.keyword)),
+    a.address && h("p.meta", {}, a.address),
+    h("div.row", {},
+      d.statusGo && h("button.btn.primary", { onclick: () => send(d.statusGo) }, settings().pc.goText || "Ich fahre"),
+      d.statusStay && h("button.btn", { onclick: () => send(d.statusStay) }, settings().pc.stayText || "Ich fahre nicht")),
+    h("small.meta", {}, "Setzt deinen Status in Divera 24/7."));
+}
+
 export function overview() {
   const s = settings();
   return h("div.page", {},
@@ -160,6 +176,7 @@ export function overview() {
       h("div.row", {}, themeToggle("only-mobile"), h("button.btn.primary", { onclick: testAlarm }, "Testalarm")),
     ),
     !isConfigured() && setupCard(),
+    answerCard(),
     tiles(),
     h("div.dash", {},
       h("div.dash-main", {}, alarmsCard(), espCard(), zigbeeCard()),

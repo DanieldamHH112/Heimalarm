@@ -12,6 +12,8 @@ Heimalarm ist für Einsatzkräfte der Feuerwehr gedacht, die zuhause alarmiert w
 - **PC:** Ein Vollbild fragt „Fährst du?“. Ohne Gegenrede geht der PC in den Ruhezustand – offene Programme bleiben erhalten.
 - **Licht & Geräte:** Routinen schalten z. B. nachts das Flurlicht gedimmt an.
 - **Handy:** Benachrichtigung, Übersicht und Steuerung von unterwegs im Heimnetz.
+- **Alarm-Apps:** SYBOS, aPager PRO und Divera 24/7 als zusätzliche Quellen – auch mehrere gleichzeitig. Bei Divera setzt „Ich fahre“ auf Wunsch deinen Status.
+- **Alexa & Google Home:** Alarm startet Routinen (z. B. Ansage auf allen Lautsprechern), Zigbee-Licht per Sprache – lokal über Matter.
 
 Alles läuft lokal im Heimnetz, ohne Cloud und ohne laufende Kosten. Der Melder bleibt die eigentliche Alarmierung – Heimalarm ist eine Komfortfunktion.
 
@@ -49,6 +51,7 @@ Details, Regeln und Funktionsliste: **[Context.md](Context.md)**
 cd zentrale
 docker compose up -d                     # ohne Zigbee
 docker compose --profile zigbee up -d    # mit Zigbee-USB-Stick
+docker compose --profile zigbee --profile matter up -d   # dazu Licht für Alexa / Google Home
 ```
 
 **2 · ESP32**

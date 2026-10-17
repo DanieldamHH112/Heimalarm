@@ -135,6 +135,22 @@ Logo: Haus mit Funkwellen auf Signalrot, `docs/logo.svg`.
 | 3 | Zigbee2MQTT + Zentralen-Dienst: Routinen, Licht | ✅ erste Version |
 | 4 | Handy: Geräte anlernen, steuern, Routinen | ✅ erste Version |
 | 5 | Android: Benachrichtigungen mitlesen, Hintergrund-Dienst, Webhook | ✅ erste Version, auf echtem Gerät zu prüfen |
+| 6 | **Alexa & Google Home** über Matter: Dienst stellt Kontaktsensoren bereit („Heimalarm Einsatz“ + je Person), Matterbridge (Profil `matter`) gibt Zigbee-Licht weiter, App-Abschnitt mit QR-Code | ✅ erste Version, Kopplung am Pi zu prüfen |
+| 7 | **Alarmquellen** wählbar (ESP32, SYBOS, aPager PRO, Divera, weitere – mehrere gleichzeitig); **Divera**: Abfrage `v2/alarms` mit persönlichem Accesskey (je App), Status bei „Ich fahre / nicht“ | ✅ erste Version, mit echtem Divera-Alarm zu prüfen |
+
+### Alarmquellen & Divera
+
+- Einstellungen → **Alarmquellen**: je Quelle ein Schalter. Android liest Benachrichtigungen der gewählten Apps mit (Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`, Divera über „Erkennen“ – zuletzt gesehene Apps). Treffer gehen als `alarm/<kennung>` mit `source` an die Zentrale.
+- **Divera** (Wehr nutzt Divera Free, Leitstellen-Anbindung folgt): persönlicher Accesskey bleibt **nur auf dem Gerät** (`settings.divera`, nicht synchronisiert, nicht im Repo). Endpunkte: `GET app.divera247.com/api/v2/alarms` (Abfrage, erster Abruf merkt nur), `GET /api/v2/pull/all` (Einheit, Status-Liste), `GET www.divera247.com/statusgeber.html?status=<id>&accesskey=…` (Status). Abruf über `@tauri-apps/plugin-http` (Scope `*.divera247.com`).
+- Status: PC setzt ihn nach „Fährst du?“, das Handy zeigt bei eigenem Einsatz eine Karte mit „Ich fahre / Ich fahre nicht“.
+- Offen: Struktur der Status-Liste in `pull/all` (`cluster.status`) und Antwort von `statusgeber` mit echtem Zugang prüfen; ohne Liste kann die Status-ID von Hand eingetragen werden.
+
+### Sprachassistenten (Matter)
+
+- `zentrale/dienst/src/voice.js` (matter.js): Bridge auf Port 5541, Speicher `dienst/data/matter`. Bei angenommenem Alarm (nach Sperrzeit) Sensor „offen“ für `voice.openSec`, dann wieder „zu“. Tests nur mit `voice.tests`.
+- Topics: `heimalarm/voice/status` (retained: running, qr, manual, commissioned, fabrics, sensors, error), `heimalarm/cmd/voice/test`, `heimalarm/cmd/voice/reset`. Einstellungen in `shared.voice { enabled, openSec, tests }`.
+- Licht: `docker compose --profile zigbee --profile matter up -d`, Matterbridge-Oberfläche `:8283`, Plugin `matterbridge-zigbee2mqtt` (verbindet sich mit `mqtt://localhost:1883`).
+- Matter braucht IPv6 + mDNS im Heimnetz (Docker `network_mode: host`). In der Cloud-Testumgebung nicht startbar – dort nur Sensor-Logik und Pairing-Code geprüft.
 
 ## Funktionsliste (Stand)
 

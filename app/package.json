@@ -12,8 +12,10 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2",
+    "@tauri-apps/plugin-http": "^2.8.3",
     "@tauri-apps/plugin-notification": "^2.7.0",
-    "mqtt": "^5"
+    "mqtt": "^5",
+    "qrcode-generator": "^1.5.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
