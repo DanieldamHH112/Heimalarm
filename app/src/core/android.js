@@ -28,4 +28,14 @@ export async function initAndroid() {
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
   }
+  // Beim ersten Start einmal um die Ausnahme von der Akku-Optimierung bitten (sonst stoppt Android die App im Hintergrund).
+  if (!settings().android?.batteryAsked) {
+    try {
+      const s = await call("status");
+      if (s.batteryOptimized) await openBatterySettings();
+    } catch (e) {
+      log("warn", "Akku-Optimierung nicht abgefragt", String(e));
+    }
+    set("android.batteryAsked", true);
+  }
 }

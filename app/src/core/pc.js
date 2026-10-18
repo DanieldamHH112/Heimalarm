@@ -52,5 +52,7 @@ export async function setAutostart(enabled) {
 export async function syncAutostart(enabled) {
   if (!hasPcFeatures) return;
   const m = await import("@tauri-apps/plugin-autostart");
-  if ((await m.isEnabled()) !== enabled) await setAutostart(enabled);
+  // Bei „an“ immer neu eintragen, damit der Eintrag den Hintergrund-Start (--im-hintergrund) enthält.
+  if (enabled) await m.enable();
+  else if (await m.isEnabled()) await m.disable();
 }

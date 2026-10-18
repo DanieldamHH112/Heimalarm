@@ -224,6 +224,8 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Betriebsart:** `isConfigured()` ist nur im Zentrale-Betrieb wahr. Code, der „ist eine Zentrale da?“ fragt, nutzt `has.pi()` bzw. `isConfigured()`, nicht nur `broker.host`.
 - **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
+- **Im Hintergrund:** Windows schließt per X nur das Fenster (Symbol im Infobereich, `lib.rs` → `setup_tray`); Autostart startet mit `--im-hintergrund` verborgen; zweiter Start holt das Fenster per Single-Instance nach vorn. Android: Vordergrund-Dienst + einmalige Abfrage der Akku-Ausnahme (`android.batteryAsked`). Nach einem Neustart des Handys muss die App einmal geöffnet werden.
+- **Android-Symbole** liegen fertig in `src-tauri/icons/android` (adaptiv: weißes Haus auf `#C42D21`) und werden im Release-Workflow kopiert – nicht mit `tauri icon` überschreiben.
 - **Version** steht nur in `app/package.json` (Tauri liest sie von dort); Dienst-Version in `zentrale/dienst/src/index.js` (`VERSION`) und `package.json`.
 - **Android Release-Build:** braucht Cleartext-Freigabe (siehe Offene Punkte), sonst bricht alles mit `http://`/`ws://` am Handy.
 - **CI** (`release.yml`): Android nutzt das vorinstallierte SDK/NDK des Runners (kein setup-android). Keine Test-/Lint-Schritte hinzufügen (Regel oben).

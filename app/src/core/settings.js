@@ -78,7 +78,7 @@ export const defaults = {
   // H4 – App-Sperre (lokal, SHA-256 der PIN)
   lock: { pinHash: "" },
   // Android: Hintergrund-Dienst für zuverlässigen Empfang
-  android: { service: true },
+  android: { service: true, batteryAsked: false },
   // Synchronisation der allgemeinen Einstellungen über die Zentrale
   sync: { enabled: true },
 };

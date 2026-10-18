@@ -52,7 +52,8 @@ jobs:
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
           npx tauri android init --ci
-          npx tauri icon src-tauri/icons/icon.png
+          # Eigene Launcher-Symbole (Logo, adaptiv) statt automatisch erzeugter
+          cp -r src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
       - name: APK bauen (nur arm64, Debug-signiert)
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert

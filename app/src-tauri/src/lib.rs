@@ -137,13 +137,87 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 mod direct;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Startargument des Autostarts: Fenster bleibt verborgen, nur das Symbol im Infobereich erscheint.
+#[cfg(desktop)]
+const HIDDEN_ARG: &str = "--im-hintergrund";
+
+/// Windows: Symbol im Infobereich (Taskleiste) mit Menü „Öffnen“ / „Beenden“.
+#[cfg(desktop)]
+fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+    let open = MenuItem::with_id(app, "open", "Heimalarm öffnen", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Beenden (keine Alarme mehr)", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+
+    let mut tray = TrayIconBuilder::with_id("main")
+        .tooltip("Heimalarm – empfängt Alarme")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "open" => show_main(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
+#[cfg(desktop)]
+fn show_main(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 pub fn run() {
+    #[cfg(desktop)]
     let builder = tauri::Builder::default()
+        // Zweiter Start (z. B. Doppelklick aufs Symbol) holt das laufende Fenster nach vorn.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)));
+    #[cfg(not(desktop))]
+    let builder = tauri::Builder::default();
+    let builder = builder
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_heimalarm::init());
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None));
+    let builder = builder
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![HIDDEN_ARG]),
+        ))
+        .setup(|app| {
+            use tauri::Manager;
+            setup_tray(app)?;
+            if std::env::args().any(|a| a == HIDDEN_ARG) {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
+                }
+            }
+            Ok(())
+        })
+        // Schließen (X) beendet die App nicht, sie läuft im Infobereich weiter.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        });
     builder
         .invoke_handler(tauri::generate_handler![
             pc_action,

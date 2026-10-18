@@ -11,7 +11,7 @@
   },
   "app": {
     "windows": [
-      { "title": "Heimalarm", "width": 1100, "height": 760, "minWidth": 360, "minHeight": 560 }
+      { "label": "main", "title": "Heimalarm", "width": 1100, "height": 760, "minWidth": 360, "minHeight": 560 }
     ],
     "security": { "csp": null }
   },
