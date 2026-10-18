@@ -260,7 +260,7 @@ function quellen(rerender) {
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
   return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
     h("div.sources", {},
-      sourceRow({ id: "esp32", title: "Melder (ESP32)", summary: mode() === "zentrale" ? "Relaiskontakt der Ladeschale. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
+      sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale über ESP32 oder Funk-Alarmschalter (Tuya-Brücke). Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
         summary: "Benachrichtigung der SYBOS-App mitlesen.",
         onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
