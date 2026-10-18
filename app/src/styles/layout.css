@@ -19,8 +19,9 @@
 .nav-foot { margin-top: auto; padding: var(--s3); }
 
 .main { padding: var(--s6) clamp(16px, 4vw, 48px) var(--s7); outline: none; min-width: 0; }
-.page { max-width: var(--content-max); margin: 0 auto; display: grid; gap: var(--s5); }
+.page { max-width: var(--content-max); margin: 0 auto; display: grid; gap: var(--s5); grid-template-columns: minmax(0, 1fr); }
 .page-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--s4); }
+.page-head > div { min-width: 0; }
 .page-head p { color: var(--text-2); margin-top: var(--s1); }
 
 .grid { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
@@ -41,12 +42,21 @@
   .nav {
     position: fixed; inset: auto 0 0 0; height: auto; z-index: 10;
     flex-direction: row; justify-content: space-around; gap: 0;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    padding: 6px 4px calc(6px + var(--safe-bottom));
     border-right: 0; border-top: 1px solid var(--line);
   }
   .brand, .nav-foot { display: none; }
-  .nav-item { flex-direction: column; gap: 2px; padding: 6px 12px; font-size: var(--fs-xs); }
-  .main { padding: var(--s5) var(--s4) calc(96px + env(safe-area-inset-bottom)); }
+  .nav-item {
+    flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; padding: 6px 2px;
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em;
+  }
+  /* Kurzer Name in der Leiste unten, ganzer Name bleibt für Screenreader */
+  .nav-item span[data-short] { font-size: 0; }
+  .nav-item span[data-short]::after { content: attr(data-short); font-size: 0.75rem; }
+  .nav-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .main { padding: calc(var(--s5) + var(--safe-top)) var(--s4) calc(96px + var(--safe-bottom)); }
+  /* Unter der Statusleiste nichts durchscheinen lassen */
+  body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: var(--safe-top); background: var(--bg); z-index: 30; }
 }
 
 .nav-foot { display: grid; gap: var(--s2); justify-items: start; }

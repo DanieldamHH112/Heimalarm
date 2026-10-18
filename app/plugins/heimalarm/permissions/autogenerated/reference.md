@@ -8,6 +8,8 @@ Alle Heimalarm-Android-Befehle erlauben
 - `allow-open-battery-settings`
 - `allow-open-notification-access`
 - `allow-set-service`
+- `allow-registerListener`
+- `allow-remove-listener`
 
 ## Permission Table
 
@@ -66,6 +68,58 @@ Enables the open_notification_access command without any pre-configured scope.
 <td>
 
 Denies the open_notification_access command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`heimalarm:allow-registerListener`
+
+</td>
+<td>
+
+Enables the registerListener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`heimalarm:deny-registerListener`
+
+</td>
+<td>
+
+Denies the registerListener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`heimalarm:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`heimalarm:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
 
 </td>
 </tr>

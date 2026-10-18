@@ -475,10 +475,38 @@ export function settingsView(rerender) {
     ["backup", "Backup", backup(rerender)],
     ["darstellung", "Darstellung", darstellung()],
   ].filter(Boolean);
+  const index = h("nav.section-index", { "aria-label": "Abschnitte" },
+    h("ol", {}, parts.map(([id, label]) => h("li", {}, h("a", {
+      href: `#/einstellungen/${id}`, "data-id": id,
+      // Ohne Hash-Wechsel scrollen: sonst springt jede spätere Änderung wieder zum Abschnitt zurück.
+      onclick: (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); markSection(index, id); },
+    }, label)))));
+  queueMicrotask(() => watchSections(index, parts.map(([id]) => id)));
   return h("div.page", {},
     h("header.page-head", {}, h("div", {}, h("h1", {}, "Einstellungen"), h("p", {}, "Änderungen werden sofort gespeichert.")),
       h("a.btn", { href: "#/diagnose" }, "Test & Diagnose")),
-    h("nav.toc-chips", { "aria-label": "Abschnitte" }, parts.map(([id, label]) => h("a", { href: `#/einstellungen/${id}` }, label))),
-    ...parts.map(([, , el]) => el),
+    h("div.settings-layout", {}, index, h("div.settings-body", {}, ...parts.map(([, , el]) => el))),
   );
+}
+
+/* Aktiven Abschnitt in der Abschnittsliste markieren (folgt dem Scrollen). */
+let sectionObserver = null;
+function markSection(index, id) {
+  index.querySelectorAll("a").forEach((a) => {
+    const on = a.dataset.id === id;
+    if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+    // In der waagerechten Leiste (Handy) den aktiven Eintrag sichtbar halten
+    if (on && index.scrollWidth > index.clientWidth) index.scrollTo({ left: a.offsetLeft - 16, behavior: "smooth" });
+  });
+}
+function watchSections(index, ids) {
+  sectionObserver?.disconnect();
+  const visible = new Map();
+  sectionObserver = new IntersectionObserver((entries) => {
+    for (const e of entries) visible.set(e.target.id, e.isIntersecting ? e.boundingClientRect.top : null);
+    const top = ids.find((id) => visible.get(id) != null);
+    if (top) markSection(index, top);
+  }, { rootMargin: "-20% 0px -60% 0px" });
+  ids.forEach((id) => { const el = document.getElementById(id); if (el) sectionObserver.observe(el); });
+  markSection(index, ids[0]);
 }

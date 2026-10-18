@@ -1,7 +1,8 @@
 /* "Fährst du?" – Vollbild über allem */
 .takeover {
   position: fixed; inset: 0; z-index: 100;
-  display: grid; place-items: center; padding: var(--s5);
+  display: grid; place-items: center; overflow-y: auto;
+  padding: calc(var(--s5) + var(--safe-top)) var(--s5) calc(var(--s5) + var(--safe-bottom));
   background: radial-gradient(120% 90% at 50% 0%, #2a0d0a 0%, #0e1013 60%);
   color: #fff; animation: to-in .18s ease-out;
 }

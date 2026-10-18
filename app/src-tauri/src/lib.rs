@@ -136,7 +136,6 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 
 mod direct;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 /// Startargument des Autostarts: Fenster bleibt verborgen, nur das Symbol im Infobereich erscheint.
 #[cfg(desktop)]
 const HIDDEN_ARG: &str = "--im-hintergrund";
@@ -182,6 +181,7 @@ fn show_main(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(desktop)]
     let builder = tauri::Builder::default()

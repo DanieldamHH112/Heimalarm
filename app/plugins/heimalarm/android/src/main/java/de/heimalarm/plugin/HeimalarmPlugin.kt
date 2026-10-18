@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.webkit.WebView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -28,8 +30,27 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         var instance: HeimalarmPlugin? = null
     }
 
+    // Abstand zu Status- und Navigationsleiste in CSS-Pixeln (Android-WebView liefert env(safe-area-inset-*) oft als 0)
+    private var insetTop = 0
+    private var insetBottom = 0
+
     override fun load(webView: WebView) {
         instance = this
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val d = activity.resources.displayMetrics.density
+            insetTop = Math.round(bars.top / d)
+            insetBottom = Math.round(bars.bottom / d)
+            applyInsets(webView)
+            insets
+        }
+        ViewCompat.requestApplyInsets(webView)
+    }
+
+    private fun applyInsets(webView: WebView) {
+        val js = "document.documentElement.style.setProperty('--inset-top','${insetTop}px');" +
+            "document.documentElement.style.setProperty('--inset-bottom','${insetBottom}px');"
+        webView.post { webView.evaluateJavascript(js, null) }
     }
 
     private fun hasNotificationAccess(): Boolean {
@@ -46,6 +67,8 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("batteryOptimized", !pm.isIgnoringBatteryOptimizations(activity.packageName))
         ret.put("notificationAccess", hasNotificationAccess())
         ret.put("service", KeepAliveService.running)
+        ret.put("insetTop", insetTop)
+        ret.put("insetBottom", insetBottom)
         invoke.resolve(ret)
     }
 

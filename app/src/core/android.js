@@ -24,10 +24,21 @@ export async function setBackgroundService(on) {
 export async function initAndroid() {
   if (!enabled) return;
   const core = await import("@tauri-apps/api/core");
-  await core.addPluginListener("heimalarm", "notification", (n) => alarmFromNotification(n));
+  try {
+    await core.addPluginListener("heimalarm", "notification", (n) => alarmFromNotification(n));
+  } catch (e) {
+    log("warn", "Benachrichtigungen mitlesen nicht verfügbar", String(e));
+  }
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
   }
+  // Abstand zu Status-/Navigationsleiste übernehmen (falls die App sie vor dem Laden der Seite gemeldet hat)
+  try {
+    const st = await call("status");
+    const root = document.documentElement.style;
+    if (st.insetTop) root.setProperty("--inset-top", `${st.insetTop}px`);
+    if (st.insetBottom) root.setProperty("--inset-bottom", `${st.insetBottom}px`);
+  } catch { /* ältere App-Version */ }
   // Beim ersten Start einmal um die Ausnahme von der Akku-Optimierung bitten (sonst stoppt Android die App im Hintergrund).
   if (!settings().android?.batteryAsked) {
     try {

@@ -162,8 +162,8 @@ export function routinesView(rerender) {
       switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ (B9).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
       h("div.row", {},
         has.pi() && h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"),
-        h("button.btn.ghost", { onclick: async () => { if (await copyText(exportJson())) toast("In die Zwischenablage kopiert"); download("heimalarm-routinen.json", exportJson()); } }, "Exportieren"),
-        h("button.btn.ghost", { onclick: importDialog }, "Importieren"))),
+        h("button.btn.small", { onclick: async () => { if (await copyText(exportJson())) toast("In die Zwischenablage kopiert"); download("heimalarm-routinen.json", exportJson()); } }, "Exportieren"),
+        h("button.btn.small", { onclick: importDialog }, "Importieren"))),
 
     list.length === 0
       ? h("section.card", {}, h("p.empty", {}, "Noch keine Routine. Tipp: „Vorlage“ legt „Alarm nachts: Licht an“ an."))

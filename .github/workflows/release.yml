@@ -16,6 +16,11 @@ on:
 permissions:
   contents: write
 
+# Neuer Start bricht einen noch laufenden Build ab – spart Wartezeit bei schnellen Bugfixes.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -26,8 +31,8 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
-        with: { workspaces: app/src-tauri }
-      - run: npm ci
+        with: { workspaces: app/src-tauri, cache-on-failure: true }
+      - run: npm ci --no-audit --no-fund
       - run: npx tauri build --bundles nsis
       - uses: actions/upload-artifact@v7
         with:
@@ -46,8 +51,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: aarch64-linux-android }
       - uses: swatinem/rust-cache@v2
-        with: { workspaces: app/src-tauri }
-      - run: npm ci
+        with: { workspaces: app/src-tauri, cache-on-failure: true }
+      # Gradle-Abhängigkeiten zwischenspeichern (spart beim Android-Build Minuten)
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/plugins/heimalarm/android/build.gradle.kts', 'app/package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - run: npm ci --no-audit --no-fund
       - name: Android-Projekt erzeugen
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
