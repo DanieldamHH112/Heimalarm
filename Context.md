@@ -79,7 +79,7 @@ Heimalarm/
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
-├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), secrets.example.yaml
+├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
 └─ docs/                   Konzept.pdf, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/
 ```
 

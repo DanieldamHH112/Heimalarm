@@ -107,7 +107,7 @@ Dann in der App unter *Einstellungen → Verbindung* die IP des Pi eintragen.
 **6 · ESP32 (optional)**
 1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren und WLAN-Daten eintragen.
 2. Kontakt der Ladeschale messen, dann Pol A an `GPIO27`, Pol B an `GND`.
-3. `esp32/alarm-ich.yaml` über [web.esphome.io](https://web.esphome.io) flashen. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` nehmen – Pol A dann an `GPIO4`.
+3. `esp32/alarm-ich.yaml` über [web.esphome.io](https://web.esphome.io) flashen. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` (Pol A an `GPIO4`), für einen **Wemos D1 mini (ESP8266)** `esp32/alarm-ich-d1mini.yaml` (Pol A an `D5`).
 
 **7 · Testen**
 *Einstellungen → Test & Diagnose → Testalarm.* Es passiert nichts Echtes, du siehst nur die Abfrage.
