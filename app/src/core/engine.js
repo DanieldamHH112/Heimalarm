@@ -80,9 +80,11 @@ function handleAlarm(a) {
   // Inaktiv (Urlaubsmodus, Start → „Inaktiv schalten“): verbunden, aber bei Alarm passiert nichts
   if (shared().vacation && !test && !probe) { log("info", "Inaktiv (Urlaubsmodus) – keine Abfrage, kein Ton"); return; }
   if (forThisPc && hasPcFeatures) {
+    if (settings().pc?.silent && !test && !probe) { log("info", "PC bei Alarm aus – keine Abfrage"); return; }
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
     emit("takeover", engine.last);
   } else if (own && isTauri && isAndroid && !test) {
+    if (settings().phone?.silent && !probe) { log("info", "Handy bei Alarm aus – nichts angezeigt"); return; }
     emit("takeover", engine.last);   // Handy: groß anzeigen, Ton/Vibration (AlarmSound.kt), Rückmeldung per Knopf
   } else if (!test) {
     notify(own ? "Heimalarm: Einsatz" : `Heimalarm: Alarm von ${a.who}`, `${fmtTime(a.ts)}${extra ? " · " + extra : ""}`);

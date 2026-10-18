@@ -28,7 +28,8 @@ class AlarmListener : NotificationListenerService() {
         } else if (Native.matches(this, sbn.packageName, title, text)) {
             // App läuft nicht (z. B. nach Neustart): merken und Heimalarm über die Vollbild-Meldung öffnen
             Native.buffer(this, sbn.packageName, title, text)
-            AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, true)
+            // „Bei Alarm aus“: nur leise Mitteilung, damit der Alarm beim Öffnen weitergeleitet werden kann
+            AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, !Native.silent(this))
         }
     }
 }

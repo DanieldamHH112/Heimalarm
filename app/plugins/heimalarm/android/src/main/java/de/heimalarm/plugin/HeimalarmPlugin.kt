@@ -36,6 +36,7 @@ class ConfigArgs {
     var packages: Array<String> = arrayOf()
     var words: Array<String> = arrayOf()
     var service: Boolean = true
+    var silent: Boolean = false
 }
 
 @InvokeArg
@@ -235,7 +236,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun configure(invoke: Invoke) {
         val a = invoke.parseArgs(ConfigArgs::class.java)
-        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service)
+        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service, a.silent)
         invoke.resolve(JSObject())
     }
 

@@ -40,7 +40,7 @@ export function configureNative() {
   const pkgs = [...Object.values(s.apps || {}).filter((a) => a.on && a.pkg).map((a) => a.pkg),
     ...s.filterApps.split(",").map((x) => x.trim()).filter(Boolean)];
   const words = s.filterWords.split(",").map((x) => x.trim()).filter(Boolean);
-  call("configure", { packages: pkgs, words, service: settings().android?.service !== false }).catch(() => {});
+  call("configure", { packages: pkgs, words, service: settings().android?.service !== false, silent: Boolean(settings().phone?.silent) }).catch(() => {});
 }
 
 export const androidStatus = () => (enabled ? call("status") : Promise.resolve({ supported: false }));
@@ -88,7 +88,7 @@ export async function initAndroid() {
   }
   configureNative();
   const { on } = await import("./events.js");
-  on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android")) configureNative(); });
+  on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android") || path.startsWith("phone")) configureNative(); });
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
   }

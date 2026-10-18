@@ -18,13 +18,16 @@ object Native {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun configure(ctx: Context, packages: List<String>, words: List<String>, service: Boolean) {
+    fun configure(ctx: Context, packages: List<String>, words: List<String>, service: Boolean, silent: Boolean = false) {
         prefs(ctx).edit()
             .putString("packages", JSONArray(packages.map { it.lowercase() }).toString())
             .putString("words", JSONArray(words.map { it.lowercase() }).toString())
             .putBoolean("service", service)
+            .putBoolean("silent", silent)
             .apply()
     }
+
+    fun silent(ctx: Context) = prefs(ctx).getBoolean("silent", false)
 
     fun serviceWanted(ctx: Context) = prefs(ctx).getBoolean("service", true)
 

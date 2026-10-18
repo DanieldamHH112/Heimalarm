@@ -377,6 +377,7 @@ function pc(rerender) {
   const p = settings().pc;
   if (hibernateOn === null) hibernateEnabled().then((v) => { hibernateOn = v; rerender(); }).catch(() => (hibernateOn = false));
   return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert. Jeder PC mit Heimalarm fragt selbst – mehrere PCs und Laptops gehen also gleichzeitig.",
+    toggle("pc.silent", "Bei Alarm aus", "Dieser PC fragt nicht „Fährst du?“ und bleibt an. Der Testalarm geht weiter.", () => rerender()),
     field("Abfrage auch bei Alarm von", text("pc.alsoFor", { autocomplete: "off", placeholder: "z. B. kollege" }), "Weitere Kennungen mit Komma – für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
     h("div.field", {}, h("span", {}, "Aktion"),
       select(Object.entries(ACTIONS).map(([k, v]) => [k, v.label]), p.action, (v) => { set("pc.action", v); rerender(); }),
@@ -419,10 +420,11 @@ function androidSection(rerender) {
       h("small", {}, "Ohne diese Erlaubnis erscheint der Alarm nur als Mitteilung, nicht über dem Sperrbildschirm."),
       h("button.btn.small", { onclick: () => openFullScreenSettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Erlauben")),
     h("h3.group-title", {}, "Alarm auf diesem Handy"),
-    toggle("phone.fullscreen", "Groß anzeigen, auch auf dem Sperrbildschirm", "Bei eigenem Alarm erscheint Heimalarm über allem, mit Knopf „Stopp“.", () => rerender()),
-    toggle("phone.vibrate", "Vibrieren"),
-    toggle("phone.sound", "Eigenen Alarmton spielen", "Meist klingelt schon die Alarm-App. Gut, wenn der Melder in der Ladeschale die einzige Quelle ist.", () => rerender()),
-    settings().phone.sound && h("div.group", {}, ...toneSettings("phone", rerender),
+    toggle("phone.silent", "Bei Alarm aus", "Das Handy zeigt nichts, klingelt und vibriert nicht. Weiterleiten an den PC, Routinen und Protokoll laufen weiter.", () => rerender()),
+    !settings().phone.silent && toggle("phone.fullscreen", "Groß anzeigen, auch auf dem Sperrbildschirm", "Bei eigenem Alarm erscheint Heimalarm über allem, mit Knopf „Stopp“.", () => rerender()),
+    !settings().phone.silent && toggle("phone.vibrate", "Vibrieren"),
+    !settings().phone.silent && toggle("phone.sound", "Eigenen Alarmton spielen", "Meist klingelt schon die Alarm-App. Gut, wenn der Melder in der Ladeschale die einzige Quelle ist.", () => rerender()),
+    !settings().phone.silent && settings().phone.sound && h("div.group", {}, ...toneSettings("phone", rerender),
       field("Klingelt höchstens", select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"]], String(settings().phone.durationSec), (v) => set("phone.durationSec", Number(v))),
         "Spielt als Wecker – auch im Lautlos-Modus hörbar, solange die Wecker-Lautstärke nicht auf 0 steht.")),
     h("p.meta", {}, "Nach einem Neustart des Handys startet Heimalarm von selbst. Erkennt es einen Alarm, öffnet sich die App."),

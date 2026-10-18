@@ -40,6 +40,7 @@ export const defaults = {
   },
   // D – Windows-PC
   pc: {
+    silent: false,          // „Aus“: keine Abfrage „Fährst du?“ auf diesem PC (Testalarm geht weiter)
     action: "hibernate",    // D1 – hibernate | sleep | lock | shutdown | mixed | none
     countdownSec: 30,       // D2
     onTimeout: "run",       // D3 – run | cancel
@@ -61,6 +62,7 @@ export const defaults = {
   },
   // Handy – Alarm auf diesem Handy (nur Android, AlarmSound.kt)
   phone: {
+    silent: false,          // „Aus“: bei Alarm nichts anzeigen, kein Ton, keine Vibration (Weiterleiten, Routinen, Protokoll laufen weiter)
     sound: false,           // eigenen Alarmton spielen (die Alarm-App klingelt meist schon)
     tone: "",               // "" = Melder-Ton, sonst id eines eigenen Tons
     volume: 80,             // Lautstärke des Tons (0–100), innerhalb der Wecker-Lautstärke
