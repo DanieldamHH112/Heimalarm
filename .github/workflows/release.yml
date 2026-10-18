@@ -7,6 +7,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version für den Release (z. B. v0.1.0). Leer = nur bauen, kein Release."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -52,13 +57,14 @@ jobs:
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
           npx tauri android build --apk --debug --target aarch64
-      - run: find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${GITHUB_REF_NAME}.apk" \; -quit
+      - run: find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${VERSION}.apk" \; -quit
+        env: { VERSION: "${{ inputs.version || github.ref_name }}" }
       - uses: actions/upload-artifact@v7
         with: { name: android, path: "app/Heimalarm-*.apk" }
 
   release:
     needs: [windows, android]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || inputs.version != ''
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v8
@@ -66,4 +72,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: out/*
+          tag_name: ${{ inputs.version || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
