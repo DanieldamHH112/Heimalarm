@@ -21,3 +21,5 @@ zentrale/zigbee2mqtt/
 Thumbs.db
 zentrale/dienst/data/
 zentrale/matterbridge/
+zentrale/tuya-bruecke/data/
+zentrale/.env

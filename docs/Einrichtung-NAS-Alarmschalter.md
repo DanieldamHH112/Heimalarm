@@ -64,6 +64,17 @@ Auf **PC und Handy**:
 3. *Kontakt simulieren* – wie ein echter Alarm über die NAS an alle Geräte.
 4. Echter Test: Melder mit Probealarm in der Ladeschale auslösen → PC fragt „Fährst du?“, Handy meldet, **und** der Funkhandel-Schalter löst wie gewohnt aus.
 
+## Übergang ohne ESP32: Tuya-Brücke
+
+Solange kein ESP32 da ist, liest die NAS den Funkhandel-Alarmschalter über **Smart Life** mit und meldet ihn wie den ESP32 (`ALARM` auf `alarm/ich`).
+
+1. Alarmschalter (NX-4900) in der **Smart-Life-App** koppeln (nicht ELESION).
+2. Im NAS-Ordner `heimalarm` eine Datei `.env` anlegen mit dem Inhalt `COMPOSE_PROFILES=tuya` und das Projekt neu starten. Falls die Docker-App die `.env` nicht beachtet: in `docker-compose.yml` beim Dienst `tuya-bruecke` die Zeile `profiles: ["tuya"]` löschen.
+3. Im Browser `http://<IP der NAS>:8082` öffnen → **User Code** eingeben (Smart Life: *Ich → Zahnrad → Konto und Sicherheit*) → QR-Code mit Smart Life scannen (*+ → Scannen*) und bestätigen.
+4. Die Seite zeigt den überwachten Kontakt. Probealarm auslösen → Heimalarm reagiert wie beim Melder (*Alarmquellen → Melder (ESP32)* muss an sein).
+
+Hinweise: läuft über die Tuya-Cloud, daher einige Sekunden Verzögerung. Der *Verbindungstest* zeigt den ESP32 weiterhin rot – das ist normal. Kommt der ESP32, Profil `tuya` wieder entfernen.
+
 ## Später (optional)
 
 - **Licht:** WLAN-Geräte unter *Geräte → WLAN-Geräte* oder Zigbee (USB-Stick bzw. SLZB-06, Profil `zigbee`).

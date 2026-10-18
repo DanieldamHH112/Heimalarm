@@ -1,0 +1,4 @@
+tuya-device-sharing-sdk==0.2.15
+paho-mqtt==2.1.0
+qrcode==8.0
+cryptography>=43

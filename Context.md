@@ -24,7 +24,7 @@ Zwei **Betriebsarten** (Einstellungen → Betrieb):
 
 **Grundsätze:** kostenlos, Open Source, lokal (Cloud nur, wo der Nutzer sie ausdrücklich wählt: Divera, aPager-API, Voice Monkey), eine Codebasis für PC und Handy. Heimalarm ist eine **Komfortfunktion** – Melder und Alarm-App bleiben die eigentliche Alarmierung.
 
-Der vorhandene Funkhandel-Alarmschalter (Tuya/ELESION/Alexa) bleibt **unverändert als separater zweiter Weg** und ist nicht Teil von Heimalarm. Er teilt sich den Relaiskontakt mit dem ESP32 über einen Y-Verteiler.
+Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkontakt (NX-4900, jetzt in Smart Life). Bis der ESP32 da ist, liest ihn die **Tuya-Brücke** (`zentrale/tuya-bruecke`, Profil `tuya`) über die Smart-Life-Cloud mit und meldet `ALARM` auf `alarm/<kennung>` – wie der ESP32. Lokal mitlesen geht nicht (Gerät schläft), Umflashen ist verworfen.
 
 ## Arbeitsweise & Regeln
 
@@ -222,6 +222,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Sperrzeit** prüft `engine.js` (App) und `rules.js` (Dienst) getrennt; `routines-local.js` verlässt sich auf `engine.js`.
 - **Sichtbarkeit:** Neue Karten/Seiten über `has.*` in `features.js` freischalten, sonst erscheinen sie auch bei Nutzern ohne diese Ausstattung.
 - **Betriebsart:** `isConfigured()` ist nur im Zentrale-Betrieb wahr. Code, der „ist eine Zentrale da?“ fragt, nutzt `has.pi()` bzw. `isConfigured()`, nicht nur `broker.host`.
+- **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
 - **Version** steht nur in `app/package.json` (Tauri liest sie von dort); Dienst-Version in `zentrale/dienst/src/index.js` (`VERSION`) und `package.json`.
 - **Android Release-Build:** braucht Cleartext-Freigabe (siehe Offene Punkte), sonst bricht alles mit `http://`/`ws://` am Handy.

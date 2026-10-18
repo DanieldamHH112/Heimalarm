@@ -1,7 +1,9 @@
-# Heimalarm – Zentrale (z. B. Raspberry Pi)
+# Heimalarm – Zentrale (z. B. Raspberry Pi oder UGREEN-NAS)
 # Start ohne Zigbee:  docker compose up -d
 # Start mit Zigbee:   docker compose --profile zigbee up -d   (USB-Stick unten eintragen)
 # Licht für Alexa / Google Home zusätzlich:  docker compose --profile zigbee --profile matter up -d
+# Tuya-Brücke (Melder über Smart Life, ohne ESP32):  docker compose --profile tuya up -d
+#   Ohne Kommandozeile (z. B. UGOS-Docker-App): Datei .env neben dieser Datei mit COMPOSE_PROFILES=tuya
 
 services:
   mosquitto:
@@ -27,6 +29,24 @@ services:
     volumes:
       - ./dienst/data:/app/data
     depends_on: [mosquitto]
+
+  # Übergang ohne ESP32: liest den Tuya-Kontakt (Funkhandel-Alarmschalter) über Smart Life mit
+  # und meldet "ALARM" auf alarm/<KENNUNG> – wie der ESP32. Anmelden: http://<zentrale>:8082
+  tuya-bruecke:
+    build: ./tuya-bruecke
+    profiles: ["tuya"]
+    restart: unless-stopped
+    depends_on: [mosquitto]
+    ports:
+      - "8082:8082"   # Weboberfläche (Anmeldung per QR-Code)
+    volumes:
+      - ./tuya-bruecke/data:/data
+    environment:
+      TZ: Europe/Berlin
+      MQTT_HOST: mosquitto
+      KENNUNG: ich            # gleiche Kennung wie in der App („Meine Kennung“)
+      ALARM_BEI: geschlossen  # Zustand des Kontakts bei Alarm (geschlossen | offen)
+      GERAET: ""              # leer = erster Kontaktsensor, sonst Name oder ID aus Smart Life
 
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt:2
