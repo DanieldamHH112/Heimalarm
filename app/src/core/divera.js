@@ -4,6 +4,7 @@
 //   POST /api/v2/statusgeber/set-status       eigenen Status setzen { Status: { id, note, reset_date, reset_to } }
 //   POST /api/v2/alarms/confirm/{id}          Rückmeldung zu einem Einsatz { Status: { id, note } }
 // In der App läuft der Abruf über das Tauri-HTTP-Plugin (kein CORS-Problem).
+import { pickDetails } from "./stats.js";
 import { settings, set } from "./settings.js";
 import { log } from "./log.js";
 import { emit } from "./events.js";
@@ -82,7 +83,8 @@ export async function pollDivera() {
     for (const a of fresh) {
       emit("divera-alarm", {
         source: "Divera", keyword: String(a.title || "Alarm").slice(0, 80),
-        text: String(a.text || "").slice(0, 250), address: a.address || "", diveraId: a.id,
+        text: String(a.text || "").slice(0, 1000), address: a.address || "", diveraId: a.id,
+        details: pickDetails(a, ["title", "text", "address", "id", "ts_create", "ts_update", "date"]),   // alle weiteren einfachen Felder für das Einsatz-Logbuch
       });
     }
   } catch (e) {

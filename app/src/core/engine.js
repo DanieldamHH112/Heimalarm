@@ -12,7 +12,7 @@ import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
-import { recordAlarm, recordAnswer } from "./stats.js";
+import { recordAlarm, recordAnswer, addSignal } from "./stats.js";
 
 const lastByWho = new Map();
 export const engine = { last: null };
@@ -58,6 +58,7 @@ function handleAlarm(a) {
   // A4 – Sperrzeit: weiteres Signal derselben Person kurz danach ist derselbe Einsatz (A5 – Quellen zusammenführen)
   if (!test && !probe && a.ts - (lastByWho.get(a.who) || 0) < s.lockoutSec * 1000) {
     log("info", "Weiteres Signal zusammengeführt (Sperrzeit)", `${a.source} · ${a.who}`);
+    if (a.who === s.me) addSignal(a);   // Quelle und weitere Infos beim Einsatz ergänzen
     return;
   }
   if (!test && !probe) lastByWho.set(a.who, a.ts);
@@ -111,7 +112,7 @@ export function alarmFromNotification({ app, title, text }) {
   const words = s.filterWords.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const body = `${title} ${text}`.toLowerCase();
   if (words.length && !words.some((w) => body.includes(w))) return;
-  forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 250) });
+  forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 1000), app: pkg });
 }
 
 /** Antwort an die Alarm-Apps weitergeben, die dafür eingerichtet sind. */

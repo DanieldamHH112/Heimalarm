@@ -107,7 +107,7 @@ Heimalarm/
 | `engine.js` | Alarm-Logik: Quellen, Sperrzeit je Person, Test/Probe, Ruhezeit, „Fährst du?“, Antwort an Apps |
 | `direct.js` | Ohne Zentrale: PC-Empfänger, Koppeln/Entkoppeln, Handy sendet an gekoppelte PCs, Abgleich anstoßen |
 | `sync.js` | Abgleich ohne Zentrale: Bereiche, Zeitstempel, `bundle()`/`applyBundle()` |
-| `stats.js` | Einsatz-Statistik |
+| `stats.js` | Einsatz-Logbuch: speichern, zusammenführen, Statistik, Jahresrückblick, CSV |
 | `routines-local.js` | Ohne Zentrale: Routinen auf dem Handy ausführen |
 | `wifi.js` | WLAN-Geräte (Shelly, Hue, WLED, Tasmota) + Voice Monkey (KOPIE in zentrale/dienst/src/wifi.js) |
 | `divera.js` | Divera-API: laden, Alarme abfragen, Rückmeldung, Status |
@@ -170,6 +170,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/clients/<id>` | `{name, platform, version, online, ts, mac}` (retained, Last Will); leer = aus der Liste entfernt | jede App |
 | `heimalarm/config/shared` | gemeinsame Daten (retained), siehe unten | Apps ↔ Dienst |
 | `heimalarm/cmd/run\|restore\|wol\|selftest` | Routine, „Wieder da“, Wake-on-LAN, Selbsttest | App → Dienst |
+| `heimalarm/einsaetze/<kennung>` | Einsatz-Logbuch (Liste, retained); jedes Gerät führt zusammen und schreibt zurück, wenn es mehr weiß | Apps ↔ Apps |
 | `heimalarm/cmd/test\|rename/<geräte-id>` | Testalarm an genau ein Gerät, Gerät umbenennen `{name}` | App → App |
 | `heimalarm/cmd/voice/test\|reset` | Matter-Sensor testen, Kopplungen löschen | App → Dienst |
 | `heimalarm/voice/status` | `{enabled, running, qr, manual, commissioned, fabrics, sensors, error}` (retained) | Dienst |
@@ -220,7 +221,7 @@ Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`,
 | `shared.js` (`heimalarm/config/shared` bzw. localStorage `heimalarm.shared.local`) | Personen, Routinen, Standort, Urlaubsmodus, Webhook-Schlüssel, Admin-PIN-Hash, `voice`, `wifi` (Geräte), `voicemonkey.token`, `common` (synchronisierte Einstellungen) | mit Zentrale an alle Geräte; ohne Zentrale nur lokal |
 | Dienst `DEFAULTS` (`zentrale/dienst/src/index.js`) | Standardwerte derselben gemeinsamen Daten | – |
 | `localStorage heimalarm.divera.seen` | bereits gesehene Divera-Alarme | – |
-| `localStorage heimalarm.stats.v1` | Einsatz-Statistik (`core/stats.js`): eigene echte Alarme `{ts, source, keyword, answer: go\|stay\|timeout}`, max. 1000, Anzeige im Protokoll | nein (je Gerät) |
+| `localStorage heimalarm.stats.v1` | **Einsatz-Logbuch** (`core/stats.js`): jede echte eigene Alarmierung `{id, ts, who, source, sources[], keyword, unit, text, address, diveraId, app, details{}, answer, answerTs, device, via, vehicle, role, note, edited, deleted}`, max. 1000. Anzeige: Protokoll → Einsätze (Detail, Notizen, Statistik, Art, Jahresrückblick, CSV) | ja: mit Zentrale `heimalarm/einsaetze/<kennung>` (retained), ohne über `/config`; zusammengeführt, nicht ersetzt |
 | `localStorage heimalarm.sync.ts` | Zeitstempel der Abgleich-Bereiche (ohne Zentrale) | – |
 
 Routine (gleiches Format in App und Dienst):
@@ -237,6 +238,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.
 - **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` bzw. `alarm-ich-s3.yaml` (`topic_prefix`, beide gleich halten). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
 - **HTTP aus der App** geht nur zu Adressen im Scope von `capabilities/default.json`. Neue externe API → Scope ergänzen, sonst schlägt `fetch` still fehl.
+- **Alarm-Infos:** Alles, was eine Quelle mehr liefert, kommt als `details` (nur einfache Werte, ≤ 1500 Zeichen) ins Alarm-JSON – Divera (`pickDetails` in `divera.js`), Webhook (alle weiteren Parameter, `webhook.js`). Neue Felder mit eigener Bedeutung in `FIELDS` von `stats.js` aufnehmen.
 - **Abgleich ohne Zentrale:** Neue Einstellung, die abgeglichen werden soll → in einen Bereich von `core/sync.js` einordnen; was je Gerät bleiben muss, in `PC_LOCAL` bzw. aus `bundle()` heraushalten. `direct.rs` und `direct.js` gehören zusammen (Endpunkte, Events `direct-alarm|config|pair|seen`).
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.
 - **Android-Plugin:** Kotlin-Name `heimalarm`, Event `notification` `{app, title, text}` – wird in `core/android.js` abgehört.
@@ -301,7 +303,7 @@ Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
 - **F4 Updates:** prüft GitHub-Releases – erst bei öffentlichem Repo.
 - **Ohne Zentrale:** kein ESP32, kein Zigbee (außer über Hue Bridge), kein Google Home, keine Bedingung „Jemand zuhause“, kein „Vorher-Zustand“.
 - **Koppeln Handy↔PC:** per Adresse + Kopplungscode (kein QR-Scan); danach eigener Code je Handy.
-- **Statistik:** nur je Gerät, nicht abgeglichen.
+- **Einsatz-Logbuch:** derselbe Einsatz auf zwei Geräten wird an der Zeit erkannt (± 2 min). Löschen bleibt als Markierung gespeichert, damit der Abgleich ihn nicht zurückholt. Art (Brand, TH, RD …) wird aus dem Stichwort erraten (`CATEGORIES`).
 
 | Bereich | Wo in der App |
 |---|---|

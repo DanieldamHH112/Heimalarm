@@ -8,11 +8,13 @@
 //   alarm, notify, ui   allgemeine Einstellungen (SYNC_KEYS; die Kennung bleibt je Gerät)
 //   pc       PC-Einstellungen (ohne „Auch für“ und MAC – die gelten je PC)
 //   shared   Routinen, WLAN-Geräte, Personen, Voice Monkey … (nur wenn beide ohne Zentrale laufen)
+//   einsaetze  Einsatz-Logbuch – wird zusammengeführt (core/stats.js), nicht ersetzt
 // Divera-/aPager-Schlüssel, App-PIN und Gerätename bleiben immer auf dem Gerät.
 import { on, emit } from "./events.js";
 import { settings, set, replace, mode, SYNC_KEYS } from "./settings.js";
 import { shared, replaceShared } from "./shared.js";
 import { hasPcFeatures } from "./platform.js";
+import { statsEntries, mergeEinsaetze } from "./stats.js";
 
 const TS_KEY = "heimalarm.sync.ts";
 const SECTIONS = ["betrieb", ...SYNC_KEYS, "pc", "shared"];
@@ -58,6 +60,7 @@ export function bundle() {
   const out = { ts: { ...ts }, mode: mode(), betrieb: { mode: mode(), broker: s.broker }, pc: strip(s.pc, PC_LOCAL) };
   for (const k of SYNC_KEYS) out[k] = s[k];
   if (mode() === "direkt") out.shared = strip(shared(), ["common"]);
+  out.einsaetze = statsEntries();   // Einsatz-Logbuch: wird zusammengeführt, nicht ersetzt
   return out;
 }
 
@@ -85,8 +88,9 @@ export function applyBundle(b) {
     ts[sec] = theirs;
     changed.push(sec);
   }
+  if (Array.isArray(b.einsaetze) && mergeEinsaetze(b.einsaetze)) changed.push("einsaetze");
   if (changed.length) { saveTs(); emit("sync-applied", changed); }
   return changed;
 }
 
-export const SYNC_LABELS = { betrieb: "Betriebsart", alarm: "Alarm", notify: "Meldungen", ui: "Darstellung", pc: "PC-Einstellungen", shared: "Routinen & Geräte" };
+export const SYNC_LABELS = { betrieb: "Betriebsart", alarm: "Alarm", notify: "Meldungen", ui: "Darstellung", pc: "PC-Einstellungen", shared: "Routinen & Geräte", einsaetze: "Einsätze" };

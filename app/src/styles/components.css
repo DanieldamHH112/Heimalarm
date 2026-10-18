@@ -329,10 +329,44 @@ details.more > .field { margin-top: var(--s3); }
 .pair-big small { color: var(--text-2); font-size: var(--fs-xs); font-weight: 600; }
 .pair-big code { font-size: 1.5rem; font-weight: 650; letter-spacing: .05em; font-variant-numeric: tabular-nums; background: none; padding: 0; }
 
-/* Einsatz-Statistik (Protokoll) */
+/* Einsatz-Logbuch und Statistik (Protokoll → Einsätze) */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
-.bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 140px; margin-bottom: var(--s3); }
-.bar { display: grid; grid-template-rows: auto 1fr auto; height: 100%; align-items: end; justify-items: center; gap: 4px; }
-.bar-fill { width: 100%; min-height: 2px; background: var(--signal); border-radius: var(--radius-sm) var(--radius-sm) 0 0; align-self: end; }
-.bar-n { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--text-2); }
-.bar small { color: var(--text-2); font-size: 12px; }
+.month-bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 140px; margin-bottom: var(--s3); }
+.month-bars .bar { display: grid; grid-template-rows: auto 1fr auto; height: 100%; align-items: end; justify-items: center; gap: 4px; }
+.month-bars .bar-fill { width: 100%; min-height: 2px; background: var(--signal); border-radius: var(--radius-sm) var(--radius-sm) 0 0; align-self: end; }
+.month-bars .bar-n { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--text-2); }
+.month-bars small { color: var(--text-2); font-size: 12px; }
+h3.sub { font-size: var(--fs-sm); color: var(--text-2); font-weight: 650; margin: var(--s4) 0 var(--s2); }
+
+.hbars { list-style: none; margin: 0 0 var(--s3); padding: 0; display: grid; gap: 8px; }
+.hbars li { display: grid; grid-template-columns: minmax(0, 9rem) 1fr auto; align-items: center; gap: var(--s3); font-size: var(--fs-sm); }
+.hbar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-track { height: 10px; background: var(--surface-2, var(--line)); border-radius: var(--radius-sm); overflow: hidden; }
+.hbar-fill { display: block; height: 100%; background: var(--signal); }
+.hbar-n { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--text-2); }
+
+.review-facts { list-style: none; margin: 0 0 var(--s3); padding: 0; display: grid; gap: 6px; }
+.review-facts li { display: flex; justify-content: space-between; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); font-size: var(--fs-sm); }
+.review-facts li:first-child { border-top: 0; }
+.review-facts span { color: var(--text-2); }
+
+.einsaetze { list-style: none; margin: 0; padding: 0; }
+.einsaetze li + li { border-top: 1px solid var(--line); }
+.einsatz { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 5.5rem 1fr auto; gap: var(--s3); align-items: center; padding: 12px 4px; cursor: pointer; border-radius: var(--radius-sm); }
+.einsatz:hover { background: var(--surface-2, transparent); }
+.einsatz:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.einsatz-time { display: grid; }
+.einsatz-time b { font-family: "JetBrains Mono", monospace; font-size: var(--fs-sm); }
+.einsatz-time small, .einsatz-main small { color: var(--text-2); font-size: 13px; }
+.einsatz-main { display: grid; gap: 2px; min-width: 0; }
+.einsatz-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.einsatz-note { font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) { .einsatz { grid-template-columns: 4.5rem 1fr; } .einsatz .chip { grid-column: 2; justify-self: start; } }
+
+.kvs { display: grid; gap: 0; margin: 0 0 var(--s4); max-height: 45vh; overflow: auto; }
+.kv { display: grid; grid-template-columns: 8rem 1fr; gap: var(--s3); padding: 6px 0; border-top: 1px solid var(--line); }
+.kv:first-child { border-top: 0; }
+.kv dt { color: var(--text-2); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.kv dd { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; white-space: pre-wrap; }
+.kv dd.mono { font-family: "JetBrains Mono", monospace; font-size: 13px; }
+textarea.input { resize: vertical; min-height: 5rem; font: inherit; }

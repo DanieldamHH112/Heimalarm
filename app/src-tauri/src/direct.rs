@@ -73,7 +73,7 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
         }
         let lower = h.to_ascii_lowercase();
         if let Some(v) = lower.strip_prefix("content-length:") {
-            len = v.trim().parse().unwrap_or(0).min(1_048_576);
+            len = v.trim().parse().unwrap_or(0).min(8_388_608);
         } else if lower.starts_with("x-heimalarm-key:") {
             got_key = h[16..].trim().to_string();
         }

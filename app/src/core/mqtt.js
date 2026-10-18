@@ -1,10 +1,11 @@
 // Verbindung zur Zentrale (Mosquitto, WebSocket-Listener). Alle Topics siehe Context.md.
 import mqtt from "mqtt";
 import { settings, set, isConfigured } from "./settings.js";
-import { emit } from "./events.js";
+import { emit, on } from "./events.js";
 import { log } from "./log.js";
 import { platformName } from "./platform.js";
 import { receive as receiveShared, bindPublisher } from "./shared.js";
+import { statsEntries, mergeEinsaetze, fingerprint } from "./stats.js";
 
 export const APP_VERSION = import.meta.env.PACKAGE_VERSION || "0.0.0";
 
@@ -122,6 +123,7 @@ function handleHeimalarm(p, msg) {
   }
   else if (p[1] === "config" && p[2] === "shared") return receiveShared(msg);
   else if (p[1] === "cmd" && p[3] && p[3] === settings().device.id) return deviceCommand(p[2], msg);
+  else if (p[1] === "einsaetze" && p[2] === settings().alarm.me) return receiveEinsaetze(msg);
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
@@ -131,6 +133,23 @@ function handleHeimalarm(p, msg) {
   else return;
   emit("devices", state);
 }
+
+// ── Einsatz-Logbuch über die Zentrale abgleichen (retained je Kennung) ──
+const einsaetzeTopic = () => `heimalarm/einsaetze/${settings().alarm.me}`;
+let einsaetzeTimer;
+function publishEinsaetze() {
+  if (!client || !state.connected || settings().sync?.enabled === false) return;
+  client.publish(einsaetzeTopic(), JSON.stringify(statsEntries()), { retain: true, qos: 1 });
+}
+function receiveEinsaetze(msg) {
+  if (settings().sync?.enabled === false) return;
+  let remote; try { remote = JSON.parse(msg || "[]"); } catch { return; }
+  const theirs = Array.isArray(remote) ? JSON.stringify(remote.map((e) => [e.id, e.edited || 0, e.answer || "", (e.sources || []).length])) : "";
+  mergeEinsaetze(remote);
+  // Hat dieses Gerät mehr oder Neueres, den zusammengeführten Stand zurückschreiben
+  if (fingerprint() !== theirs) { clearTimeout(einsaetzeTimer); einsaetzeTimer = setTimeout(publishEinsaetze, 1500 + Math.random() * 1500); }
+}
+on("sync-dirty", (sec) => { if (sec === "einsaetze") { clearTimeout(einsaetzeTimer); einsaetzeTimer = setTimeout(publishEinsaetze, 1000); } });
 
 /** Befehle an genau dieses Gerät: heimalarm/cmd/test/<id>, heimalarm/cmd/rename/<id> */
 function deviceCommand(cmd, msg) {
