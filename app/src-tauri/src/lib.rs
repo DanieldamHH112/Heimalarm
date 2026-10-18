@@ -158,7 +158,6 @@ async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> 
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let setup = dir.join("Heimalarm-setup.exe");
         let sha = dir.join("Heimalarm-setup.exe.sha256");
-        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
 
         // Laden und prüfen mit Bordmitteln (PowerShell). Werte nur über Umgebungsvariablen, nie im Skripttext.
         let script = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; \
@@ -190,14 +189,14 @@ async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> 
             });
         }
 
-        // Kurz warten, bis Heimalarm beendet ist, dann Setup still ausführen und neu starten.
-        let chain = "Start-Sleep -Seconds 2; Start-Process -FilePath $env:HA_SETUP -ArgumentList '/P' -Wait; Start-Process -FilePath $env:HA_EXE";
-        Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", chain])
-            .env("HA_SETUP", &setup).env("HA_EXE", &exe)
-            .creation_flags(NO_WINDOW | DETACHED)
+        // Setup direkt starten (ohne Zwischenschritt über PowerShell, der beim Beenden der App
+        // verloren ging): /P = ohne Fragen mit Fortschrittsfenster, /UPDATE = über die vorhandene
+        // Installation, /R = Heimalarm danach wieder starten. Das Setup schließt die laufende App selbst.
+        Command::new(&setup)
+            .args(["/P", "/UPDATE", "/R"])
+            .creation_flags(DETACHED)
             .spawn()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Setup nicht gestartet: {e}"))?;
         app.exit(0);
         Ok(())
     }

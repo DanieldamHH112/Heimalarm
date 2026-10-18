@@ -71,11 +71,29 @@ function tiles() {
     has.direct() && !hasPcFeatures && tile("Gekoppelte PCs", String(s.direct.peers.length), chip(s.direct.peers.length ? "ok" : "", s.direct.peers.length ? s.direct.peers.map((p) => p.name).join(" · ") : "keiner")),
     has.pi() && tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
       state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
-    has.esp() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
+    has.esp() && has.tuya() && tile("Funk-Alarmschalter", !state.tuya.online ? "Offline" : state.tuya.angemeldet ? "Bereit" : "Nicht angemeldet",
+      chip(state.tuya.online && state.tuya.angemeldet ? "ok" : "bad", !state.tuya.online ? "Tuya-Brücke aus" : state.tuya.angemeldet ? (state.tuya.geraet || "angemeldet") : "Port 8082 öffnen")),
+    has.esp() && !has.tuya() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
       dev?.online ? chip("ok", `seit ${fmtAgo(dev.since).replace("vor ", "")}`) : chip(dev ? "bad" : "", dev ? `seit ${fmtTime(dev.since)}` : `alarm/${s.alarm.me}`)),
     has.pi() && tile("Apps verbunden", String(apps), chip(apps > 0 ? "ok" : "", apps > 0 ? "inkl. dieser" : "keine")),
     tile("Alarme 24 h", String(alarms24), chip(alarms24 > 0 ? "bad" : "", alarms24 > 0 ? fmtAgo(getLog("alarm")[0].ts) : "ruhig")),
   );
+}
+
+/** Melder über den Funk-Alarmschalter (Tuya-Brücke) statt ESP32. */
+function tuyaCard() {
+  const t = state.tuya;
+  const host = settings().broker.host;
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Funk-Alarmschalter"),
+      !t.online ? chip("bad", "Brücke offline") : t.angemeldet ? chip("ok", "bereit") : chip("bad", "nicht angemeldet")),
+    h("dl.facts", {},
+      h("div", {}, h("dt", {}, "Gerät"), h("dd", {}, t.geraet || "–")),
+      h("div", {}, h("dt", {}, "Kennung"), h("dd.mono", {}, t.kennung || "–")),
+      h("div", {}, h("dt", {}, "Über"), h("dd", {}, "Tuya-Brücke (Smart Life)")),
+      h("div", {}, h("dt", {}, "Stand"), h("dd", {}, t.ts ? fmtAgo(t.ts) : "–"))),
+    !t.angemeldet && t.online && h("p.hint", {}, "Noch nicht bei Smart Life angemeldet: ", h("code", {}, `http://${host}:8082`), " öffnen."),
+    t.kennung && t.kennung !== settings().alarm.me && h("p.hint", {}, `Achtung: Die Brücke meldet für „${t.kennung}“, diese App hat die Kennung „${settings().alarm.me}“.`));
 }
 
 function espCard() {
@@ -226,7 +244,7 @@ export function overview() {
     answerCard(),
     tiles(),
     h("div.dash", {},
-      h("div.dash-main", {}, alarmsCard(), has.esp() && espCard(), has.zigbee() && zigbeeCard()),
+      h("div.dash-main", {}, alarmsCard(), has.esp() && (has.tuya() ? tuyaCard() : espCard()), has.zigbee() && zigbeeCard()),
       h("div.dash-side", {}, has.diveraApi() && diveraCard(), quickCard(), hasPcFeatures && pcCard(), has.pi() && appsCard(), eventsCard()),
     ),
   );

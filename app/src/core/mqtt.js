@@ -27,6 +27,7 @@ export const state = {
   report: null,    // I4 – letzter Selbsttest
   zlog: [],        // F5 – Protokoll der Zentrale
   pong: null,      // I3 – Antwort auf Verbindungstest
+  tuya: null,      // Tuya-Brücke (Funk-Alarmschalter über Smart Life): { online, angemeldet, kennung, geraet, ts }
   voice: null,     // Matter-Bridge für Alexa / Google Home: { running, qr, manual, commissioned, fabrics, sensors, error }
 };
 
@@ -131,6 +132,7 @@ function handleHeimalarm(p, msg) {
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
+  else if (p[1] === "tuya" && p[2] === "status") state.tuya = json();
   else if (p[1] === "pong") state.pong = { ...json(), at: Date.now() };
   else if (p[1] === "log" && p[2] === "recent") state.zlog = json() || [];
   else if (p[1] === "log" && !p[2]) { state.zlog.unshift(json()); state.zlog.length = Math.min(state.zlog.length, 200); }

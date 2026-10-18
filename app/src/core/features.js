@@ -6,6 +6,8 @@ import { state } from "./mqtt.js";
 export const has = {
   pi: () => isConfigured(),                                            // Zentrale (NAS oder Raspberry Pi)
   esp: () => isConfigured() && settings().alarm.mqtt !== false,         // Melder über ESP32
+  /** Funk-Alarmschalter über die Tuya-Brücke statt ESP32 (Brücke hat sich gemeldet, kein ESP32 bisher). */
+  tuya: () => isConfigured() && Boolean(state.tuya) && !Object.keys(state.devices).length,
   zigbee: () => isConfigured() && state.zigbee !== null,                // Zigbee2MQTT meldet sich
   direct: () => mode() === "direkt",
   wifi: () => (shared().wifi || []).length > 0,
