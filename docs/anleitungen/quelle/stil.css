@@ -39,7 +39,7 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 5px; white
 .lead { font-size: 11.5pt; color: var(--text-2); max-width: 150mm; }
 .lead b { color: var(--text); }
 h3 { font-size: 12.5pt; font-weight: 680; }
-h4 { font-size: 10.5pt; font-weight: 650; }
+h4, h3.h4 { font-size: 10.5pt; font-weight: 650; }
 .muted { color: var(--text-2); }
 .small { font-size: 9pt; }
 
@@ -120,7 +120,7 @@ ol.tl li::after { content: ""; position: absolute; left: calc(22mm + 2mm + 3mm -
 ol.tl li:last-child::after { display: none; }
 ol.tl .when { font: 8.5pt var(--mono); color: var(--text-2); text-align: right; padding-top: 1px; }
 ol.tl .dot { width: 14px; height: 14px; border-radius: 50%; margin: 2px auto 0; border: 3px solid var(--bg); box-shadow: 0 0 0 2px var(--a, var(--text-2)); position: relative; z-index: 1; }
-ol.tl h4 { margin-bottom: 0.6mm; }
+ol.tl h3.h4 { margin-bottom: 0.6mm; }
 ol.tl p { color: var(--text-2); font-size: 9.5pt; }
 
 /* Ablauf-Grafik */
