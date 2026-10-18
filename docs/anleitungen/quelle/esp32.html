@@ -127,7 +127,8 @@
 sudo usermod -aG docker $USER
 exit</pre><span class="note">Danach mit <code>ssh benutzer@heimalarm.local</code> neu verbinden.</span></div></li>
     <li><div><b>Heimalarm holen:</b>
-      <pre class="code">git clone https://github.com/DanieldamHH112/Heimalarm.git
+      <pre class="code">sudo apt install -y git
+git clone https://github.com/DanieldamHH112/Heimalarm.git
 cd Heimalarm/zentrale
 cp -r ../esp32 ./esp32</pre></div></li>
     <li><div><b>Passwort festlegen:</b>
@@ -156,7 +157,7 @@ mqtt_host: "IP der Zentrale"
 mqtt_user: "heimalarm"
 mqtt_pw: "dein MQTT_PASSWORD"</pre>
       <span class="note"><span class="btn">Save</span>. Die Vorlage dafür ist <code>secrets.example.yaml</code>.</span></div></li>
-    <li><div>Bei der Karte für dein Board (Tabelle Schritt 1) auf <span class="btn">Edit</span>. Ganz oben steht <code>kennung: ich</code>. Für dich passt <code>ich</code> – bei weiteren Personen eine eigene Kennung wählen, z. B. <code>kollege</code>. <span class="btn">Save</span>.</div></li>
+    <li><div>Bei der Karte für dein Board (Tabelle Schritt 1) auf <span class="btn">Edit</span>. Die anderen Karten (andere Boards, <code>secrets.example</code>) einfach nicht beachten. Ganz oben steht <code>kennung: ich</code>. Für dich passt <code>ich</code> – bei weiteren Personen eine eigene Kennung wählen, z. B. <code>kollege</code>. <span class="btn">Save</span>.</div></li>
   </ol>
   <div class="done"><div><b>Geklappt, wenn</b> <span class="btn">Validate</span> im Menü der Karte (⋮) keinen Fehler zeigt.</div></div>
 </section>
