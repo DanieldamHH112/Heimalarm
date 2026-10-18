@@ -79,7 +79,7 @@ Heimalarm/
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
-├─ esp32/                  ESPHome: alarm-ich.yaml, secrets.example.yaml
+├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), secrets.example.yaml
 └─ docs/                   Konzept.pdf, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/
 ```
 
@@ -215,7 +215,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Routinen-Format** wird in `views/routines.js` gebaut und von `zentrale/dienst/src/rules.js` **und** `core/routines-local.js` ausgeführt. Neue Aktion/Bedingung in allen dreien.
 - **Gemeinsame Daten:** neues Feld in `shared.js` (`sharedDefaults`) **und** Dienst `DEFAULTS`. Der Dienst übernimmt die Konfiguration flach (`{...DEFAULTS, ...cfg}`) – verschachtelte Objekte immer komplett schreiben.
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.
-- **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` (`topic_prefix`). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
+- **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` bzw. `alarm-ich-s3.yaml` (`topic_prefix`, beide gleich halten). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
 - **HTTP aus der App** geht nur zu Adressen im Scope von `capabilities/default.json`. Neue externe API → Scope ergänzen, sonst schlägt `fetch` still fehl.
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.
 - **Android-Plugin:** Kotlin-Name `heimalarm`, Event `notification` `{app, title, text}` – wird in `core/android.js` abgehört.
