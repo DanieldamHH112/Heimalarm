@@ -25,11 +25,11 @@
   <path class="b" d="M123 310V346H600V318" marker-end="url(#ab)"/><text class="s" x="140" y="340">aPager-Webhook direkt an die Zentrale</text>
 
   <rect class="hub" x="500" y="52" width="200" height="262" rx="3"/>
-  <text class="t" x="520" y="84">Raspberry Pi</text>
-  <text class="s" x="520" y="116">Mosquitto · Verteiler</text>
-  <text class="s" x="520" y="140">Dienst · Routinen</text>
-  <text class="s" x="520" y="164">Zigbee2MQTT · Licht</text>
-  <text class="s" x="520" y="188">Matter · Alexa, Google</text>
+  <text class="t" x="520" y="84">Zentrale</text><text class="s" x="520" y="102">NAS oder Raspberry Pi</text>
+  <text class="s" x="520" y="128">Mosquitto · Verteiler</text>
+  <text class="s" x="520" y="150">Dienst · Routinen</text>
+  <text class="s" x="520" y="172">Zigbee2MQTT · Licht</text>
+  <text class="s" x="520" y="194">Matter · Alexa, Google</text>
   <circle class="dot" cx="520" cy="226" r="4"/><text class="s" x="532" y="230">läuft auch, wenn PC</text><text class="s" x="532" y="249">und Handy aus sind</text>
 
   <rect class="box" x="752" y="52" width="220" height="56" rx="3"/><text class="t" x="770" y="77">PC</text><text class="s" x="770" y="97">„Fährst du?“ · Ruhezustand</text>

@@ -2,7 +2,8 @@
 import { h, fmtAgo, fmtTime, fmtDate, toast } from "../ui/dom.js";
 import { state, publish } from "../core/mqtt.js";
 import { shared } from "../core/shared.js";
-import { settings, isConfigured } from "../core/settings.js";
+import { settings, isConfigured, mode } from "../core/settings.js";
+import { setupFlow, setupSteps, setupDone } from "../ui/setup.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
 import { has, activeSources } from "../core/features.js";
@@ -30,17 +31,16 @@ function signal(rssi) {
 }
 
 function setupCard() {
-  return h("section.card.span-all", {},
-    h("div.card-head", {}, h("h2", {}, "In 3 Schritten startklar")),
-    h("ol.steps", {},
-      h("li", {}, h("div", {}, "Alarmquellen wählen", h("small", {}, "Melder (ESP32 + Zentrale), SYBOS, aPager oder Divera – auch mehrere."))),
-      h("li", {}, h("div", {}, "Zentrale eintragen, falls vorhanden", h("small", {}, "IP des Raspberry Pi unter Einstellungen → Verbindung."))),
-      h("li", {}, h("div", {}, "Testalarm auslösen", h("small", {}, "Einstellungen → Test & Diagnose. Zeigt die Abfrage, ohne dass etwas passiert."))),
-    ),
-    h("div.row", {}, h("a.btn.primary", { href: "#/einstellungen/quellen" }, "Einrichten")),
+  const z = mode() === "zentrale";
+  return h("section.card.span-all.setup", {},
+    h("div.card-head", {},
+      h("div", {}, h("h2", {}, "Einrichtung"), h("p.meta", {}, z ? "Mit Zentrale – NAS oder Raspberry Pi gibt den Alarm weiter." : "Ohne Zentrale – Handy und PC arbeiten direkt zusammen.")),
+      h("a.btn.small", { href: "#/einstellungen/betrieb" }, "Betriebsart ändern")),
+    setupFlow(),
+    setupSteps(),
   );
 }
-const needsSetup = () => activeSources().length === 0;
+const needsSetup = () => !setupDone();
 
 const tile = (label, value, status) => h("div.tile", {}, h("span.tile-label", {}, label), h("b", {}, value), status);
 

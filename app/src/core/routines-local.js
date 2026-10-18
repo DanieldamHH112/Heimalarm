@@ -33,7 +33,7 @@ function check(c, ev) {
 
 function switchDevice(name, payload) {
   const dev = (shared().wifi || []).find((d) => d.name === name);
-  if (!dev) return log("warn", `Gerät „${name}“ ohne Zentrale nicht erreichbar`, "Nur WLAN-Geräte gehen ohne Pi");
+  if (!dev) return log("warn", `Gerät „${name}“ ohne Zentrale nicht erreichbar`, "Ohne Zentrale gehen nur WLAN-Geräte");
   return wifiSet(dev, { on: String(payload.state || "ON").toUpperCase() !== "OFF", bri: payload.brightness != null ? (payload.brightness / 254) * 100 : null }, fetchFn)
     .catch((e) => log("warn", `WLAN-Gerät ${name}`, e.message));
 }

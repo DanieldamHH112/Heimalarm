@@ -169,6 +169,60 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
   .section-index { margin-inline: calc(-1 * var(--s4)); padding-inline: var(--s4); }
 }
 
+/* ── Einrichtung: Betriebsart + Weg des Alarms ── */
+.mode-choice { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.mode-card {
+  position: relative; display: grid; gap: 6px; text-align: left; cursor: pointer;
+  padding: var(--s4) var(--s4) var(--s4) calc(var(--s4) + 28px);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.mode-card::before { /* Auswahlpunkt wie ein Radio-Button */
+  content: ""; position: absolute; left: var(--s4); top: calc(var(--s4) + 3px);
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--text-2); box-sizing: border-box;
+}
+.mode-card:hover { border-color: color-mix(in srgb, var(--text) 30%, var(--line)); }
+.mode-card[aria-checked="true"] { border-color: var(--signal); background: color-mix(in srgb, var(--signal) 7%, var(--surface-2)); }
+.mode-card[aria-checked="true"]::before { border-color: var(--signal); background: radial-gradient(circle, var(--signal) 0 4px, transparent 5px); }
+.mode-title { font-weight: 680; font-size: var(--fs-md); }
+.mode-text { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
+.mode-meta { font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); letter-spacing: 0.01em; }
+.mode-card[aria-checked="true"] .mode-meta { color: var(--signal); }
+
+.flow { container-type: inline-size; }
+.flow-cols { display: flex; gap: var(--s5); align-items: stretch; }
+.flow-col { flex: 1 1 0; min-width: 0; display: grid; align-content: start; gap: var(--s2); position: relative; }
+.flow-col + .flow-col::before { /* Pfeil zwischen den Stufen */
+  content: ""; position: absolute; left: calc(-1 * var(--s5) / 2 - 5px); top: 50%;
+  width: 10px; height: 10px; border-top: 2px solid var(--text-2); border-right: 2px solid var(--text-2); rotate: 45deg; translate: 0 2px;
+}
+.flow-label { font-size: var(--fs-xs); font-weight: 650; color: var(--text-2); }
+.flow-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.flow-node { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); padding: 10px 12px; display: grid; gap: 2px; position: relative; }
+.flow-node b { font-size: var(--fs-sm); font-weight: 650; padding-right: 16px; }
+.flow-node small { color: var(--text-2); font-size: var(--fs-xs); line-height: 1.4; }
+.flow-node.ok::after, .flow-node.off::after { content: ""; position: absolute; right: 12px; top: 15px; width: 8px; height: 8px; border-radius: 50%; }
+.flow-node.ok { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.flow-node.ok::after { background: var(--ok); }
+.flow-node.off::after { background: var(--signal); }
+@container (max-width: 640px) {
+  .flow-cols { flex-direction: column; }
+  .flow-col + .flow-col::before { left: 50%; top: calc(-1 * var(--s5) / 2 - 7px); rotate: 135deg; translate: -50% 0; }
+}
+.flow-wrap { gap: var(--s4); }
+.setup { gap: var(--s5); }
+.step-link { color: var(--text); font-weight: 620; text-decoration: none; }
+.step-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── Suche (Einstellungen) ───────────────────── */
+.search { position: relative; display: block; }
+.search svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; translate: 0 -50%; fill: none; stroke: var(--text-2); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.search .input { padding-left: 44px; min-height: 48px; background: var(--surface); font-size: var(--fs-md); }
+.search .input::placeholder { color: var(--text-2); }
+.search .input::-webkit-search-cancel-button { cursor: pointer; }
+::highlight(suche) { background-color: color-mix(in srgb, var(--warn) 38%, transparent); color: var(--text); }
+.search-empty { padding: var(--s5) 0; }
+
 /* ── Listen mit Aktionen ─────────────────────── */
 .item { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--s4); display: grid; gap: var(--s3); background: var(--surface-2); }
 .item-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }

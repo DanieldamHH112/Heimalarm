@@ -1,4 +1,5 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
+import { modeChoice, setupFlow } from "../ui/setup.js";
 import { h, toast } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
@@ -65,9 +66,9 @@ function betrieb(rerender) {
           })),
       h("small.meta", {}, "Handy und PC müssen im selben WLAN sein."));
   };
-  return section("betrieb", "Betrieb", "Mit Zentrale (Raspberry Pi) läuft alles auch, wenn Handy und PC aus sind. Ohne Zentrale arbeiten Handy und PC direkt zusammen.",
-    h("div.field", {}, h("span", {}, "Betriebsart"),
-      segmented([["zentrale", "Mit Zentrale"], ["direkt", "Ohne Zentrale"]], m, (v) => { set("mode", v); connect(); startReceiver(); rerender(); })),
+  return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Auf allen Geräten dieselbe Betriebsart wählen.",
+    modeChoice((v) => { set("mode", v); connect(); startReceiver(); rerender(); }),
+    h("div.item.flow-wrap", {}, h("div.item-head", {}, h("b", {}, "So läuft ein Alarm")), setupFlow()),
     m === "direkt" && (hasPcFeatures ? pcPart() : phonePart()),
     m === "direkt" && switchRow("Routinen auf diesem Gerät ausführen", hasPcFeatures ? "Normalerweise macht das das Handy. Nur einschalten, wenn kein Handy Routinen ausführt." : "Licht und Alexa bei Alarm. Nur auf einem Gerät einschalten.",
       runsHere(), (v) => { set("direct.routines", v); rerender(); }),
@@ -76,7 +77,7 @@ function betrieb(rerender) {
 
 function verbindung(rerender) {
   const host = settings().broker.host;
-  return section("verbindung", "Verbindung", "Die Zentrale (Raspberry Pi) mit Mosquitto. Ohne sie gibt es keine Alarme.",
+  return section("verbindung", "Verbindung", "Die Zentrale – UGREEN-NAS, Raspberry Pi oder ein anderer Heimserver mit dem Heimalarm-Docker-Projekt. Ohne sie kommt kein Melder-Alarm an.",
     h("div.fields", {},
       field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "IP oder Name im Heimnetz"),
       field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "WebSocket, Standard 9001"),
@@ -282,7 +283,7 @@ function sprache(rerender) {
       h("div.item-head", {}, h("b", {}, "Licht & Geräte steuern")),
       h("p.meta", {}, "Zigbee-Lichter und -Gruppen erscheinen in Alexa und Google Home – „Alexa, Flurlicht an“. Dafür läuft Matterbridge auf der Zentrale."),
       h("ol.pair-steps", {},
-        h("li", {}, "Auf dem Pi: ", h("code", {}, "docker compose --profile zigbee --profile matter up -d")),
+        h("li", {}, "Auf der Zentrale: ", h("code", {}, "docker compose --profile zigbee --profile matter up -d")),
         h("li", {}, "Oberfläche öffnen, Plugin ", h("code", {}, "matterbridge-zigbee2mqtt"), " hinzufügen."),
         h("li", {}, "Den dort gezeigten QR-Code in Alexa bzw. Google Home scannen.")),
       h("div.row", {}, h("a.btn.small", { href: `http://${host}:8283`, target: "_blank", rel: "noopener" }, "Matterbridge öffnen"))),
@@ -481,12 +482,83 @@ export function settingsView(rerender) {
       // Ohne Hash-Wechsel scrollen: sonst springt jede spätere Änderung wieder zum Abschnitt zurück.
       onclick: (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); markSection(index, id); },
     }, label)))));
-  queueMicrotask(() => watchSections(index, parts.map(([id]) => id)));
+  queueMicrotask(() => { watchSections(index, parts.map(([id]) => id)); applySearch(); });
+  const empty = h("p.empty.search-empty", { hidden: true }, "Nichts gefunden. Anderen Begriff versuchen, z. B. „PIN“, „Alexa“ oder „Kennung“.");
+  const searchField = h("input.input", {
+    type: "search", value: query, placeholder: "Einstellung suchen …", "aria-label": "Einstellungen durchsuchen",
+    autocomplete: "off", spellcheck: "false", enterkeyhint: "search",
+    oninput: (e) => { query = e.target.value; applySearch(); },
+    onkeydown: (e) => { if (e.key === "Escape") { query = ""; e.target.value = ""; applySearch(); } },
+  });
   return h("div.page", {},
     h("header.page-head", {}, h("div", {}, h("h1", {}, "Einstellungen"), h("p", {}, "Änderungen werden sofort gespeichert.")),
       h("a.btn", { href: "#/diagnose" }, "Test & Diagnose")),
-    h("div.settings-layout", {}, index, h("div.settings-body", {}, ...parts.map(([, , el]) => el))),
+    h("label.search", {}, SEARCH_ICON(), searchField),
+    h("div.settings-layout", {}, index, h("div.settings-body", {}, ...parts.map(([, , el]) => el), empty)),
   );
+}
+
+/* ── Suche: blendet Abschnitte aus, die nicht passen, und markiert Treffer ── */
+let query = "";
+// Begriffe, die nicht wörtlich im Abschnitt stehen, aber danach gesucht wird
+const KEYWORDS = {
+  betrieb: "zentrale nas ugreen raspberry pi koppeln handy pc direkt",
+  verbindung: "zentrale nas ip adresse port broker mqtt mosquitto",
+  quellen: "melder esp32 sybos apager divera alarm app quelle",
+  alarm: "kennung sperrzeit testalarm testmodus",
+  esp32: "melder firmware update mindestdauer",
+  pc: "ruhezustand herunterfahren sperren autostart windows wake on lan countdown",
+  android: "akku hintergrund benachrichtigung dienst",
+  geraet: "name gerätename benachrichtigung abgleich sync",
+  personen: "kollege kennung person",
+  sprache: "alexa google matter voice monkey ansage sprachassistent",
+  zentrale: "selbsttest webhook dienst",
+  sicherheit: "pin sperre admin passwort",
+  backup: "update version sichern wiederherstellen export import",
+  darstellung: "dunkel hell theme farbe design",
+};
+const SEARCH_ICON = () => {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>';
+  return svg;
+};
+const norm = (t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function applySearch() {
+  const q = norm(query.trim());
+  const words = q.split(/\s+/).filter(Boolean);
+  const sections = [...document.querySelectorAll(".settings-body > .section")];
+  let shown = 0;
+  for (const sec of sections) {
+    const hay = norm(sec.textContent + " " + (KEYWORDS[sec.id] || ""));
+    const hit = words.every((w) => hay.includes(w));
+    sec.hidden = !hit;
+    if (hit) shown++;
+    document.querySelector(`.section-index a[data-id="${sec.id}"]`)?.closest("li")?.toggleAttribute("hidden", !hit);
+  }
+  const empty = document.querySelector(".search-empty");
+  if (empty) empty.hidden = shown > 0;
+  highlight(sections.filter((s) => !s.hidden), query.trim().toLowerCase().split(/\s+/).filter(Boolean));
+}
+// Treffer markieren, ohne das DOM zu verändern (CSS Custom Highlight API)
+function highlight(sections, words) {
+  if (!globalThis.CSS?.highlights) return;
+  CSS.highlights.delete("suche");
+  if (!words.length) return;
+  const ranges = [];
+  for (const sec of sections) {
+    const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const str = n.textContent.toLowerCase(); // ohne NFD, damit die Positionen stimmen
+      for (const w of words) {
+        for (let i = str.indexOf(w); i !== -1; i = str.indexOf(w, i + w.length)) {
+          const r = new Range(); r.setStart(n, i); r.setEnd(n, i + w.length); ranges.push(r);
+        }
+      }
+    }
+  }
+  CSS.highlights.set("suche", new Highlight(...ranges));
 }
 
 /* Aktiven Abschnitt in der Abschnittsliste markieren (folgt dem Scrollen). */

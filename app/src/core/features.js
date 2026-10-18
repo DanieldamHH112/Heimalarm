@@ -4,7 +4,7 @@ import { shared } from "./shared.js";
 import { state } from "./mqtt.js";
 
 export const has = {
-  pi: () => isConfigured(),                                            // Zentrale (Raspberry Pi)
+  pi: () => isConfigured(),                                            // Zentrale (NAS oder Raspberry Pi)
   esp: () => isConfigured() && settings().alarm.mqtt !== false,         // Melder über ESP32
   zigbee: () => isConfigured() && state.zigbee !== null,                // Zigbee2MQTT meldet sich
   direct: () => mode() === "direkt",

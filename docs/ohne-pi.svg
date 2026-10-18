@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="1000" height="440" role="img" aria-label="Ohne Raspberry Pi: Das Handy empfängt den Alarm, meldet ihn an den PC und schaltet Licht und Alexa">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" width="1000" height="440" role="img" aria-label="Ohne Zentrale: Das Handy empfängt den Alarm, meldet ihn an den PC und schaltet Licht und Alexa">
   <style>
     .bg{fill:#0e1013}.box{fill:#171a1f;stroke:#2c313a;stroke-width:1.5}.hub{fill:#1d1414;stroke:#e5432f;stroke-width:2}.lim{fill:#2e2413;stroke:none}
     .t{font:600 16px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#f1f2f4}.s{font:400 13px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#9aa1ad}
@@ -37,5 +37,5 @@
   <rect class="lim" x="28" y="318" width="226" height="94" rx="3"/><text class="w" x="44" y="344">Handy im WLAN</text><text class="ws" x="44" y="366">Nur dann erreicht es</text><text class="ws" x="44" y="385">PC und Lampen.</text>
   <rect class="lim" x="268" y="318" width="226" height="94" rx="3"/><text class="w" x="284" y="344">Kein Zigbee</text><text class="ws" x="284" y="366">Zigbee-Lampen nur über</text><text class="ws" x="284" y="385">eine Hue Bridge.</text>
   <rect class="lim" x="508" y="318" width="226" height="94" rx="3"/><text class="w" x="524" y="344">Android im Hintergrund</text><text class="ws" x="524" y="366">Akku-Optimierung für</text><text class="ws" x="524" y="385">Heimalarm ausschalten.</text>
-  <rect class="lim" x="748" y="318" width="224" height="94" rx="3"/><text class="w" x="764" y="344">Alexa über Cloud</text><text class="ws" x="764" y="366">Voice Monkey braucht</text><text class="ws" x="764" y="385">Internet. Google: nur mit Pi.</text>
+  <rect class="lim" x="748" y="318" width="224" height="94" rx="3"/><text class="w" x="764" y="344">Alexa über Cloud</text><text class="ws" x="764" y="366">Voice Monkey braucht</text><text class="ws" x="764" y="385">Internet. Google: nur mit Zentrale.</text>
 </svg>
