@@ -2,7 +2,7 @@
 import { modeChoice, setupFlow } from "../ui/setup.js";
 import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
 import { h, toast, fmtAgo } from "../ui/dom.js";
-import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
+import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog, ask } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
 import { has } from "../core/features.js";
 import { direct, startReceiver, renewCode, openPairing, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
@@ -12,14 +12,14 @@ import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
 import { ACTIONS, setAutostart, hibernateEnabled, enableHibernate, macAddress } from "../core/pc.js";
 import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
 import { requireAdmin, isAdmin } from "../core/admin.js";
-import { androidStatus, openBatterySettings, openNotificationAccess, setBackgroundService } from "../core/android.js";
+import { androidStatus, openBatterySettings, openNotificationAccess, openFullScreenSettings, setBackgroundService } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
 import { biometricLabel } from "../core/biometric.js";
 import { recentApps, testAlarm } from "../core/engine.js";
 import { divera, loadDivera, restartDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
 import qrcode from "qrcode-generator";
-import { playAlarmTone } from "../ui/sound.js";
+import { toneSettings, percentSlider } from "../ui/tone.js";
 
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$|[a-z0-9-]+\.local$|[a-z0-9-]+$)/iu;
 let hibernateOn = null;
@@ -77,7 +77,7 @@ function betrieb(rerender) {
           ? [h("span.chip.ok", {}, `Koppeln erlaubt bis ${new Date(direct.pairUntil).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`),
              h("button.btn.small.ghost", { onclick: async () => { await openPairing(0); rerender(); } }, "Beenden")]
           : h("button.btn.small.primary", { onclick: async () => { await openPairing(5); rerender(); } }, "Koppeln erlauben (5 Minuten)"),
-        h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Kopplungscode erzeugen? Bereits gekoppelte Handys bleiben gekoppelt.")) { await renewCode(); rerender(); } } }, "Neuer Kopplungscode")),
+        h("button.btn.small.ghost", { onclick: async () => { if (await ask("Neuen Kopplungscode erzeugen? Bereits gekoppelte Handys bleiben gekoppelt.")) { await renewCode(); rerender(); } } }, "Neuer Kopplungscode")),
       h("small.meta", {}, "Neue Handys werden nur angenommen, solange „Koppeln erlauben“ läuft. Nach 10 falschen Codes ist ein Gerät 5 Minuten gesperrt."),
       h("div.item-head", { style: "margin-top:var(--s4)" }, h("b", {}, "Gekoppelte Handys")),
       phones.length === 0 ? h("p.meta", {}, "Noch keins.")
@@ -85,7 +85,7 @@ function betrieb(rerender) {
             h("div", {}, h("b", {}, p.name), h("div.meta", {}, `zuletzt ${ago(p.lastSeen)}`)),
             h("div.row", {},
               h("button.btn.small.ghost", { onclick: () => renamePhoneDialog(rerender, p) }, "Umbenennen"),
-              h("button.btn.small.ghost.danger", { onclick: async () => { if (confirm(`„${p.name}“ entkoppeln? Das Handy erreicht diesen PC danach nicht mehr.`)) { await unpairPhone(p.id); rerender(); } } }, "Entkoppeln")))))),
+              h("button.btn.small.ghost.danger", { onclick: async () => { if (await ask(`„${p.name}“ entkoppeln? Das Handy erreicht diesen PC danach nicht mehr.`)) { await unpairPhone(p.id); rerender(); } } }, "Entkoppeln")))))),
       syncHint,
       h("small.meta", {}, "Windows fragt beim ersten Mal nach der Firewall – „Private Netzwerke“ erlauben."));
   };
@@ -102,7 +102,7 @@ function betrieb(rerender) {
               h("div.row", {},
                 h("button.btn.small.ghost", { onclick: () => pingPeer(p).then(rerender) }, "Prüfen"),
                 h("button.btn.small.ghost", { onclick: () => peerDialog(rerender, p) }, "Bearbeiten"),
-                h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${p.name}“ entfernen? Am PC zusätzlich „Entkoppeln“ wählen.`)) { removePeer(p.id); rerender(); } } }, "Entfernen"))));
+                h("button.btn.small.ghost.danger", { onclick: async () => { if (await ask(`„${p.name}“ entfernen? Am PC zusätzlich „Entkoppeln“ wählen.`)) { removePeer(p.id); rerender(); } } }, "Entfernen"))));
           })),
       peers.some((p) => p.paired) && h("div.row", {},
         h("button.btn.small.ghost", { onclick: () => syncPeers().then(() => { rerender(); toast("Abgeglichen"); }) }, "Jetzt abgleichen"),
@@ -244,7 +244,7 @@ function apagerSource(rerender) {
           webhookUrl() ? h("code", { style: "overflow-wrap:anywhere" }, webhookUrl()) : h("small", {}, "Startet gerade …"),
           h("div.row", {},
             webhookUrl() && h("button.btn.small.ghost", { onclick: () => copyText(webhookUrl()).then(() => toast("Kopiert")) }, "Kopieren"),
-            h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Schlüssel erzeugen? Die alte Adresse in aPager funktioniert dann nicht mehr.")) { await renewHookKey(); rerender(); } } }, "Neuer Schlüssel")),
+            h("button.btn.small.ghost", { onclick: async () => { if (await ask("Neuen Schlüssel erzeugen? Die alte Adresse in aPager funktioniert dann nicht mehr.")) { await renewHookKey(); rerender(); } } }, "Neuer Schlüssel")),
           h("small", {}, "Funktioniert, solange das Handy mit aPager im selben WLAN ist wie der PC."))
           : h("p.meta", {}, "Direkt an einen PC geht auch: Die Adresse steht am PC unter Alarmquellen → aPager PRO.")),
       group("Rückmeldung bei Antwort (optional)",
@@ -337,7 +337,7 @@ function sprache(rerender) {
       cfg.enabled && switchRow("Auch bei Testalarmen auslösen", "Sonst nur echte Alarme und Komplettprobe.", cfg.tests, (on) => setCfg({ tests: on })),
       cfg.enabled && v?.running && h("div.row", {},
         h("button.btn.small", { onclick: () => { if (publish("heimalarm/cmd/voice/test", {})) toast("Sensor geöffnet – Routine sollte starten"); } }, "Routine testen"),
-        v.commissioned && h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && confirm("Alle Kopplungen mit Alexa/Google Home löschen? Routinen dort müssen danach neu angelegt werden.")) publish("heimalarm/cmd/voice/reset", {}); } }, "Kopplungen löschen"))),
+        v.commissioned && h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask("Alle Kopplungen mit Alexa/Google Home löschen? Routinen dort müssen danach neu angelegt werden.")) publish("heimalarm/cmd/voice/reset", {}); } }, "Kopplungen löschen"))),
     h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Licht & Geräte steuern")),
       h("p.meta", {}, "Zigbee-Lichter und -Gruppen erscheinen in Alexa und Google Home – „Alexa, Flurlicht an“. Dafür läuft Matterbridge auf der Zentrale."),
@@ -364,9 +364,9 @@ function esp32() {
       field("Offline-Warnung nach (s)", text("alarm.offlineWarnSec", { type: "number", min: 30, max: 3600 }), "Ist der ESP32 so lange offline, kommt eine Meldung (A8).")),
     h("div.field", {}, h("span", {}, "Firmware-Update über WLAN (A10)"), url, md5,
       h("small", {}, "Adresse einer mit ESPHome gebauten .ota.bin-Datei im Heimnetz und ihre MD5-Prüfsumme.")),
-    h("div.row", {}, h("button.btn", { onclick: () => {
+    h("div.row", {}, h("button.btn", { onclick: async () => {
       if (!url.value.trim() || md5.value.trim().length !== 32) return toast("Bitte Adresse und 32-stellige MD5-Summe eintragen");
-      if (confirm("Firmware jetzt auf den ESP32 spielen? Er startet danach neu.") && publish(`alarm/${me}/ota`, `${url.value.trim()}|${md5.value.trim()}`)) toast("Update gestartet");
+      if (await ask("Firmware jetzt auf den ESP32 spielen? Er startet danach neu.") && publish(`alarm/${me}/ota`, `${url.value.trim()}|${md5.value.trim()}`)) toast("Update gestartet");
     } }, "Firmware aufspielen")),
   );
 }
@@ -388,12 +388,9 @@ function pc(rerender) {
     h("div.fields", {},
       field("Überschrift", text("pc.title")), field("Knopf „fahren“", text("pc.goText")), field("Knopf „bleiben“", text("pc.stayText"))),
     toggle("pc.sound", "Ton während des Countdowns", "Gut hörbar, auch mit Kopfhörern (D5)."),
-    p.sound && (() => {
-      const label = h("span", {}, `Lautstärke ${p.volume} %`);
-      return h("div.field", {}, label,
-      h("div.row", {}, h("input", { type: "range", min: 10, max: 100, value: p.volume, style: "flex:1;accent-color:var(--signal)", "aria-label": "Lautstärke", oninput: (e) => { label.textContent = `Lautstärke ${e.target.value} %`; }, onchange: (e) => set("pc.volume", Number(e.target.value)) }),
-        h("button.btn.small", { onclick: () => playAlarmTone(1500) }, "Ton testen")));
-    })(),
+    p.sound && h("div.group", {}, ...toneSettings("pc", rerender),
+      toggle("pc.raiseSystem", "Windows-Lautstärke bei Alarm anheben", "Hebt eine Stummschaltung auf und stellt mindestens den Wert unten ein. Danach wieder wie vorher.", () => rerender()),
+      p.raiseSystem && percentSlider("Mindestens", p.systemMin, (n) => set("pc.systemMin", n), { min: 20 })),
     toggle("pc.stopMedia", "Medien vorher stoppen", "Musik und Videos anhalten (D8)."),
     field("Ausnahmen", text("pc.exceptions", { placeholder: "z. B. obs64.exe, Teams.exe" }), "Läuft eines davon, wird der PC nur gesperrt (D7)."),
     h("div.fields", {},
@@ -416,6 +413,17 @@ function androidSection(rerender) {
       s.batteryOptimized && h("button.btn.small", { onclick: () => openBatterySettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Ausnahme erlauben")),
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "Benachrichtigungen mitlesen"), s.notificationAccess ? h("span.chip.ok", {}, "erlaubt") : h("span.chip", {}, "nicht erlaubt")),
       !s.notificationAccess && h("button.btn.small", { onclick: () => openNotificationAccess() }, "Zugriff erlauben")),
+    s.fullScreenAllowed === false && h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vollbild-Meldungen"), h("span.chip.bad", {}, "nicht erlaubt")),
+      h("small", {}, "Ohne diese Erlaubnis erscheint der Alarm nur als Mitteilung, nicht über dem Sperrbildschirm."),
+      h("button.btn.small", { onclick: () => openFullScreenSettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Erlauben")),
+    h("h3.group-title", {}, "Alarm auf diesem Handy"),
+    toggle("phone.fullscreen", "Groß anzeigen, auch auf dem Sperrbildschirm", "Bei eigenem Alarm erscheint Heimalarm über allem, mit Knopf „Stopp“.", () => rerender()),
+    toggle("phone.vibrate", "Vibrieren"),
+    toggle("phone.sound", "Eigenen Alarmton spielen", "Meist klingelt schon die Alarm-App. Gut, wenn der Melder in der Ladeschale die einzige Quelle ist.", () => rerender()),
+    settings().phone.sound && h("div.group", {}, ...toneSettings("phone", rerender),
+      field("Klingelt höchstens", select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"]], String(settings().phone.durationSec), (v) => set("phone.durationSec", Number(v))),
+        "Spielt als Wecker – auch im Lautlos-Modus hörbar, solange die Wecker-Lautstärke nicht auf 0 steht.")),
+    h("p.meta", {}, "Nach einem Neustart des Handys startet Heimalarm von selbst. Erkennt es einen Alarm, öffnet sich die App."),
   );
 }
 
@@ -453,7 +461,7 @@ function personen(rerender) {
   return section("personen", "Personen", "Wer an dieser Zentrale alarmiert wird. Routinen können pro Person gelten (G1, G2).",
     h("ul.rows", {}, persons.map((p) => h("li", {}, h("div.row-main", {},
       h("b", {}, p.name, h("span.badge", {}, p.id)),
-      h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && confirm(`${p.name} entfernen?`)) { updateShared({ persons: persons.filter((x) => x.id !== p.id) }); rerender(); } } }, "Entfernen"))))),
+      h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask(`${p.name} entfernen?`)) { updateShared({ persons: persons.filter((x) => x.id !== p.id) }); rerender(); } } }, "Entfernen"))))),
     h("div.row", {}, h("button.btn.small", { onclick: edit }, "Person hinzufügen")),
   );
 }
@@ -590,6 +598,22 @@ function darstellung() {
 
 export function settingsView(rerender) {
   const z = mode() === "zentrale";
+  /** Abschnitt, der sich bei Änderungen allein neu zeichnet: Fokus, Scroll-Position und offene Regler
+   *  im Rest der Seite bleiben erhalten. Betrieb, Verbindung, Quellen und Funktionen ändern, was die
+   *  ganze Seite zeigt, und zeichnen darum weiter alles neu. */
+  const part = (fn) => {
+    let el = null;
+    const re = () => {
+      if (!el?.isConnected) return rerender();
+      const next = fn(re);
+      sectionObserver?.unobserve(el);
+      el.replaceWith(next); el = next;
+      sectionObserver?.observe(next);
+      applySearch();
+    };
+    el = fn(re);
+    return el;
+  };
   const parts = [
     ["betrieb", "Betrieb", betrieb(rerender)],
     z && ["verbindung", "Verbindung", verbindung(rerender)],
@@ -597,15 +621,15 @@ export function settingsView(rerender) {
     ["funktionen", "Funktionen", funktionen(rerender)],
     ["alarm", "Alarm", alarm()],
     isConfigured() && ["esp32", "ESP32", esp32()],
-    hasPcFeatures && ["pc", "PC", pc(rerender)],
-    isTauri && isAndroid && ["android", "Android", androidSection(rerender)],
+    hasPcFeatures && ["pc", "PC", part(pc)],
+    isTauri && isAndroid && ["android", "Android", part(androidSection)],
     ["geraet", "Dieses Gerät", geraet()],
-    ["personen", "Personen", personen(rerender)],
-    ["sprache", "Alexa & Google", sprache(rerender)],
-    z && ["zentrale", "Zentrale", zentrale(rerender)],
-    ["sicherheit", "Sicherheit", sicherheit(rerender)],
-    ["backup", "Backup", backup(rerender)],
-    isTauri && ["updates", "Updates", updates(rerender)],
+    ["personen", "Personen", part(personen)],
+    ["sprache", "Alexa & Google", part(sprache)],
+    z && ["zentrale", "Zentrale", part(zentrale)],
+    ["sicherheit", "Sicherheit", part(sicherheit)],
+    ["backup", "Backup", part(backup)],
+    isTauri && ["updates", "Updates", part(updates)],
     ["darstellung", "Darstellung", darstellung()],
   ].filter(Boolean);
   const index = h("nav.section-index", { "aria-label": "Abschnitte" },

@@ -1,7 +1,7 @@
 // E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
 import { h, fmtAgo, fmtTime, fmtDate, toast } from "../ui/dom.js";
 import { state, publish, testDevice, renameDevice, forgetDevice } from "../core/mqtt.js";
-import { field, dialog } from "../ui/form.js";
+import { field, dialog, ask } from "../ui/form.js";
 import { emit } from "../core/events.js";
 import { shared } from "../core/shared.js";
 import { settings, isConfigured, mode } from "../core/settings.js";
@@ -158,7 +158,7 @@ function appsCard() {
             c.online && h("button.btn.small.ghost", { onclick: () => { if (testDevice(id)) toast(`Testalarm an „${c.name}“ gesendet`); } }, "Testalarm"),
             !c.online && c.mac && h("button.btn.small", { onclick: () => wake(c) }, "Aufwecken"),
             h("button.btn.small.ghost", { onclick: () => renameClientDialog(id, c) }, "Umbenennen"),
-            !c.online && h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${c.name}“ aus der Liste entfernen? Meldet es sich wieder, erscheint es erneut.`) && forgetDevice(id)) { toast("Entfernt"); emit("devices", state); } } }, "Entfernen")),
+            !c.online && h("button.btn.small.ghost.danger", { onclick: async () => { if (await ask(`„${c.name}“ aus der Liste entfernen? Meldet es sich wieder, erscheint es erneut.`) && forgetDevice(id)) { toast("Entfernt"); emit("devices", state); } } }, "Entfernen")),
         ))),
   );
 }

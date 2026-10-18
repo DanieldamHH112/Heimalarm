@@ -1,6 +1,6 @@
 // B – Routinen & Regeln. Gespeichert in der gemeinsamen Konfiguration, ausgeführt vom Zentralen-Dienst.
 import { h, toast } from "../ui/dom.js";
-import { dialog, field, select, switchRow, copyText, download } from "../ui/form.js";
+import { dialog, field, select, switchRow, copyText, download, ask } from "../ui/form.js";
 import { shared, updateShared, newId } from "../core/shared.js";
 import { state, publish } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
@@ -176,7 +176,7 @@ export function routinesView(rerender) {
             h("button.btn.small", { onclick: () => { run(r); toast(`„${r.name}“ wird ausgeführt`); } }, "Ausführen"),
             h("button.btn.small.ghost", { onclick: () => { run(r, true); toast("Test: nur im Protokoll"); } }, "Test"),
             h("button.btn.small.ghost", { onclick: edit(r) }, "Bearbeiten"),
-            h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && confirm(`„${r.name}“ löschen?`)) { save(list.filter((x) => x.id !== r.id)); rerender(); } } }, "Löschen")),
+            h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask(`„${r.name}“ löschen?`)) { save(list.filter((x) => x.id !== r.id)); rerender(); } } }, "Löschen")),
         ))),
   );
 }

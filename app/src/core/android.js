@@ -14,9 +14,39 @@ async function call(cmd, args) {
   return core.invoke(`plugin:heimalarm|${cmd}`, args);
 }
 
+/**
+ * Alarm auf dem Handy: Vollbild-Meldung (Sperrbildschirm), Vibration, Wecker-Ton – nach phone.* Einstellungen.
+ * Läuft nativ (AlarmSound.kt), damit es auch im Hintergrund klingelt. Beim Testalarm nur Ton und Anzeige in der App.
+ */
+export function phoneAlarm({ title, text, test = false }) {
+  if (!enabled) return;
+  const ph = settings().phone || {};
+  call("show_alarm", {
+    title, text,
+    fullscreen: !test && ph.fullscreen !== false,
+    vibrate: ph.vibrate !== false,
+    sound: Boolean(ph.sound),
+    tone: ph.tone || "",
+    volume: Number(ph.volume) || 80,
+    ms: (Number(ph.durationSec) || 60) * 1000,
+  }).catch((e) => log("warn", "Alarm-Anzeige am Handy fehlgeschlagen", String(e)));
+}
+export const stopPhoneAlarm = () => (enabled ? call("stop_alarm").catch(() => {}) : Promise.resolve());
+
+/** Filter an den nativen Teil geben: nach einem Neustart erkennt er Alarme auch, bevor die App offen ist. */
+export function configureNative() {
+  if (!enabled) return;
+  const s = settings().alarm;
+  const pkgs = [...Object.values(s.apps || {}).filter((a) => a.on && a.pkg).map((a) => a.pkg),
+    ...s.filterApps.split(",").map((x) => x.trim()).filter(Boolean)];
+  const words = s.filterWords.split(",").map((x) => x.trim()).filter(Boolean);
+  call("configure", { packages: pkgs, words, service: settings().android?.service !== false }).catch(() => {});
+}
+
 export const androidStatus = () => (enabled ? call("status") : Promise.resolve({ supported: false }));
 export const openBatterySettings = () => call("open_battery_settings");
 export const openNotificationAccess = () => call("open_notification_access");
+export const openFullScreenSettings = () => call("open_full_screen_settings");
 export async function setBackgroundService(on) {
   if (!enabled) return;
   await call("set_service", { enabled: on });
@@ -50,9 +80,15 @@ export async function initAndroid() {
   const core = await import("@tauri-apps/api/core");
   try {
     await core.addPluginListener("heimalarm", "notification", (n) => alarmFromNotification(n));
+    // Alarme, die erkannt wurden, bevor die App lief (z. B. nach Neustart des Handys)
+    const { items = [] } = await call("pending_notifications");
+    for (const n of items) alarmFromNotification(n);
   } catch (e) {
     log("warn", "Benachrichtigungen mitlesen nicht verfügbar", String(e));
   }
+  configureNative();
+  const { on } = await import("./events.js");
+  on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android")) configureNative(); });
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
   }

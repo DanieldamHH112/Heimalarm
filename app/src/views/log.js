@@ -1,6 +1,6 @@
 import { has } from "../core/features.js";
 import { h, fmtTime, fmtDate, toast } from "../ui/dom.js";
-import { field, dialog, copyText, download } from "../ui/form.js";
+import { field, dialog, copyText, download, ask } from "../ui/form.js";
 import { getLog, clearLog } from "../core/log.js";
 import { state } from "../core/mqtt.js";
 import { isAndroid } from "../core/platform.js";
@@ -57,7 +57,7 @@ function detailDialog(id, rerender) {
     field("Notiz", note, "Nur für dich – wird mit deinen anderen Geräten abgeglichen."),
     h("div.row", {},
       h("button.btn.primary", { onclick: () => { editEinsatz(id, { vehicle: vehicle.value.trim(), role: role.value.trim(), note: note.value.trim() }); close(); rerender(); toast("Gespeichert"); } }, "Speichern"),
-      h("button.btn.ghost.danger", { onclick: () => { if (confirm("Diesen Einsatz löschen?")) { deleteEinsatz(id); close(); rerender(); } } }, "Löschen")));
+      h("button.btn.ghost.danger", { onclick: async () => { if (await ask("Diesen Einsatz löschen?")) { deleteEinsatz(id); close(); rerender(); } } }, "Löschen")));
 }
 
 // ── Einsätze-Ansicht ────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ function statsCard(rerender) {
   const max = Math.max(1, ...s.months.map((m) => m.count));
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "Statistik"),
-      h("button.btn.small.ghost", { onclick: () => { if (confirm("Alle Einsätze und die Statistik löschen? Das gilt auch für deine anderen Geräte.")) { clearStats(); rerender(); } } }, "Alles löschen")),
+      h("button.btn.small.ghost", { onclick: async () => { if (await ask("Alle Einsätze und die Statistik löschen? Das gilt auch für deine anderen Geräte.")) { clearStats(); rerender(); } } }, "Alles löschen")),
     h("div.stats-grid", {},
       h("div.stat", {}, h("b", {}, String(s.year)), h("span", {}, `Einsätze ${new Date().getFullYear()}`)),
       h("div.stat", {}, h("b", {}, String(s.last30)), h("span", {}, "letzte 30 Tage")),
@@ -172,7 +172,7 @@ export function logView(rerender) {
   }
   return h("div.page", {},
     head(filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : "Was wann passiert ist, gemacht oder ausgeführt wurde.",
-      h("button.btn.small", { onclick: () => { if (confirm("Protokoll wirklich leeren? Die Einsätze bleiben erhalten.")) { clearLog(); rerender(); } } }, "Leeren")),
+      h("button.btn.small", { onclick: async () => { if (await ask("Protokoll wirklich leeren? Die Einsätze bleiben erhalten.")) { clearLog(); rerender(); } } }, "Leeren")),
     tabs,
     h("section.card", {}, items.length ? list : h("p.empty", {}, "Noch keine Einträge.")),
   );

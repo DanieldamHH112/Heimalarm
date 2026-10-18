@@ -135,6 +135,8 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 }
 
 mod direct;
+mod sound;
+mod takeover;
 
 /// Nur Dateien aus den eigenen GitHub-Releases werden geladen.
 const RELEASE_PREFIX: &str = "https://github.com/DanieldamHH112/Heimalarm/releases/download/";
@@ -298,7 +300,14 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = tauri::Builder::default()
         // Zweiter Start (z. B. Doppelklick aufs Symbol) holt das laufende Fenster nach vorn.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)));
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+        // Größe und Position des Hauptfensters merken (nicht Sichtbarkeit/Vollbild: Autostart bleibt verborgen)
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::all() - tauri_plugin_window_state::StateFlags::VISIBLE - tauri_plugin_window_state::StateFlags::FULLSCREEN)
+                .with_filter(|label| label == "main")
+                .build(),
+        );
     #[cfg(not(desktop))]
     let builder = tauri::Builder::default().plugin(tauri_plugin_biometric::init());   // App-Sperre per Fingerabdruck (Android)
     let builder = builder
@@ -343,7 +352,16 @@ pub fn run() {
             windows_hello,
             direct::direct_server,
             direct::direct_set_config,
-            direct::direct_pairing
+            direct::direct_pairing,
+            sound::sound_play,
+            sound::sound_stop,
+            sound::sound_save,
+            sound::sound_list,
+            sound::sound_delete,
+            sound::system_volume,
+            sound::system_volume_set,
+            takeover::takeover_open,
+            takeover::tray_status
         ])
         .run(tauri::generate_context!())
         .expect("Heimalarm konnte nicht starten");

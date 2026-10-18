@@ -1,4 +1,5 @@
 // I – Test & Diagnose.
+import { ask } from "../ui/form.js";
 import { h, toast, fmtAgo, fmtTime, fmtDate } from "../ui/dom.js";
 import { state, publish, testDevice } from "../core/mqtt.js";
 import { settings } from "../core/settings.js";
@@ -87,7 +88,7 @@ export function diagnoseView(rerender) {
       has.pi() && h("section.card", {},
         h("h2", {}, "Komplettprobe"),
         h("p.hint", {}, "Routinen schalten wirklich (Licht an). Die PC-Aktion wird nur angezeigt."),
-        h("div.row", {}, h("button.btn", { onclick: () => { if (confirm("Komplettprobe starten? Licht und Geräte schalten wirklich.")) fullProbe(); } }, "Probe starten"))),
+        h("div.row", {}, h("button.btn", { onclick: async () => { if (await ask("Komplettprobe starten? Licht und Geräte schalten wirklich.")) fullProbe(); } }, "Probe starten"))),
     ),
 
     targetCard(),

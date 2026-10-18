@@ -8,7 +8,7 @@ import { log } from "./core/log.js";
 import { applyTheme, themeToggle } from "./ui/theme.js";
 import { syncAutostart } from "./core/pc.js";
 import { ensurePermission, notify } from "./core/notify.js";
-import { isAndroid } from "./core/platform.js";
+import { isAndroid, isTauri, hasPcFeatures } from "./core/platform.js";
 import { h, toast } from "./ui/dom.js";
 import { overview } from "./views/overview.js";
 import { logView } from "./views/log.js";
@@ -53,7 +53,18 @@ function render() {
   renderConn();
 }
 
+/** Infobereich (Windows): Tooltip zeigt, ob Alarme ankommen. */
+let trayText = "";
+function trayStatus() {
+  if (!hasPcFeatures) return;
+  const t = !has.pi() ? "bereit (ohne Zentrale)" : state.connected ? "verbunden, empfängt Alarme" : "keine Verbindung zur Zentrale";
+  if (t === trayText) return;
+  trayText = t;
+  import("@tauri-apps/api/core").then((c) => c.invoke("tray_status", { text: t })).catch(() => {});
+}
+
 function renderConn() {
+  trayStatus();
   const el = document.getElementById("conn-badge");
   if (!has.pi()) return el.replaceChildren(themeToggle());
   el.replaceChildren(themeToggle(), state.connected
@@ -70,6 +81,10 @@ const live = () => {
 };
 
 applyTheme();
+// Im Programm kein Browser-Kontextmenü (außer in Eingabefeldern: Kopieren/Einfügen)
+if (isTauri && !import.meta.env.DEV) {
+  document.addEventListener("contextmenu", (e) => { if (!e.target.closest?.("input, textarea, [contenteditable]")) e.preventDefault(); });
+}
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
 initEngine();
 initLocalRoutines();

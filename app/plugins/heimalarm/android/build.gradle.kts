@@ -16,5 +16,6 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.activity:activity-ktx:1.7.2")
     implementation(project(":tauri-android"))
 }

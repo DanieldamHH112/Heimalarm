@@ -29,16 +29,16 @@ export const macAddress = () => callCore("mac_address");
 /** D11 – Wake-on-LAN direkt aus der App (Handy oder PC) */
 export const wakeOnLan = (mac) => callCore("wake_on_lan", { mac });
 
-/** D6 – Fenster nach vorne holen, Vollbild, immer im Vordergrund. */
-export async function takeoverWindow(onTop) {
+/** D6 – Abfrage im Vollbild auf allen Bildschirmen, immer im Vordergrund (src-tauri/src/takeover.rs). */
+export async function takeoverWindow(on) {
   if (!hasPcFeatures) return;
-  const { getCurrentWindow } = await import("@tauri-apps/api/window");
-  const w = getCurrentWindow();
-  if (onTop) {
-    await w.unminimize(); await w.show();
-    await w.setAlwaysOnTop(true); await w.setFullscreen(true); await w.setFocus();
-  } else {
-    await w.setFullscreen(false); await w.setAlwaysOnTop(false);
+  try { await callCore("takeover_open", { on }); }
+  catch {
+    // Rückfall: nur das Hauptfenster
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const w = getCurrentWindow();
+    if (on) { await w.unminimize(); await w.show(); await w.setAlwaysOnTop(true); await w.setFullscreen(true); await w.setFocus(); }
+    else { await w.setFullscreen(false); await w.setAlwaysOnTop(false); }
   }
 }
 

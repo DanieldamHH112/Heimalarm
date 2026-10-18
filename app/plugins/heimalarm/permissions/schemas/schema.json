@@ -295,6 +295,42 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the alarm_volume command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-alarm-volume",
+          "markdownDescription": "Enables the alarm_volume command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the alarm_volume command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-alarm-volume",
+          "markdownDescription": "Denies the alarm_volume command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the configure command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-configure",
+          "markdownDescription": "Enables the configure command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the configure command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-configure",
+          "markdownDescription": "Denies the configure command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-sound",
+          "markdownDescription": "Enables the delete_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-sound",
+          "markdownDescription": "Denies the delete_sound command without any pre-configured scope."
+        },
+        {
           "description": "Enables the install_apk command without any pre-configured scope.",
           "type": "string",
           "const": "allow-install-apk",
@@ -305,6 +341,18 @@
           "type": "string",
           "const": "deny-install-apk",
           "markdownDescription": "Denies the install_apk command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_sounds command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-sounds",
+          "markdownDescription": "Enables the list_sounds command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_sounds command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-sounds",
+          "markdownDescription": "Denies the list_sounds command without any pre-configured scope."
         },
         {
           "description": "Enables the open_battery_settings command without any pre-configured scope.",
@@ -319,6 +367,18 @@
           "markdownDescription": "Denies the open_battery_settings command without any pre-configured scope."
         },
         {
+          "description": "Enables the open_full_screen_settings command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-full-screen-settings",
+          "markdownDescription": "Enables the open_full_screen_settings command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_full_screen_settings command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-full-screen-settings",
+          "markdownDescription": "Denies the open_full_screen_settings command without any pre-configured scope."
+        },
+        {
           "description": "Enables the open_notification_access command without any pre-configured scope.",
           "type": "string",
           "const": "allow-open-notification-access",
@@ -329,6 +389,42 @@
           "type": "string",
           "const": "deny-open-notification-access",
           "markdownDescription": "Denies the open_notification_access command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pending_notifications command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pending-notifications",
+          "markdownDescription": "Enables the pending_notifications command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pending_notifications command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pending-notifications",
+          "markdownDescription": "Denies the pending_notifications command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pick_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pick-sound",
+          "markdownDescription": "Enables the pick_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pick_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pick-sound",
+          "markdownDescription": "Denies the pick_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the play_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-play-sound",
+          "markdownDescription": "Enables the play_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the play_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-play-sound",
+          "markdownDescription": "Denies the play_sound command without any pre-configured scope."
         },
         {
           "description": "Enables the registerListener command without any pre-configured scope.",
@@ -355,6 +451,18 @@
           "markdownDescription": "Denies the remove_listener command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_alarm_volume command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-alarm-volume",
+          "markdownDescription": "Enables the set_alarm_volume command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_alarm_volume command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-alarm-volume",
+          "markdownDescription": "Denies the set_alarm_volume command without any pre-configured scope."
+        },
+        {
           "description": "Enables the set_service command without any pre-configured scope.",
           "type": "string",
           "const": "allow-set-service",
@@ -365,6 +473,18 @@
           "type": "string",
           "const": "deny-set-service",
           "markdownDescription": "Denies the set_service command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the show_alarm command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-show-alarm",
+          "markdownDescription": "Enables the show_alarm command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the show_alarm command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-show-alarm",
+          "markdownDescription": "Denies the show_alarm command without any pre-configured scope."
         },
         {
           "description": "Enables the status command without any pre-configured scope.",
@@ -379,10 +499,34 @@
           "markdownDescription": "Denies the status command without any pre-configured scope."
         },
         {
-          "description": "Alle Heimalarm-Android-Befehle erlauben\n#### This default permission set includes:\n\n- `allow-status`\n- `allow-open-battery-settings`\n- `allow-open-notification-access`\n- `allow-set-service`\n- `allow-registerListener`\n- `allow-remove-listener`\n- `allow-install-apk`",
+          "description": "Enables the stop_alarm command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stop-alarm",
+          "markdownDescription": "Enables the stop_alarm command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_alarm command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stop-alarm",
+          "markdownDescription": "Denies the stop_alarm command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the stop_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-stop-sound",
+          "markdownDescription": "Enables the stop_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the stop_sound command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-stop-sound",
+          "markdownDescription": "Denies the stop_sound command without any pre-configured scope."
+        },
+        {
+          "description": "Alle Heimalarm-Android-Befehle erlauben\n#### This default permission set includes:\n\n- `allow-status`\n- `allow-open-battery-settings`\n- `allow-open-notification-access`\n- `allow-set-service`\n- `allow-registerListener`\n- `allow-remove-listener`\n- `allow-install-apk`\n- `allow-configure`\n- `allow-pending-notifications`\n- `allow-show-alarm`\n- `allow-stop-alarm`\n- `allow-play-sound`\n- `allow-stop-sound`\n- `allow-pick-sound`\n- `allow-list-sounds`\n- `allow-delete-sound`\n- `allow-alarm-volume`\n- `allow-set-alarm-volume`\n- `allow-open-full-screen-settings`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Alle Heimalarm-Android-Befehle erlauben\n#### This default permission set includes:\n\n- `allow-status`\n- `allow-open-battery-settings`\n- `allow-open-notification-access`\n- `allow-set-service`\n- `allow-registerListener`\n- `allow-remove-listener`\n- `allow-install-apk`"
+          "markdownDescription": "Alle Heimalarm-Android-Befehle erlauben\n#### This default permission set includes:\n\n- `allow-status`\n- `allow-open-battery-settings`\n- `allow-open-notification-access`\n- `allow-set-service`\n- `allow-registerListener`\n- `allow-remove-listener`\n- `allow-install-apk`\n- `allow-configure`\n- `allow-pending-notifications`\n- `allow-show-alarm`\n- `allow-stop-alarm`\n- `allow-play-sound`\n- `allow-stop-sound`\n- `allow-pick-sound`\n- `allow-list-sounds`\n- `allow-delete-sound`\n- `allow-alarm-volume`\n- `allow-set-alarm-volume`\n- `allow-open-full-screen-settings`"
         }
       ]
     }

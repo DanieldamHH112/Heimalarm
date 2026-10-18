@@ -1,6 +1,7 @@
 // E5 – Dunkel (Standard) oder Hell. Umschalter in Navigation und Seitenkopf.
 import { settings, set } from "../core/settings.js";
 import { h } from "./dom.js";
+import { hasPcFeatures } from "../core/platform.js";
 
 const ORDER = ["dark", "light"];
 const LABEL = { dark: "Dunkel", light: "Hell" };
@@ -14,6 +15,8 @@ const current = () => (settings().ui.theme === "light" ? "light" : "dark");
 export function applyTheme() {
   document.documentElement.dataset.theme = current();
   document.querySelectorAll("[data-theme-toggle]").forEach(paint);
+  // Windows: Titelleiste passend hell/dunkel
+  if (hasPcFeatures) import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().setTheme(current())).catch(() => {});
 }
 
 function paint(btn) {

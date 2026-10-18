@@ -1,6 +1,6 @@
 // WLAN-Geräte: Shelly, Hue Bridge, WLED, Tasmota – direkt im Heimnetz, mit und ohne Zentrale.
 import { h, toast } from "../ui/dom.js";
-import { dialog, field, select } from "../ui/form.js";
+import { dialog, field, select, ask } from "../ui/form.js";
 import { shared, updateShared, newId } from "../core/shared.js";
 import { requireAdmin } from "../core/admin.js";
 import { isTauri } from "../core/platform.js";
@@ -44,7 +44,7 @@ function addDialog(rerender, existing) {
 
 function row(d, list, rerender) {
   const edit = async () => { if (await requireAdmin()) addDialog(rerender, d); };
-  const del = async () => { if (await requireAdmin() && confirm(`„${d.name}“ entfernen?`)) { save(list.filter((x) => x.id !== d.id)); rerender(); } };
+  const del = async () => { if (await requireAdmin() && await ask(`„${d.name}“ entfernen?`)) { save(list.filter((x) => x.id !== d.id)); rerender(); } };
   return h("li", {},
     h("div.row-main", {}, h("b", {}, d.name, h("span.badge", {}, WIFI_TYPES[d.type]?.label || d.type)), h("span.meta", {}, d.host)),
     h("div.row", {},

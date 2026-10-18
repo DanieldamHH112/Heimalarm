@@ -1,7 +1,7 @@
 // C – Licht & Geräte über Zigbee2MQTT: anlernen, umbenennen, entfernen, steuern,
 // Gruppen, Direktverknüpfung, Erreichbarkeit, Firmware, Netzwerkkarte.
 import { h, toast, fmtAgo } from "../ui/dom.js";
-import { dialog, field, select } from "../ui/form.js";
+import { dialog, field, select, ask } from "../ui/form.js";
 import { state, z2m, setDevice } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
 import { log } from "../core/log.js";
@@ -56,9 +56,9 @@ function deviceCard(dev) {
     const close = dialog("Gerät umbenennen", field("Neuer Name", input, "Z. B. „Flur Decke“. Routinen mit dem alten Namen bitte anpassen."),
       h("div.row", {}, h("button.btn.primary", { onclick: () => { z2m("device/rename", { from: name, to: input.value.trim(), homeassistant_rename: false }); close(); toast("Wird umbenannt …"); } }, "Speichern")));
   });
-  const remove = asked(() => { if (confirm(`„${name}“ wirklich entfernen?`)) { z2m("device/remove", { id: name }); log("action", `Gerät entfernt: ${name}`); } });
+  const remove = asked(async () => { if (await ask(`„${name}“ wirklich entfernen?`)) { z2m("device/remove", { id: name }); log("action", `Gerät entfernt: ${name}`); } });
   const ota = asked(() => { z2m("device/ota_update/check", { id: name }); toast("Firmware wird geprüft …"); });
-  const otaUpdate = asked(() => { if (confirm("Firmware jetzt aktualisieren? Das kann einige Minuten dauern.")) z2m("device/ota_update/update", { id: name }); });
+  const otaUpdate = asked(async () => { if (await ask("Firmware jetzt aktualisieren? Das kann einige Minuten dauern.")) z2m("device/ota_update/update", { id: name }); });
   const bind = asked(() => {
     const targets = (state.zigbee || []).filter((d) => d.friendly_name !== name).map((d) => [d.friendly_name, d.friendly_name]);
     let target = targets[0]?.[0];
@@ -108,7 +108,7 @@ function groupsSection() {
             h("button.btn.small", { onclick: () => setDevice(g.friendly_name, { state: "ON", transition: 1 }) }, "An"),
             h("button.btn.small", { onclick: () => setDevice(g.friendly_name, { state: "OFF", transition: 1 }) }, "Aus"),
             h("button.btn.small.ghost", { onclick: () => addMember(g) }, "Gerät hinzufügen"),
-            h("button.btn.small.ghost.danger", { onclick: asked(() => { if (confirm("Gruppe löschen?")) z2m("group/remove", { id: g.friendly_name }); }) }, "Löschen")),
+            h("button.btn.small.ghost.danger", { onclick: asked(async () => { if (await ask("Gruppe löschen?")) z2m("group/remove", { id: g.friendly_name }); }) }, "Löschen")),
         ))),
   );
 }

@@ -81,3 +81,26 @@ export function dialog(title, ...content) {
   wrap.querySelector("input, select, textarea, button.primary")?.focus();
   return close;
 }
+
+/**
+ * Rückfrage im App-Stil (statt confirm(), das in Tauri fremd aussieht und am Handy hakt).
+ * Gibt true bei „OK“ zurück. Gefährliche Aktionen („löschen“, „entfernen“ …) bekommen einen roten Knopf.
+ */
+export function ask(question, { ok, cancel = "Abbrechen" } = {}) {
+  const verb = Object.entries({ lösch: "Löschen", entfern: "Entfernen", entkoppel: "Entkoppeln", leer: "Leeren" })
+    .find(([k]) => question.toLowerCase().includes(k))?.[1];
+  const danger = Boolean(verb);
+  const label = ok || verb || "OK";
+  return new Promise((resolve) => {
+    let done = false;
+    const answer = (v) => { if (done) return; done = true; close(); resolve(v); };
+    const close = dialog("Bitte bestätigen",
+      h("p", {}, question),
+      h("div.row", { style: "justify-content:flex-end" },
+        h("button.btn.ghost", { type: "button", onclick: () => answer(false) }, cancel),
+        h(`button.btn.primary${danger ? ".danger" : ""}`, { type: "button", onclick: () => answer(true) }, label)));
+    // Schließen per ✕, Esc oder Klick daneben = Abbrechen
+    const wrap = [...document.querySelectorAll(".dialog-wrap")].pop();
+    new MutationObserver((_, obs) => { if (!wrap?.isConnected) { obs.disconnect(); answer(false); } }).observe(document.body, { childList: true });
+  });
+}

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -7,8 +8,16 @@
     <!-- Updates: APK von GitHub laden und den Android-Installationsdialog öffnen -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Alarm am Handy: Vollbild-Meldung (Sperrbildschirm), Vibration, nach Neustart wieder starten -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <application>
+    <!-- Unverschlüsseltes http/ws für Geräte im Heimnetz (Zentrale, PC, WLAN-Geräte) – auch in signierten Builds.
+         Android kann das nicht auf private IP-Bereiche begrenzen (nur Hostnamen), darum für alle. -->
+    <application
+        android:networkSecurityConfig="@xml/heimalarm_network"
+        tools:replace="android:networkSecurityConfig">
         <provider
             android:name=".UpdateFileProvider"
             android:authorities="${applicationId}.heimalarm.update"
@@ -28,6 +37,18 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Empfang von Einsatz-Alarmen im Heimnetz" />
         </service>
+
+        <!-- Knopf „Stopp“ in der Alarm-Mitteilung -->
+        <receiver android:name=".StopReceiver" android:exported="false" />
+
+        <!-- Nach Neustart/Update den Hintergrund-Dienst wieder starten -->
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- A1/A6 – liest Alarm-Benachrichtigungen von SYBOS/aPager mit -->
         <service

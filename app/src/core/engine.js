@@ -5,7 +5,7 @@ import { on, emit } from "./events.js";
 import { settings, mode } from "./settings.js";
 import { sendToPeers } from "./direct.js";
 import { log } from "./log.js";
-import { hasPcFeatures } from "./platform.js";
+import { hasPcFeatures, isAndroid, isTauri } from "./platform.js";
 import { ACTIONS, runPcAction, runningProcesses, stopMedia } from "./pc.js";
 import { notify } from "./notify.js";
 import { publish, state } from "./mqtt.js";
@@ -79,6 +79,8 @@ function handleAlarm(a) {
   if (forThisPc && hasPcFeatures) {
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
     emit("takeover", engine.last);
+  } else if (own && isTauri && isAndroid && !test) {
+    emit("takeover", engine.last);   // Handy: groß anzeigen, Ton/Vibration (AlarmSound.kt), Rückmeldung per Knopf
   } else if (!test) {
     notify(own ? "Heimalarm: Einsatz" : `Heimalarm: Alarm von ${a.who}`, `${fmtTime(a.ts)}${extra ? " · " + extra : ""}`);
   }

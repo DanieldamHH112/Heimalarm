@@ -27,3 +27,4 @@ zentrale/.env
 # Python
 __pycache__/
 *.pyc
+app/src-tauri/signing.json

@@ -392,3 +392,7 @@ details[open].flow-details > summary, details[open].flow-wrap > summary { margin
   .card { padding: var(--s4); }
   .item { padding: var(--s3); }
 }
+
+/* Prozent-Regler (Lautstärke): Wert steht neben der Beschriftung und ändert sich beim Ziehen */
+.slider { width: 100%; min-height: 32px; accent-color: var(--signal); cursor: pointer; }
+.field output { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }

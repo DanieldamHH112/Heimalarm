@@ -23,3 +23,4 @@
 @media (max-width: 480px) { .takeover .actions { grid-template-columns: 1fr; } }
 @keyframes to-in { from { opacity: 0; transform: scale(1.02); } }
 .takeover .meta-big { font-size: 1.25rem; color: #fff; font-weight: 600; }
+.takeover .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }

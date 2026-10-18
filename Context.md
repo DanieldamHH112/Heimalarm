@@ -65,6 +65,7 @@ Heimalarm/
 ├─ .github/workflows/
 │  └─ release.yml          Build nur bei Tag v*: Windows (.exe, NSIS) + Android (.apk, debug-signiert)
 ├─ app/                    Die App für PC und Handy (Tauri 2)
+│  ├─ mirror.html          „Fährst du?“ auf weiteren Bildschirmen (src/mirror.js, nur Anzeige + Antwort)
 │  ├─ index.html           Grundgerüst, Navigation (5 Punkte; Handy: „Mehr“ statt „Einstellungen“)
 │  ├─ package.json         Version der App (gilt auch für tauri.conf.json), Skript „lint“
 │  ├─ vite.config.js       Port 1420, setzt PACKAGE_VERSION
@@ -74,10 +75,13 @@ Heimalarm/
 │  ├─ src-tauri/           Rust-Kern + Tauri-Konfiguration
 │  │  ├─ src/lib.rs        Befehle: PC-Aktionen, Prozesse, Medien, Ruhezustand, MAC, Wake-on-LAN
 │  │  ├─ src/direct.rs     Empfänger für Alarme vom Handy (ohne Zentrale), Port 8765
+│  │  ├─ src/sound.rs      Alarmton nativ (rodio), eigene Töne in <AppData>/sounds, Windows-Lautstärke lesen/setzen
+│  │  ├─ src/takeover.rs   „Fährst du?“ auf allen Monitoren (mirror.html), Fokus erzwingen, Tray-Tooltip
 │  │  ├─ capabilities/     Rechte der Oberfläche: default.json (inkl. HTTP-Scope), desktop.json (Autostart)
 │  │  └─ tauri.conf.json   Fenster, Bundle, Android-Einstellungen
 │  └─ plugins/heimalarm/   Eigenes Tauri-Plugin (Rust + Kotlin) für Android:
-│                          AlarmListener (Benachrichtigungen mitlesen), KeepAliveService (Hintergrund), Akku-Optimierung
+│                          AlarmListener (Benachrichtigungen mitlesen), KeepAliveService (Hintergrund), Akku-Optimierung,
+│                          AlarmSound (Wecker-Ton, Vibration, Vollbild-Meldung), Native (Filter + Puffer, BootReceiver)
 ├─ zentrale/               Alles für den Raspberry Pi (nur Betriebsart „Mit Zentrale“)
 │  ├─ docker-compose.yml   mosquitto · dienst · zigbee2mqtt (Profil zigbee) · matterbridge (Profil matter)
 │  ├─ mosquitto/           mosquitto.conf (1883 TCP, 9001 WebSocket)
@@ -117,7 +121,7 @@ Heimalarm/
 | `admin.js` | Admin-PIN (G3), App-Sperre (H4) |
 | `notify.js`, `log.js`, `platform.js`, `events.js` | Systemmeldung, Geräte-Protokoll, Plattform, Ereignisse |
 | **views/** | `overview` (Übersicht), `devices` + `wifi` (Geräte), `routines`, `log`, `settings`, `diagnose`, `takeover` („Fährst du?“) |
-| **ui/** | `dom.js` (`h()`, toast), `form.js` (Felder, Schalter, Dialog), `theme.js`, `sound.js` |
+| **ui/** | `dom.js` (`h()`, toast), `form.js` (Felder, Schalter, Dialog, `ask()` statt `confirm()`), `theme.js`, `sound.js` (Ton abspielen/stoppen, eigene Töne, Geräte-Lautstärke), `tone.js` (Einstellungs-Bausteine Ton + Lautstärke für `pc`/`phone`) |
 | **styles/** | `tokens.css` (Farben, Schrift, Radien), `base`, `layout`, `components`, `takeover` |
 | `dev/demo.js` | Beispieldaten (nur `npm run dev` mit `?demo`) |
 
@@ -259,13 +263,19 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Mehrere PCs:** Jeder PC entscheidet selbst – `own` (eigene Kennung) oder `pc.alsoFor` (weitere Kennungen, lokal, nicht synchronisiert) → „Fährst du?“. Ohne Zentrale schickt das Handy an alle `direct.peers`.
 - **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
-- **Im Hintergrund:** Windows schließt per X nur das Fenster (Symbol im Infobereich, `lib.rs` → `setup_tray`); Autostart startet mit `--im-hintergrund` verborgen; zweiter Start holt das Fenster per Single-Instance nach vorn. Android: Vordergrund-Dienst + einmalige Abfrage der Akku-Ausnahme (`android.batteryAsked`). Nach einem Neustart des Handys muss die App einmal geöffnet werden.
+- **Alarmton:** `ui/sound.js` ist die einzige Stelle, die Töne startet. Windows → Rust `sound_*` (spielt auch bei verstecktem Fenster), Android → Plugin `play_sound`/`show_alarm` (Wecker-Lautstärke, `USAGE_ALARM`), Browser → Web Audio. Ton `""` = eingebauter Melder-Ton (in `sound.rs` und `AlarmSound.kt` gleich erzeugt – beide ändern). Eigene Töne liegen nur auf dem Gerät (PC: `<AppData>/sounds`, nur mp3/wav/ogg/flac; Handy: `files/sounds`), werden nicht synchronisiert.
+- **„Fährst du?“ auf mehreren Monitoren:** `takeover.js` sendet jede Sekunde `takeover-state`, `mirror.js` antwortet mit `takeover-answer`. Fensterlabels `takeover-<n>` müssen in `capabilities/default.json` → `windows` stehen. `finish()` läuft genau einmal (Sperre `done`).
+- **Alarm am Handy:** eigener Alarm → `emit("takeover")` auch am Handy (Rückmeldung per Knopf), dazu `phoneAlarm()` → Vollbild-Meldung, Vibration, optional Ton. Laufzeit = `phone.durationSec`. Ohne Antwort keine Rückmeldung.
+- **Nach Neustart (Android):** `BootReceiver` startet den Dienst. Läuft die WebView nicht, prüft `AlarmListener` mit den Filtern aus `configure` (aus `settings.alarm`, siehe `configureNative()`), puffert (10 min) und öffnet die App per Vollbild-Meldung; `initAndroid()` holt den Puffer mit `pending_notifications` ab. Filterlogik in `Native.matches` grob gleich halten wie `alarmFromNotification`.
+- **Cleartext (Android):** `res/xml/heimalarm_network.xml` im Plugin erlaubt http/ws für alle Ziele (Android kann nicht nach IP-Bereich filtern). Gilt auch für signierte Release-APKs.
+- **CSP** in `tauri.conf.json`: Skripte nur aus der App, `connect-src` offen für Heimnetz. Inline-`<script>` oder fremde Skript-Quellen gehen nicht mehr.
+- **Einstellungen neu zeichnen:** Abschnitte mit `part()` (PC, Android, Personen, Alexa, Zentrale, Sicherheit, Backup, Updates) zeichnen nur sich selbst neu. Ändert ein Abschnitt, was andere zeigen, normales `rerender` (ganze Seite) nutzen.
+- **Im Hintergrund:** Windows schließt per X nur das Fenster (Symbol im Infobereich, `lib.rs` → `setup_tray`); Autostart startet mit `--im-hintergrund` verborgen; zweiter Start holt das Fenster per Single-Instance nach vorn. Android: Vordergrund-Dienst + einmalige Abfrage der Akku-Ausnahme (`android.batteryAsked`). Nach einem Neustart startet der `BootReceiver` den Dienst (siehe „Nach Neustart“).
 - **Safe-Area (Handy):** `core/android.js` fragt die Insets beim Start mehrfach ab (sie sind anfangs oft 0) und bei Größenänderung; bis dahin gelten über `:root.is-android` Mindestabstände (28/48 px). Abstände zu Status-/Navigationsleiste nur über `--safe-top`/`--safe-bottom` (tokens.css). Die Android-App setzt `--inset-top/-bottom` aus den Fenster-Insets (`HeimalarmPlugin.kt`), weil die WebView `env(safe-area-inset-*)` oft als 0 meldet.
 - **Plugin-Befehle:** Was JS am Heimalarm-Plugin aufruft (auch `registerListener` für `addPluginListener`), muss in `plugins/heimalarm/build.rs` → `COMMANDS` und in `permissions/default.toml` stehen, sonst „not allowed“.
 - **`run()` in lib.rs** braucht `#[cfg_attr(mobile, tauri::mobile_entry_point)]` direkt darüber, sonst scheitert der Android-Build.
 - **Android-Symbole** liegen fertig in `src-tauri/icons/android` (adaptiv: weißes Haus auf `#C42D21`) und werden im Release-Workflow kopiert – nicht mit `tauri icon` überschreiben.
 - **Version** steht nur in `app/package.json` (Tauri liest sie von dort); Dienst-Version in `zentrale/dienst/src/index.js` (`VERSION`) und `package.json`.
-- **Android Release-Build:** braucht Cleartext-Freigabe (siehe Offene Punkte), sonst bricht alles mit `http://`/`ws://` am Handy.
 - **CI** (`release.yml`): Android nutzt das vorinstallierte SDK/NDK des Runners (kein setup-android). Keine Test-/Lint-Schritte hinzufügen (Regel oben).
 
 ## Design-System
@@ -305,8 +315,9 @@ Schrift: **Archivo** (Text, Titel), **JetBrains Mono** (Topics, Uhrzeiten, Codes
 
 Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
 
+- **Windows-Signatur:** optional über Secrets `WINDOWS_CERTIFICATE` (base64 .pfx) + `WINDOWS_CERTIFICATE_PASSWORD`; ohne warnt SmartScreen.
 - **E2 Widget:** kein echtes Android-Widget; Ersatz: Karte „Schnellaktionen“ („Wieder da“, Routinen „Nur per Knopf“).
-- **D5 Ton:** über die App mit eigener Lautstärke; Windows-Stummschaltung wird nicht aufgehoben.
+- **D5 Ton:** nativ mit eigener Lautstärke und eigenem Ton; Windows-Lautstärke wird angezeigt und kann bei Alarm angehoben werden (`pc.raiseSystem`, danach zurück).
 - **A10 Firmware-Update:** braucht eine `.ota.bin` im Heimnetz plus MD5.
 - **C10 Netzwerkkarte:** Tabelle statt Grafik. **H4 App-Sperre:** PIN, dazu optional Fingerabdruck (Android) bzw. Windows Hello.
 - **F4 Updates:** prüft GitHub-Releases – erst bei öffentlichem Repo.
@@ -341,7 +352,7 @@ cd app && npm install
 npm run lint                 # Oxlint – muss 0 Befunde haben
 npm run dev                  # http://localhost:1420/?demo – Beispieldaten
 npx tauri dev                # als Windows-Programm
-cd src-tauri && cargo check  # Rust
+cd src-tauri && cargo check  # Rust (ohne GTK unter Linux: cargo check --target x86_64-pc-windows-gnu, braucht mingw-w64)
 
 cd zentrale/dienst && npm install
 npm run devbroker                          # Test-Broker (Terminal 1)
@@ -358,7 +369,7 @@ Nicht in der Cloud-Testumgebung prüfbar: Matter (braucht IPv6/mDNS), echte Andr
 
 - Relaiskontakt der Ladeschale vor dem Anschluss messen (potentialfrei?). Sonst Optokoppler.
 - Android: Akku-Optimierung trotz Hintergrund-Dienst ausschalten (Einstellungen → Android).
+- Neu und am echten Gerät zu prüfen: Ton/Vibration/Vollbild am Handy, Neustart-Puffer, Zweitmonitor-Fenster, Fokus-Trick, eigener Ton (Kotlin ist ohne Android-SDK nicht lokal geprüft).
 - Android-APK ist **debug-signiert**; fester Signierschlüssel als GitHub-Secret folgt.
-- **Android und unverschlüsseltes HTTP:** Die Debug-APK erlaubt `ws://`/`http://` (Tauri setzt `usesCleartextTraffic` nur im Debug-Build). **Beim Wechsel auf eine signierte Release-APK** muss Cleartext freigegeben werden, sonst gehen Zentrale (`ws://`), PC-Kopplung und WLAN-Geräte am Handy nicht.
 - Divera: Status-Namen aus `pull/all` mit echtem Zugang prüfen; Divera-App-Paketname per „Erkennen“.
 - Teilen von Alarmen zwischen Haushalten: Idee, nicht geplant.

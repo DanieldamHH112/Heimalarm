@@ -9,5 +9,9 @@ export default defineConfig({
   server: { port: 1420, strictPort: true, host: process.env.TAURI_DEV_HOST || false },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   define: { "import.meta.env.PACKAGE_VERSION": JSON.stringify(pkg.version) },
-  build: { target: "es2022", outDir: "dist", emptyOutDir: true },
+  // mirror.html = „Fährst du?“ auf weiteren Bildschirmen (src-tauri/src/takeover.rs)
+  build: {
+    target: "es2022", outDir: "dist", emptyOutDir: true,
+    rollupOptions: { input: { main: "index.html", mirror: "mirror.html" } },
+  },
 });

@@ -22,6 +22,13 @@ class AlarmListener : NotificationListenerService() {
         val extra = listOf(str(Notification.EXTRA_SUB_TEXT), str(Notification.EXTRA_SUMMARY_TEXT), str(Notification.EXTRA_INFO_TEXT))
             .filter { it.isNotEmpty() && !body.contains(it) }.distinct().joinToString(" · ")
         val text = if (extra.isEmpty()) body else "$body\n$extra"
-        HeimalarmPlugin.instance?.emitNotification(sbn.packageName, title, text)
+        val plugin = HeimalarmPlugin.instance?.takeIf { it.alive() }
+        if (plugin != null) {
+            plugin.emitNotification(sbn.packageName, title, text)
+        } else if (Native.matches(this, sbn.packageName, title, text)) {
+            // App läuft nicht (z. B. nach Neustart): merken und Heimalarm über die Vollbild-Meldung öffnen
+            Native.buffer(this, sbn.packageName, title, text)
+            AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, true)
+        }
     }
 }

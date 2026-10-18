@@ -25,6 +25,11 @@ jobs:
   windows:
     runs-on: windows-latest
     defaults: { run: { working-directory: app } }
+    env:
+      # Optional: Code-Signatur (Secrets WINDOWS_CERTIFICATE = base64 einer .pfx, WINDOWS_CERTIFICATE_PASSWORD).
+      # Ohne Secrets wird wie bisher unsigniert gebaut – Windows SmartScreen warnt dann beim Setup.
+      WIN_CERT: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WIN_CERT_PASS: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -33,7 +38,21 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with: { workspaces: app/src-tauri, cache-on-failure: true }
       - run: npm ci --no-audit --no-fund
-      - run: npx tauri build --bundles nsis
+      - name: Signierzertifikat (optional)
+        if: env.WIN_CERT != ''
+        shell: pwsh
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CERT))
+          $pass = ConvertTo-SecureString $env:WIN_CERT_PASS -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pass
+          Remove-Item $pfx
+          @{ bundle = @{ windows = @{ certificateThumbprint = $cert.Thumbprint; digestAlgorithm = "sha256"; timestampUrl = "http://timestamp.digicert.com" } } } | ConvertTo-Json -Depth 5 | Set-Content src-tauri/signing.json
+      - name: Bauen
+        shell: pwsh
+        run: |
+          if (Test-Path src-tauri/signing.json) { npx tauri build --bundles nsis --config src-tauri/signing.json }
+          else { npx tauri build --bundles nsis }
       # Prüfsumme für das Update in der App (<datei>.sha256)
       - name: Prüfsumme
         shell: pwsh

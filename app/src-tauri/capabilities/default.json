@@ -3,10 +3,12 @@
   "identifier": "default",
   "description": "Rechte der Oberfläche",
   "windows": [
-    "main"
+    "main",
+    "takeover-*"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-set-theme",
     "core:window:allow-show",
     "core:window:allow-unminimize",
     "core:window:allow-set-focus",

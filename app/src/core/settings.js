@@ -49,12 +49,24 @@ export const defaults = {
     goText: "Ich fahre",
     stayText: "Ich fahre nicht",
     sound: true,            // D5 – Ton während des Countdowns
-    volume: 70,
+    volume: 70,             // Lautstärke des Tons in Heimalarm (0–100), zusätzlich zur Windows-Lautstärke
+    tone: "",               // "" = Melder-Ton, sonst Dateiname eines eigenen Tons (src-tauri/src/sound.rs)
+    raiseSystem: false,     // Windows-Lautstärke bei Alarm anheben und Stummschaltung aufheben
+    systemMin: 60,          // … auf mindestens so viel Prozent
     exceptions: "",         // D7 – kein Ruhezustand, wenn eines dieser Programme läuft (z. B. obs64.exe)
     stopMedia: true,        // D8 – Medienwiedergabe vorher stoppen
     quietFrom: "",          // D12 – Zeitfenster ohne Reaktion (leer = aus)
     quietTo: "",
     wolMac: "",             // D11 – MAC dieses PCs zum Aufwecken (wird angezeigt)
+  },
+  // Handy – Alarm auf diesem Handy (nur Android, AlarmSound.kt)
+  phone: {
+    sound: false,           // eigenen Alarmton spielen (die Alarm-App klingelt meist schon)
+    tone: "",               // "" = Melder-Ton, sonst id eines eigenen Tons
+    volume: 80,             // Lautstärke des Tons (0–100), innerhalb der Wecker-Lautstärke
+    durationSec: 60,        // so lange klingeln, wenn niemand „Stopp“ tippt
+    fullscreen: true,       // Alarm auch auf dem Sperrbildschirm groß anzeigen
+    vibrate: true,
   },
   // Divera 24/7 – persönlicher Zugang. Bleibt auf diesem Gerät (wird nicht abgeglichen).
   divera: {

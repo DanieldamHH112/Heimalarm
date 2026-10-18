@@ -11,6 +11,8 @@ import android.provider.Settings
 import android.webkit.WebView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.activity.result.ActivityResult
+import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -29,6 +31,42 @@ class ServiceArgs {
     var enabled: Boolean = false
 }
 
+@InvokeArg
+class ConfigArgs {
+    var packages: Array<String> = arrayOf()
+    var words: Array<String> = arrayOf()
+    var service: Boolean = true
+}
+
+@InvokeArg
+class AlarmArgs {
+    var title: String = ""
+    var text: String = ""
+    var fullscreen: Boolean = true
+    var vibrate: Boolean = true
+    var sound: Boolean = false
+    var tone: String = ""
+    var volume: Int = 80
+    var ms: Long = 60000
+}
+
+@InvokeArg
+class SoundArgs {
+    var tone: String = ""
+    var volume: Int = 80
+    var ms: Long = 4000
+}
+
+@InvokeArg
+class IdArgs {
+    var id: String = ""
+}
+
+@InvokeArg
+class LevelArgs {
+    var level: Int = 80
+}
+
 @TauriPlugin
 class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
 
@@ -39,6 +77,9 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     // Abstand zu Status- und Navigationsleiste in CSS-Pixeln (Android-WebView liefert env(safe-area-inset-*) oft als 0)
     private var insetTop = 0
     private var insetBottom = 0
+
+    /** Läuft die App (WebView) noch? Sonst puffert der Listener Alarme. */
+    fun alive(): Boolean = !activity.isFinishing && !activity.isDestroyed
 
     override fun load(webView: WebView) {
         instance = this
@@ -86,6 +127,8 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("service", KeepAliveService.running)
         ret.put("insetTop", insetTop)
         ret.put("insetBottom", insetBottom)
+        val nm = activity.getSystemService(android.app.NotificationManager::class.java)
+        ret.put("fullScreenAllowed", Build.VERSION.SDK_INT < 34 || nm.canUseFullScreenIntent())
         invoke.resolve(ret)
     }
 
@@ -186,6 +229,135 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
             while (true) { val n = input.read(buf); if (n <= 0) break; md.update(buf, 0, n) }
         }
         return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    /** Filter für Alarme, solange die App nicht läuft (Neustart) */
+    @Command
+    fun configure(invoke: Invoke) {
+        val a = invoke.parseArgs(ConfigArgs::class.java)
+        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service)
+        invoke.resolve(JSObject())
+    }
+
+    /** Alarme, die erkannt wurden, bevor die App lief */
+    @Command
+    fun pendingNotifications(invoke: Invoke) {
+        val ret = JSObject()
+        ret.put("items", Native.takePending(activity))
+        invoke.resolve(ret)
+    }
+
+    /** Alarm anzeigen: Vollbild-Meldung (auch Sperrbildschirm), Vibration, Wecker-Ton */
+    @Command
+    fun showAlarm(invoke: Invoke) {
+        val a = invoke.parseArgs(AlarmArgs::class.java)
+        activity.runOnUiThread {
+            if (Build.VERSION.SDK_INT >= 27) { activity.setShowWhenLocked(true); activity.setTurnScreenOn(true) }
+        }
+        AlarmSound.stopSound()
+        AlarmSound.notifyAlarm(activity, a.title, a.text, a.fullscreen)
+        if (a.sound) AlarmSound.play(activity, a.tone, a.volume, a.ms)
+        if (a.vibrate) AlarmSound.vibrate(activity)
+        invoke.resolve(JSObject())
+    }
+
+    @Command
+    fun stopAlarm(invoke: Invoke) {
+        AlarmSound.cancel(activity)
+        activity.runOnUiThread {
+            if (Build.VERSION.SDK_INT >= 27) { activity.setShowWhenLocked(false); activity.setTurnScreenOn(false) }
+        }
+        invoke.resolve(JSObject())
+    }
+
+    /** Ton testen */
+    @Command
+    fun playSound(invoke: Invoke) {
+        val a = invoke.parseArgs(SoundArgs::class.java)
+        try { AlarmSound.play(activity, a.tone, a.volume, a.ms); invoke.resolve(JSObject()) }
+        catch (e: Exception) { invoke.reject("Ton nicht abspielbar: " + (e.message ?: "")) }
+    }
+
+    @Command
+    fun stopSound(invoke: Invoke) {
+        AlarmSound.stopSound()
+        invoke.resolve(JSObject())
+    }
+
+    /** Eigener Ton: Android-Dateiauswahl, Datei wird in die App kopiert */
+    @Command
+    fun pickSound(invoke: Invoke) {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+        }
+        startActivityForResult(invoke, i, "pickSoundResult")
+    }
+
+    @ActivityCallback
+    fun pickSoundResult(invoke: Invoke, result: ActivityResult) {
+        val uri = result.data?.data
+        if (result.resultCode != Activity.RESULT_OK || uri == null) { invoke.resolve(JSObject()); return }
+        try {
+            var name = "ton"
+            activity.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) name = it.getString(0) ?: name
+            }
+            val safe = name.replace(Regex("[^A-Za-z0-9 ._()\\-äöüÄÖÜß]"), "_").trimStart('.').ifEmpty { "ton" }
+            val size = activity.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+            if (size > 15L * 1024 * 1024) { invoke.reject("Datei ist zu groß (höchstens 15 MB)"); return }
+            val target = java.io.File(AlarmSound.soundsDir(activity), safe)
+            activity.contentResolver.openInputStream(uri)!!.use { input -> target.outputStream().use { input.copyTo(it) } }
+            val ret = JSObject()
+            ret.put("id", safe)
+            ret.put("name", safe.substringBeforeLast('.'))
+            invoke.resolve(ret)
+        } catch (e: Exception) {
+            invoke.reject("Ton nicht übernommen: " + (e.message ?: e.javaClass.simpleName))
+        }
+    }
+
+    @Command
+    fun listSounds(invoke: Invoke) {
+        val arr = org.json.JSONArray()
+        AlarmSound.soundsDir(activity).listFiles()?.sortedBy { it.name }?.forEach {
+            arr.put(org.json.JSONObject().put("id", it.name).put("name", it.name.substringBeforeLast('.')))
+        }
+        val ret = JSObject(); ret.put("items", arr); invoke.resolve(ret)
+    }
+
+    @Command
+    fun deleteSound(invoke: Invoke) {
+        val a = invoke.parseArgs(IdArgs::class.java)
+        if (a.id.isNotEmpty() && !a.id.contains('/')) java.io.File(AlarmSound.soundsDir(activity), a.id).delete()
+        invoke.resolve(JSObject())
+    }
+
+    /** Wecker-Lautstärke lesen / setzen (0–100) */
+    @Command
+    fun alarmVolume(invoke: Invoke) {
+        val ret = JSObject()
+        ret.put("supported", true)
+        val level = AlarmSound.alarmVolume(activity)
+        ret.put("level", level)
+        ret.put("muted", level == 0)
+        invoke.resolve(ret)
+    }
+
+    @Command
+    fun setAlarmVolume(invoke: Invoke) {
+        val a = invoke.parseArgs(LevelArgs::class.java)
+        try { AlarmSound.setAlarmVolume(activity, a.level); invoke.resolve(JSObject()) }
+        catch (e: Exception) { invoke.reject("Lautstärke nicht änderbar: " + (e.message ?: "")) }
+    }
+
+    /** Android 14+: Erlaubnis für Vollbild-Meldungen */
+    @Command
+    fun openFullScreenSettings(invoke: Invoke) {
+        val i = if (Build.VERSION.SDK_INT >= 34) Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + activity.packageName))
+                else Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
+        activity.startActivity(i)
+        invoke.resolve(JSObject())
     }
 
     fun emitNotification(app: String, title: String, text: String) {
