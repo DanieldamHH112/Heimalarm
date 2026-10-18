@@ -187,7 +187,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/dienst/status`, `heimalarm/ping` → `heimalarm/pong` | Dienst-Status, Verbindungstest | Dienst |
 | `zigbee2mqtt/#` | Geräte, Gruppen, Zustände, Befehle | Zigbee2MQTT |
 | `homeassistant/<comp>/heimalarm_*/config` | MQTT-Discovery für Home Assistant (retained, nur wenn `shared.hass.enabled`) | Dienst (`hass.js`) |
-| `heimalarm/ha/einsatz/<key>` (+`/attr`), `heimalarm/ha/letzter` | Einsatz ON/OFF je Person bzw. „alle“, letzter Alarm (JSON) | Dienst → Home Assistant |
+| `heimalarm/ha/einsatz/<key>` (+`/attr`), `heimalarm/ha/letzter`, `heimalarm/ha/ereignis` | Einsatz ON/OFF je Person bzw. „alle“, letzter Alarm (JSON), Ereignis bei jedem Alarm (`event.heimalarm_alarm`, nicht retained) | Dienst → Home Assistant |
 
 ### Ports
 
@@ -246,8 +246,8 @@ Aktion `device` schaltet ein WLAN-Gerät, wenn ein Gerät mit diesem Namen in `s
 Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehen:
 
 - **`app/src/core/wifi.js` ⇄ `zentrale/dienst/src/wifi.js`** sind dieselbe Datei. Immer beide ändern (kopieren). Enthält auch `fillTemplate` und `voiceMonkeyAnnounce`.
-- **Discord-Status** (`core/discord.js`, `views/discord.js`, `src-tauri/src/discord.rs`): nur Windows, Einstellungen lokal in `settings.discord`. Hört auf die Ereignisse `alarm`, `answer` (aus `engine.decide`) und `restore` („Wieder da“). `engine.decide` wartet bis 3 s auf `presenceSettled()`, damit der Status vor dem Ruhezustand rausgeht. Laufender Einsatz in localStorage `heimalarm.discord.active`.
-- **Home Assistant** (`zentrale/dienst/src/hass.js`): Konfiguration `shared.hass` (auch im Dienst-`DEFAULTS`). Entity-IDs (`heimalarm_einsatz_alle` …) nicht umbenennen – Automationen der Nutzer hängen daran.
+- **Discord-Status** (`core/discord.js`, `views/discord.js`, `src-tauri/src/discord.rs`): nur Windows, Einstellungen lokal in `settings.discord`. Hört auf die Ereignisse `alarm`, `answer` (aus `engine.decide`) und `restore` („Wieder da“). `engine.decide` wartet bis 3 s auf `presenceSettled()`, damit der Status vor dem Ruhezustand rausgeht. Laufender Einsatz in localStorage `heimalarm.discord.active`. Zeiten an Discord in Sekunden; `status_display_type` steuert den Text in der Mitgliederliste.
+- **Home Assistant** (`zentrale/dienst/src/hass.js`): Konfiguration `shared.hass` (auch im Dienst-`DEFAULTS`). Entity-IDs (`heimalarm_einsatz_alle`, `heimalarm_alarm` …) nicht umbenennen – Automationen der Nutzer hängen daran. Discovery nutzt `default_entity_id` (`object_id` ist in HA veraltet).
 - **Routinen-Format** wird in `views/routines.js` gebaut und von `zentrale/dienst/src/rules.js` **und** `core/routines-local.js` ausgeführt. Neue Aktion/Bedingung in allen dreien.
 - **Gemeinsame Daten:** neues Feld in `shared.js` (`sharedDefaults`) **und** Dienst `DEFAULTS`. Der Dienst übernimmt die Konfiguration flach (`{...DEFAULTS, ...cfg}`) – verschachtelte Objekte immer komplett schreiben.
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.

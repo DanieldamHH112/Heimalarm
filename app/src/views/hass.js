@@ -21,15 +21,19 @@ function step(done, now, title, ...body) {
 const example = () => `alias: Einsatz – Licht an
 triggers:
   - trigger: state
-    entity_id: binary_sensor.heimalarm_einsatz_alle
-    to: "on"
+    entity_id: event.heimalarm_alarm
+conditions:
+  - condition: state
+    entity_id: event.heimalarm_alarm
+    attribute: event_type
+    state: alarm
 actions:
   - action: light.turn_on
     target:
       entity_id: light.flur
   - action: notify.notify
     data:
-      message: "Einsatz: {{ state_attr('binary_sensor.heimalarm_einsatz_alle', 'keyword') }}"`;
+      message: "Einsatz: {{ state_attr('event.heimalarm_alarm', 'keyword') }}"`;
 
 export function hassSection(rerender) {
   const c = { ...DEF, ...shared().hass };
@@ -43,6 +47,7 @@ export function hassSection(rerender) {
   }
 
   const entities = [
+    ["event.heimalarm_alarm", "Alarm", "Feuert bei jedem Alarm – auch beim zweiten kurz danach. Bester Auslöser für Automationen."],
     ["binary_sensor.heimalarm_einsatz_alle", "Einsatz", `An bei jedem Alarm, ${c.activeMin} min lang. Stichwort, Adresse und Einheit als Attribute.`],
     ...(persons.length > 1 ? persons.map((p) => [`binary_sensor.heimalarm_einsatz_${slug(p.id)}`, `Einsatz ${p.name || p.id}`, "Nur für diese Person."]) : []),
     ["sensor.heimalarm_stichwort", "Letztes Stichwort", "Mit allen Angaben des letzten Alarms."],

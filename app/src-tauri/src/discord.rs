@@ -62,9 +62,12 @@ fn discord_error(op: u32, body: &str) -> Option<String> {
     if op == 2 || v.get("evt").and_then(Value::as_str) == Some("ERROR") {
         let msg = v.pointer("/data/message").or_else(|| v.get("message")).and_then(Value::as_str).unwrap_or("unbekannter Fehler");
         let code = v.pointer("/data/code").or_else(|| v.get("code")).and_then(Value::as_i64).unwrap_or(0);
-        return Some(match code {
-            4000 => "Application-ID ungültig – bitte prüfen".into(),
+        // Gleiche Nummern bedeuten je nach Art etwas anderes: CLOSE (op 2) = Verbindung, ERROR-Ereignis = Inhalt
+        return Some(match (op, code) {
+            (2, 4000) => "Application-ID ungültig – bitte prüfen".into(),
+            (2, 4002) => "Zu viele Anfragen an Discord – kurz warten".into(),
             _ if msg.contains("client_id") || msg.contains("Invalid Client ID") => "Application-ID ungültig – bitte prüfen".into(),
+            (_, 4000) => format!("Discord lehnt die Angaben ab ({msg}) – Bild-Namen, Knopf-Links und Texte prüfen"),
             _ => format!("Discord: {msg}"),
         });
     }

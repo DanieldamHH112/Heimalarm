@@ -472,3 +472,5 @@ details.group:not([open]) { gap: 0; }
 .ha-row small { grid-column: 2; color: var(--text-2); font-size: var(--fs-sm); }
 @media (max-width: 760px) { .ha-row { grid-template-columns: 1fr; } .ha-row small { grid-column: 1; } }
 pre.code-block { margin: 0; padding: var(--s3) var(--s4); background: var(--surface-2); border-radius: var(--radius-sm); font: var(--fs-xs)/1.55 var(--mono); color: var(--text); overflow-x: auto; user-select: text; }
+.rp-list { display: flex; align-items: center; gap: 6px; padding-top: var(--s3); border-top: 1px solid color-mix(in srgb, var(--rp-tx) 10%, transparent); font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-dot { width: 10px; height: 10px; border-radius: 50%; background: #23a55a; flex-shrink: 0; }

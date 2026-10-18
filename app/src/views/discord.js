@@ -34,7 +34,9 @@ function preview(c) {
         a.details && h("div", {}, a.details),
         a.state && h("div.rp-mute", {}, a.state),
         timeText && h("div.rp-time", {}, timeText))),
-    a.buttons?.length && h("div.rp-btns", {}, a.buttons.map((b) => h("div.rp-btn", {}, b.label))));
+    a.buttons?.length && h("div.rp-btns", {}, a.buttons.map((b) => h("div.rp-btn", {}, b.label))),
+    h("div.rp-list", {}, h("span.rp-dot"), h("span.rp-mute", {}, "Mitgliederliste: "),
+      h("span", {}, `${VERB[a.type] || "Spielt"} `, h("b", {}, a.status_display_type === 2 ? a.details : a.status_display_type === 1 ? a.state : name))));
 }
 
 function step(done, now, title, ...body) {
@@ -117,6 +119,7 @@ export function discordSection(rerender) {
       h("div.field", {}, h("span", {}, "Vorlage"),
         segmented([...Object.entries(PRESETS).map(([k, p]) => [k, p.label]), ["eigen", "Eigene"]], presetNow, (v) => { if (v !== "eigen") { applyPreset(v); rerender(); } }),
         h("small", {}, presetNow === "eigen" ? "Eigene Texte – unten frei anpassen." : PRESETS[presetNow].hint)),
+      field("In der Mitgliederliste", select([[2, "Zeile 1 (z. B. „Im Einsatz“)"], [1, "Zeile 2 (z. B. Stichwort)"], [0, "Name der App"]], c.listShows ?? 2, (v) => setP("listShows", Number(v))), "Kurztext neben deinem Namen in Servern und Freundesliste."),
       field("Art", select(ACTIVITY_TYPES.map(([k, l]) => [k, `${l} …`]), c.type, (v) => setP("type", Number(v))), "Das Wort über dem Namen. Der Name selbst kommt aus dem Entwicklerportal."),
       tpl("details", "Zeile 1", { placeholder: "z. B. Im Einsatz", hint: "Leer = Zeile weglassen." }),
       tpl("state", "Zeile 2", { placeholder: "z. B. {stichwort}", hint: "Achtung: Stichwort und Adresse sehen alle, die dein Profil sehen." })),

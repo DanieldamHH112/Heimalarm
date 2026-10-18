@@ -44,6 +44,10 @@ export function startHass(ctx, log) {
     ein("alle", "Einsatz");
     if (persons.length > 1) for (const p of persons) ein(p.id, `Einsatz ${p.name || p.id}`);
 
+    // Ereignis bei JEDEM Alarm – löst Automationen auch aus, wenn „Einsatz“ schon an ist (zweiter Alarm kurz danach)
+    list.push(["event", "heimalarm_alarm", {
+      name: "Alarm", icon: "mdi:alarm-light", state_topic: `${BASE}/ereignis`, event_types: ["alarm", "probe", "test"],
+    }]);
     list.push(["sensor", "heimalarm_stichwort", {
       name: "Letztes Stichwort", icon: "mdi:message-alert", state_topic: `${BASE}/letzter`,
       value_template: "{{ value_json.keyword or value_json.source or 'Alarm' }}", json_attributes_topic: `${BASE}/letzter`,
@@ -81,7 +85,7 @@ export function startHass(ctx, log) {
     for (const [comp, id, conf] of wanted()) {
       const topic = `${prefix}/${comp}/${id}/config`;
       now.add(topic);
-      pub(topic, { ...conf, unique_id: id, object_id: id, device: device(), ...availability });
+      pub(topic, { ...conf, unique_id: id, default_entity_id: `${comp}.${id}`, device: device(), ...availability });
       published.set(topic, true);
     }
     for (const t of [...published.keys()]) if (!now.has(t)) { pub(t, ""); published.delete(t); }   // Person entfernt usw.
@@ -105,6 +109,7 @@ export function startHass(ctx, log) {
       person: e.who, test: Boolean(e.test), probe: Boolean(e.probe), time: new Date().toISOString(),
     };
     pub(`${BASE}/letzter`, attr);
+    pub(`${BASE}/ereignis`, { event_type: e.test ? "test" : e.probe ? "probe" : "alarm", ...attr }, false);
     set("alle", attr);
     if ((ctx.config.persons || []).length > 1) set(e.who, attr);
     log.info("Home Assistant: Einsatz gemeldet", e.keyword || e.source || "");

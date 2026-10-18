@@ -109,6 +109,7 @@ export const defaults = {
     clientId: "",           // Application-ID aus discord.com/developers – ihr Name steht als „Spielt …“ im Profil
     start: "alarm",         // alarm = sofort bei Alarm · go = erst bei „Ich fahre“
     onStay: "clear",        // clear = bei „Ich fahre nicht“ wieder entfernen · keep = stehen lassen
+    listShows: 2,           // Mitgliederliste: 0 Name der App · 1 Zeile 2 · 2 Zeile 1 („Im Einsatz“)
     type: 0,                // 0 Spielt · 3 Schaut · 2 Hört · 5 Tritt an bei
     details: "Im Einsatz",  // erste Zeile
     state: "{stichwort}",   // zweite Zeile

@@ -42,8 +42,14 @@ export function buildActivity(c, ev = {}, start = Date.now()) {
   const details = f(c.details), state = f(c.state);
   if (details) a.details = details;
   if (state) a.state = state;
-  if (c.timer === "since") a.timestamps = { start };
-  else if (c.timer === "remaining") a.timestamps = { start, end: start + Math.max(1, Number(c.durationMin) || 90) * 60e3 };
+  // RPC erwartet Unix-Zeit in Sekunden
+  const sec = Math.floor(start / 1000);
+  if (c.timer === "since") a.timestamps = { start: sec };
+  else if (c.timer === "remaining") a.timestamps = { start: sec, end: sec + Math.max(1, Number(c.durationMin) || 90) * 60 };
+  // Was in der Mitgliederliste steht: 0 Name der App · 1 Zeile 2 · 2 Zeile 1
+  const listShows = Number(c.listShows) || 0;
+  if (listShows === 2 && details) a.status_display_type = 2;
+  else if (listShows === 1 && state) a.status_display_type = 1;
   const assets = {};
   if (c.largeImage?.trim()) { assets.large_image = c.largeImage.trim(); const t = f(c.largeText); if (t) assets.large_text = t; }
   if (c.smallImage?.trim()) { assets.small_image = c.smallImage.trim(); const t = f(c.smallText); if (t) assets.small_text = t; }
