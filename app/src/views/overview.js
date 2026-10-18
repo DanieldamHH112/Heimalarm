@@ -1,6 +1,8 @@
 // E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
 import { h, fmtAgo, fmtTime, fmtDate, toast } from "../ui/dom.js";
-import { state, publish } from "../core/mqtt.js";
+import { state, publish, testDevice, renameDevice, forgetDevice } from "../core/mqtt.js";
+import { field, dialog } from "../ui/form.js";
+import { emit } from "../core/events.js";
 import { shared } from "../core/shared.js";
 import { settings, isConfigured, mode } from "../core/settings.js";
 import { setupFlow, setupSteps, setupDone } from "../ui/setup.js";
@@ -11,6 +13,7 @@ import { has, activeSources } from "../core/features.js";
 import { direct } from "../core/direct.js";
 import { fireLocal } from "../core/routines-local.js";
 import { engine, answerApps } from "../core/engine.js";
+import { recordAnswer } from "../core/stats.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { themeToggle } from "../ui/theme.js";
@@ -115,9 +118,15 @@ function quickCard() {
   );
 }
 
+function renameClientDialog(id, c) {
+  const name = h("input.input", { value: c.name || "" });
+  const close = dialog("Gerät umbenennen", field("Name", name, "Das Gerät übernimmt den Namen, sobald es verbunden ist."),
+    h("div.row", {}, h("button.btn.primary", { onclick: () => { const n = name.value.trim(); if (n && renameDevice(id, n)) toast(`Umbenannt in „${n}“`); close(); } }, "Speichern")));
+}
+
 function appsCard() {
   const myId = settings().device.id;
-  const list = Object.entries(state.clients).toSorted(([, a], [, b]) => Number(b.online) - Number(a.online) || b.ts - a.ts);
+  const list = Object.entries(state.clients).filter(([, c]) => c).toSorted(([, a], [, b]) => Number(b.online) - Number(a.online) || b.ts - a.ts);
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "Verbundene Apps")),
     list.length === 0
@@ -127,7 +136,11 @@ function appsCard() {
             h("b", {}, c.name || c.platform, id === myId ? h("span.badge", {}, "dieses Gerät") : null),
             c.online ? chip("ok", "online") : chip("", `zuletzt ${fmtAgo(c.ts)}`)),
           h("p.hint", {}, `${c.platform} · Version ${c.version}`),
-          !c.online && c.mac && h("div.row", {}, h("button.btn.small", { onclick: () => wake(c) }, "Aufwecken")),
+          id !== myId && h("div.row", {},
+            c.online && h("button.btn.small.ghost", { onclick: () => { if (testDevice(id)) toast(`Testalarm an „${c.name}“ gesendet`); } }, "Testalarm"),
+            !c.online && c.mac && h("button.btn.small", { onclick: () => wake(c) }, "Aufwecken"),
+            h("button.btn.small.ghost", { onclick: () => renameClientDialog(id, c) }, "Umbenennen"),
+            !c.online && h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${c.name}“ aus der Liste entfernen? Meldet es sich wieder, erscheint es erneut.`) && forgetDevice(id)) { toast("Entfernt"); emit("devices", state); } } }, "Entfernen")),
         ))),
   );
 }
@@ -171,7 +184,7 @@ function pcCard() {
   );
 }
 
-const sendAnswer = (going) => answerApps(going).then((ok) => toast(ok ? "Antwort gesendet" : "Nicht angekommen – siehe Protokoll"));
+const sendAnswer = (going) => (recordAnswer(going), answerApps(going)).then((ok) => toast(ok ? "Antwort gesendet" : "Nicht angekommen – siehe Protokoll"));
 
 /** Eigener Einsatz läuft (max. 30 min): Antwort an Divera / aPager direkt vom Handy. */
 function answerCard() {

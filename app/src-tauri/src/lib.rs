@@ -300,7 +300,8 @@ pub fn run() {
             mac_address,
             wake_on_lan,
             install_update,
-            direct::direct_server
+            direct::direct_server,
+            direct::direct_set_config
         ])
         .run(tauri::generate_context!())
         .expect("Heimalarm konnte nicht starten");

@@ -12,6 +12,7 @@ import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
+import { recordAlarm, recordAnswer } from "./stats.js";
 
 const lastByWho = new Map();
 export const engine = { last: null };
@@ -19,6 +20,7 @@ export const engine = { last: null };
 export function init() {
   on("alarm-in", (a) => handleAlarm(a));
   on("divera-alarm", (data) => forward(data));
+  on("test-request", () => testAlarm());   // Testalarm an dieses Gerät (von einem anderen Gerät)
 }
 
 /** Alarm aus einer App-Quelle (Benachrichtigung, Divera): über die Zentrale an alle Geräte, ohne Verbindung nur hier. */
@@ -69,6 +71,7 @@ function handleAlarm(a) {
   log("alarm", probe ? "Komplettprobe" : test ? "Testalarm" : own ? "Alarm" : `Alarm von „${a.who}“`,
     `${a.source} · alarm/${a.who}${extra ? " · " + extra : ""}`);
   emit("alarm", engine.last);
+  if (own && !test && !probe) recordAlarm(a);   // Einsatz-Statistik
 
   if (forThisPc && hasPcFeatures) {
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
@@ -123,6 +126,7 @@ export async function answerApps(going) {
 /** Ergebnis der Abfrage „Fährst du?“ */
 export async function decide(going, { test = false, timeout = false } = {}) {
   const p = settings().pc;
+  if (!test) recordAnswer(going, { timeout });
   // Rückmeldung an Divera / aPager (nicht bei Tests, nicht ohne Antwort)
   if (!test && !timeout) answerApps(going);
   if (!going) {

@@ -56,7 +56,8 @@ client.on("message", (topic, buf, packet) => {
       rules.reschedule();
       voice.onConfig();
     } else if (parts[0] === "heimalarm" && parts[1] === "clients") {
-      ctx.clients[parts[2]] = JSON.parse(msg);
+      if (msg) ctx.clients[parts[2]] = JSON.parse(msg);
+      else delete ctx.clients[parts[2]];   // Gerät in der App entfernt
     } else if (topic === "heimalarm/ping") {
       client.publish("heimalarm/pong", JSON.stringify({ id: msg, version: VERSION, ts: Date.now(), bridge: ctx.bridge, zigbee: ctx.zigbee.length }));
     } else if (parts[0] === "heimalarm" && parts[1] === "cmd") {

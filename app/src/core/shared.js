@@ -57,6 +57,14 @@ export function updateShared(patch) {
   saveLocal(data);
   if (mode() === "zentrale") publishFn?.(TOPIC, JSON.stringify(data), { retain: true, qos: 1 });
   emit("shared", data);
+  emit("shared-local", patch);   // für den Abgleich ohne Zentrale (core/sync.js)
+}
+
+/** Ohne Zentrale: gemeinsame Daten von einem anderen Gerät übernehmen (nicht weiterverteilen). */
+export function replaceShared(next) {
+  data = { ...structuredClone(sharedDefaults), ...next, common: data.common };
+  saveLocal(data);
+  emit("shared", data);
 }
 
 // Lokale Änderungen an allgemeinen Einstellungen weitergeben

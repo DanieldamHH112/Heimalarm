@@ -1,11 +1,11 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
 import { modeChoice, setupFlow } from "../ui/setup.js";
 import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
-import { h, toast } from "../ui/dom.js";
+import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
 import { has } from "../core/features.js";
-import { direct, startReceiver, renewCode, pingPeer, addPeer, removePeer } from "../core/direct.js";
+import { direct, startReceiver, renewCode, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
 import { shared, updateShared, sha256, newId } from "../core/shared.js";
 import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
@@ -25,52 +25,88 @@ let hibernateOn = null;
 let android = null;
 
 // ── Abschnitte ─────────────────────────────────────
-function addPeerDialog(rerender) {
-  const host = h("input.input", { placeholder: "z. B. 192.168.1.20", inputmode: "url" });
-  const code = h("input.input", { placeholder: "8-stelliger Code", inputmode: "numeric" });
-  const name = h("input.input", { placeholder: "z. B. PC Arbeitszimmer" });
-  const close = dialog("PC hinzufügen", field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb."), field("Code", code), field("Name", name),
+function peerDialog(rerender, peer) {
+  const host = h("input.input", { placeholder: "z. B. 192.168.1.20", inputmode: "url", value: peer?.host || "" });
+  const port = h("input.input", { placeholder: "8765", inputmode: "numeric", value: String(peer?.port || 8765) });
+  const code = h("input.input", { placeholder: peer ? "nur zum Neu-Koppeln" : "8-stelliger Code", inputmode: "numeric" });
+  const name = h("input.input", { placeholder: "z. B. PC Arbeitszimmer", value: peer?.nameSet ? peer.name : "" });
+  const close = dialog(peer ? `„${peer.name}“ bearbeiten` : "PC koppeln",
+    field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb."),
+    field("Kopplungscode", code, peer ? "Leer lassen, außer der PC wurde entkoppelt." : "Steht am PC daneben. Danach bekommt dieses Handy einen eigenen Code."),
+    field("Name", name, "Leer = Name des PCs übernehmen."),
+    field("Port", port),
     h("div.row", {}, h("button.btn.primary", { onclick: async () => {
-      const peer = { host: host.value.trim(), code: code.value.replace(/\D/gu, ""), name: name.value.trim() || host.value.trim() };
-      if (!peer.host || peer.code.length !== 8) return toast("Adresse und 8-stelligen Code eintragen");
-      addPeer(peer); close(); rerender();
-      const p = settings().direct.peers.at(-1);
-      toast((await pingPeer(p)) ? `„${p.name}“ verbunden` : "Gespeichert, aber PC nicht erreicht");
-    } }, "Hinzufügen")));
+      const c = code.value.replace(/\D/gu, "");
+      const data = { host: host.value.trim(), port: Number(port.value) || 8765, code: c, name: name.value.trim() };
+      if (!data.host) return toast("Adresse eintragen");
+      if ((!peer || c) && c.length !== 8) return toast("8-stelligen Code eintragen");
+      close(); toast("Verbinde …");
+      const ok = peer ? await editPeer(peer.id, data) : await addPeer(data);
+      rerender();
+      toast(ok ? "Gekoppelt – Einstellungen werden abgeglichen" : "Gespeichert, aber PC nicht erreicht");
+    } }, peer ? "Speichern" : "Koppeln")));
 }
+
+function renamePhoneDialog(rerender, p) {
+  const name = h("input.input", { value: p.name });
+  const close = dialog("Handy umbenennen", field("Name", name, "Nur an diesem PC."),
+    h("div.row", {}, h("button.btn.primary", { onclick: () => { renamePhone(p.id, name.value.trim() || p.name); close(); rerender(); } }, "Speichern")));
+}
+
+const ago = (ts) => (ts ? fmtAgo(ts) : "noch nie");
 
 // ── Betrieb: mit oder ohne Zentrale ─────────────────
 function betrieb(rerender) {
   const m = mode();
   const d = settings().direct;
-  const pcPart = () => h("div.item", {},
-    h("div.item-head", {}, h("b", {}, "Handy koppeln"), direct.error ? h("span.chip.bad", {}, "Fehler") : direct.ip ? h("span.chip.ok", {}, "bereit") : h("span.chip", {}, "startet …")),
-    h("p.meta", {}, "Am Handy unter Einstellungen → Betrieb → „PC hinzufügen“ eintragen:"),
-    h("div.pair-big", {},
-      h("div", {}, h("small", {}, "Adresse"), h("code", {}, direct.ip ? `${direct.ip}` : "–")),
-      h("div", {}, h("small", {}, "Code"), h("code", {}, (d.code || "–").replace(/(\d{4})(\d{4})/u, "$1 $2")))),
-    direct.error && h("p.meta.err", {}, direct.error),
-    h("div.row", {}, h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Code erzeugen? Gekoppelte Handys müssen neu koppeln.")) { await renewCode(); rerender(); } } }, "Neuer Code")),
-    h("small.meta", {}, "Windows fragt beim ersten Mal nach der Firewall – „Private Netzwerke“ erlauben."));
+  const syncHint = h("small.meta", {}, settings().sync?.enabled === false
+    ? "Abgleich ist aus (Einstellungen → Dieses Gerät)."
+    : "Gekoppelte Geräte gleichen Betriebsart, Alarm-, PC- und Darstellungs-Einstellungen ab – ohne Zentrale auch Routinen und WLAN-Geräte. Divera-/aPager-Schlüssel bleiben auf dem Gerät.");
+  const pcPart = () => {
+    const phones = d.phones || [];
+    return h("div.item", {},
+      h("div.item-head", {}, h("b", {}, "Handy koppeln"), direct.error ? h("span.chip.bad", {}, "Fehler") : direct.ip ? h("span.chip.ok", {}, "bereit") : h("span.chip", {}, "startet …")),
+      h("p.meta", {}, "Am Handy unter Einstellungen → Betrieb → „PC koppeln“ eintragen:"),
+      h("div.pair-big", {},
+        h("div", {}, h("small", {}, "Adresse"), h("code", {}, direct.ip ? `${direct.ip}` : "–")),
+        h("div", {}, h("small", {}, "Kopplungscode"), h("code", {}, (d.code || "–").replace(/(\d{4})(\d{4})/u, "$1 $2")))),
+      direct.error && h("p.meta.err", {}, direct.error),
+      h("div.row", {}, h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Kopplungscode erzeugen? Bereits gekoppelte Handys bleiben gekoppelt.")) { await renewCode(); rerender(); } } }, "Neuer Kopplungscode")),
+      h("div.item-head", { style: "margin-top:var(--s4)" }, h("b", {}, "Gekoppelte Handys")),
+      phones.length === 0 ? h("p.meta", {}, "Noch keins.")
+        : h("ul.rows.compact", {}, phones.map((p) => h("li", {}, h("div.row-main", {},
+            h("div", {}, h("b", {}, p.name), h("div.meta", {}, `zuletzt ${ago(p.lastSeen)}`)),
+            h("div.row", {},
+              h("button.btn.small.ghost", { onclick: () => renamePhoneDialog(rerender, p) }, "Umbenennen"),
+              h("button.btn.small.ghost.danger", { onclick: async () => { if (confirm(`„${p.name}“ entkoppeln? Das Handy erreicht diesen PC danach nicht mehr.`)) { await unpairPhone(p.id); rerender(); } } }, "Entkoppeln")))))),
+      syncHint,
+      h("small.meta", {}, "Windows fragt beim ersten Mal nach der Firewall – „Private Netzwerke“ erlauben."));
+  };
   const phonePart = () => {
     const peers = d.peers || [];
     return h("div.item", {},
-      h("div.item-head", {}, h("b", {}, "Gekoppelte PCs"), h("button.btn.small", { onclick: () => addPeerDialog(rerender) }, "PC hinzufügen")),
+      h("div.item-head", {}, h("b", {}, "Gekoppelte PCs"), h("button.btn.small", { onclick: () => peerDialog(rerender) }, "PC koppeln")),
       peers.length === 0 ? h("p.meta", {}, "Noch kein PC. Ohne PC gibt es nur Meldung, Rückmeldung und Licht.")
         : h("ul.rows.compact", {}, peers.map((p) => {
             const st = direct.peers[p.id];
             return h("li", {}, h("div.row-main", {},
-              h("b", {}, p.name, st && h("span.badge" + (st.ok ? "" : ".bad"), {}, st.ok ? "erreichbar" : st.error)),
+              h("div", {}, h("b", {}, p.name, st && h("span.badge" + (st.ok ? "" : ".bad"), {}, st.ok ? "erreichbar" : st.error)),
+                h("div.meta", {}, `${p.host}:${p.port || 8765}${p.paired ? "" : " · noch nicht gekoppelt"}`)),
               h("div.row", {},
                 h("button.btn.small.ghost", { onclick: () => pingPeer(p).then(rerender) }, "Prüfen"),
-                h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${p.name}“ entfernen?`)) { removePeer(p.id); rerender(); } } }, "Entfernen"))));
+                h("button.btn.small.ghost", { onclick: () => peerDialog(rerender, p) }, "Bearbeiten"),
+                h("button.btn.small.ghost.danger", { onclick: () => { if (confirm(`„${p.name}“ entfernen? Am PC zusätzlich „Entkoppeln“ wählen.`)) { removePeer(p.id); rerender(); } } }, "Entfernen"))));
           })),
+      peers.some((p) => p.paired) && h("div.row", {},
+        h("button.btn.small.ghost", { onclick: () => syncPeers().then(() => { rerender(); toast("Abgeglichen"); }) }, "Jetzt abgleichen"),
+        direct.lastSync ? h("small.meta", {}, `Zuletzt abgeglichen ${fmtAgo(direct.lastSync)}`) : null),
+      syncHint,
       h("small.meta", {}, "Handy und PC müssen im selben WLAN sein."));
   };
-  return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Auf allen Geräten dieselbe Betriebsart wählen.",
+  return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Gekoppelte Geräte übernehmen die Betriebsart automatisch.",
     modeChoice((v) => { set("mode", v); connect(); startReceiver(); rerender(); }),
     h("div.item.flow-wrap", {}, h("div.item-head", {}, h("b", {}, "So läuft ein Alarm")), setupFlow()),
-    m === "direkt" && (hasPcFeatures ? pcPart() : phonePart()),
+    hasPcFeatures ? pcPart() : phonePart(),
     m === "direkt" && switchRow("Routinen auf diesem Gerät ausführen", hasPcFeatures ? "Normalerweise macht das das Handy. Nur einschalten, wenn kein Handy Routinen ausführt." : "Licht und Alexa bei Alarm. Nur auf einem Gerät einschalten.",
       runsHere(), (v) => { set("direct.routines", v); rerender(); }),
   );
@@ -362,7 +398,7 @@ function geraet() {
   return section("geraet", "Dieses Gerät", "So erscheint die App bei den anderen unter „Verbundene Apps“.",
     field("Gerätename", text("device.name", { placeholder: hasPcFeatures ? "z. B. PC Arbeitszimmer" : "z. B. Handy Daniel", autocomplete: "off" }, { onSave: () => connect() })),
     toggle("notify.enabled", "Benachrichtigung bei Alarm", hasPcFeatures ? "Für Alarme anderer Personen. Eigene Alarme zeigen die Abfrage." : "Systemmeldung, auch im Hintergrund (E1)."),
-    toggle("sync.enabled", "Einstellungen abgleichen", "Alarm-, Benachrichtigungs- und Darstellungs-Einstellungen gelten für alle Geräte an dieser Zentrale."),
+    toggle("sync.enabled", "Einstellungen abgleichen", "Einstellungen mit der Zentrale und gekoppelten Geräten abgleichen. Schlüssel für Divera und aPager bleiben immer hier."),
   );
 }
 

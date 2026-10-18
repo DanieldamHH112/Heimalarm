@@ -1,11 +1,40 @@
 // I – Test & Diagnose.
 import { h, toast, fmtAgo, fmtTime, fmtDate } from "../ui/dom.js";
-import { state, publish } from "../core/mqtt.js";
+import { state, publish, testDevice } from "../core/mqtt.js";
 import { settings } from "../core/settings.js";
 import { has } from "../core/features.js";
 import { divera, loadDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
 import { testAlarm, simulateContact, fullProbe } from "../core/engine.js";
+import { sendToPeers } from "../core/direct.js";
+import { hasPcFeatures } from "../core/platform.js";
+
+/** Geräte, an die ein gezielter Testalarm gehen kann. */
+function testTargets() {
+  const out = [];
+  if (has.pi()) {
+    for (const [id, c] of Object.entries(state.clients)) {
+      if (c?.online && id !== settings().device.id) out.push({ name: c.name || c.platform, hint: `${c.platform} · über die Zentrale`, send: async () => testDevice(id) });
+    }
+  }
+  if (!hasPcFeatures) {
+    for (const p of settings().direct.peers || []) {
+      if (p.paired) out.push({ name: p.name, hint: "PC · direkt im WLAN", send: () => sendToPeers({ source: "Test", test: true, keyword: "Testalarm vom Handy" }, p.id) });
+    }
+  }
+  return out;
+}
+
+function targetCard() {
+  const list = testTargets();
+  if (!list.length) return null;
+  return h("section.card", {},
+    h("h2", {}, "Testalarm an ein Gerät"),
+    h("p.hint", {}, "Prüft genau eine Verbindung. Das Gerät zeigt die Abfrage, es passiert nichts."),
+    h("ul.rows.compact", {}, list.map((t) => h("li", {}, h("div.row-main", {},
+      h("div", {}, h("b", {}, t.name), h("div.meta", {}, t.hint)),
+      h("button.btn.small", { onclick: async () => toast((await t.send()) ? `Testalarm an „${t.name}“ gesendet` : `„${t.name}“ nicht erreicht`) }, "Senden"))))));
+}
 
 let lastTest = null; // I3 – Ergebnis des letzten Verbindungstests
 
@@ -60,6 +89,8 @@ export function diagnoseView(rerender) {
         h("p.hint", {}, "Routinen schalten wirklich (Licht an). Die PC-Aktion wird nur angezeigt."),
         h("div.row", {}, h("button.btn", { onclick: () => { if (confirm("Komplettprobe starten? Licht und Geräte schalten wirklich.")) fullProbe(); } }, "Probe starten"))),
     ),
+
+    targetCard(),
 
     h("section.card", {},
       h("div.card-head", {}, h("h2", {}, "Verbindungstest"),

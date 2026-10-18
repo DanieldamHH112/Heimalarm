@@ -12,7 +12,8 @@ export const defaults = {
   direct: {
     port: 8765,
     code: "",             // PC: Kopplungscode (wird erzeugt)
-    peers: [],            // Handy: gekoppelte PCs [{ id, name, host, port, code }]
+    peers: [],            // Handy: gekoppelte PCs [{ id, name, host, port, code, paired }] – code = eigener Code dieses Handys
+    phones: [],           // PC: gekoppelte Handys [{ id, name, code, pairedAt, lastSeen }]
     routines: null,       // Routinen auf diesem Gerät ausführen (null = automatisch: nur Handy)
   },
   // F1, F2, H1 – Verbindung zur Zentrale (Mosquitto über WebSocket)

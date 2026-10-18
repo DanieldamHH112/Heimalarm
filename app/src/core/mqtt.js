@@ -1,6 +1,6 @@
 // Verbindung zur Zentrale (Mosquitto, WebSocket-Listener). Alle Topics siehe Context.md.
 import mqtt from "mqtt";
-import { settings, isConfigured } from "./settings.js";
+import { settings, set, isConfigured } from "./settings.js";
 import { emit } from "./events.js";
 import { log } from "./log.js";
 import { platformName } from "./platform.js";
@@ -113,6 +113,7 @@ export function parseAlarm(msg) {
 function handleHeimalarm(p, msg) {
   const json = () => JSON.parse(msg || "null");
   if (p[1] === "clients" && p[2]) {
+    if (!msg) { delete state.clients[p[2]]; emit("devices", state); return; }   // Gerät aus der Liste entfernt
     state.clients[p[2]] = json();
     // Verspätetes "offline" einer alten Verbindung (Last Will) überschreiben
     if (p[2] === settings().device.id && state.connected && !state.clients[p[2]]?.online) {
@@ -120,6 +121,7 @@ function handleHeimalarm(p, msg) {
     }
   }
   else if (p[1] === "config" && p[2] === "shared") return receiveShared(msg);
+  else if (p[1] === "cmd" && p[3] && p[3] === settings().device.id) return deviceCommand(p[2], msg);
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
@@ -129,6 +131,23 @@ function handleHeimalarm(p, msg) {
   else return;
   emit("devices", state);
 }
+
+/** Befehle an genau dieses Gerät: heimalarm/cmd/test/<id>, heimalarm/cmd/rename/<id> */
+function deviceCommand(cmd, msg) {
+  if (cmd === "test") { log("info", "Testalarm von einem anderen Gerät"); emit("test-request"); }
+  else if (cmd === "rename") {
+    const name = String(JSON.parse(msg || "{}").name || "").trim().slice(0, 40);
+    if (!name) return;
+    set("device.name", name, { silent: true });
+    client?.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
+    log("info", `Gerät umbenannt in „${name}“`);
+  }
+}
+
+/** Gerät an der Zentrale verwalten: Testalarm, umbenennen, aus der Liste entfernen. */
+export const testDevice = (id) => publish(`heimalarm/cmd/test/${id}`, {});
+export const renameDevice = (id, name) => publish(`heimalarm/cmd/rename/${id}`, { name });
+export const forgetDevice = (id) => { const ok = publish(`heimalarm/clients/${id}`, "", { retain: true }); if (ok) delete state.clients[id]; return ok; };
 
 function handleZigbee(p, msg) {
   const json = () => (msg.startsWith("{") || msg.startsWith("[") ? JSON.parse(msg) : msg);
