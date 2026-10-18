@@ -5,7 +5,7 @@ import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
 import { has } from "../core/features.js";
-import { direct, startReceiver, renewCode, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
+import { direct, startReceiver, renewCode, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
 import { shared, updateShared, sha256, newId } from "../core/shared.js";
 import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
@@ -14,6 +14,7 @@ import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
 import { requireAdmin, isAdmin } from "../core/admin.js";
 import { androidStatus, openBatterySettings, openNotificationAccess, setBackgroundService } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
+import { biometricLabel } from "../core/biometric.js";
 import { recentApps, testAlarm } from "../core/engine.js";
 import { divera, loadDivera, restartDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
@@ -114,7 +115,7 @@ function betrieb(rerender) {
 
 function verbindung(rerender) {
   const host = settings().broker.host;
-  return section("verbindung", "Verbindung", "Die Zentrale – UGREEN-NAS, Raspberry Pi oder ein anderer Heimserver mit dem Heimalarm-Docker-Projekt. Ohne sie kommt kein Melder-Alarm an.",
+  return section("verbindung", "Verbindung", "Die Zentrale – jeder Computer, der immer läuft und Docker kann: NAS, Mini-PC, Raspberry Pi oder ein alter Laptop. Darauf läuft das Heimalarm-Docker-Projekt. Ohne sie kommt kein Melder-Alarm an.",
     h("div.fields", {},
       field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "IP oder Name im Heimnetz"),
       field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "WebSocket, Standard 9001"),
@@ -181,7 +182,7 @@ function diveraSource(rerender) {
     catch (err) { toast(err.message); rerender(); }
     e.target.disabled = false;
   };
-  const parts = [isAndroid && settings().alarm.apps.divera.pkg && "Mitlesen", d.key && d.poll && `Abfrage ${d.pollSec} s`, d.key && (d.answerGo || d.statusGo) && "Rückmeldung"].filter(Boolean);
+  const parts = [isAndroid && settings().alarm.apps.divera.pkg && "Mitlesen", d.key && d.poll && `Abfrage ${d.pollSec} s`, d.key && (d.answer || d.setStatus) && "Rückmeldung"].filter(Boolean);
   const badge = !d.key ? null : divera.ok === false ? h("span.badge.bad", {}, "Fehler") : d.unit ? h("span.badge", {}, d.unit) : null;
   return sourceRow({
     id: "divera", title: "Divera 24/7", on, badge,
@@ -198,19 +199,21 @@ function diveraSource(rerender) {
       d.key && h("div.group-cont", {},
         toggle("divera.poll", "Bei Divera abfragen", "Ohne Benachrichtigung, solange die App läuft.", () => { restartDivera(); rerender(); }),
         d.poll && field("Abfrage alle (Sekunden)", text("divera.pollSec", { type: "number", min: 10, max: 300 }, { onSave: restartDivera }), "15–30 s reichen.")),
-      d.key && group("Rückmeldung bei Antwort",
-        h("p.meta", {}, "Nach „Fährst du?“ am PC oder per Karte in der Übersicht."),
-        h("div.fields", {},
-          field("Einsatz: „Ich fahre“", statusSelect("divera.answerGo", d.answers), "Rückmeldung zum Divera-Alarm."),
-          field("Einsatz: „Ich fahre nicht“", statusSelect("divera.answerStay", d.answers))),
-        h("div.fields", {},
-          field("Mein Status: „Ich fahre“", statusSelect("divera.statusGo", d.statuses), "Wird immer gesetzt, egal welche Quelle."),
-          field("Mein Status: „Ich fahre nicht“", statusSelect("divera.statusStay", d.statuses))),
-        h("div.fields", {},
-          field("Notiz", text("divera.note", { placeholder: "z. B. per Heimalarm", maxlength: 80 }), "Optional, erscheint in Divera."),
+      d.key && group("Rückmeldung bei Antwort (optional)",
+        h("p.meta", {}, "Nach „Fährst du?“ am PC oder per Karte in der Übersicht. Beides ist aus, bis du es einschaltest."),
+        toggle("divera.answer", "Rückmeldung zum Einsatz senden", "Antwortet in Divera auf den Alarm, z. B. „Komme“ / „Komme nicht“.", () => rerender()),
+        d.answer && h("div.fields", {},
+          field("Bei „Ich fahre“", statusSelect("divera.answerGo", d.answers), "Rückmeldung zum Divera-Alarm."),
+          field("Bei „Ich fahre nicht“", statusSelect("divera.answerStay", d.answers))),
+        toggle("divera.setStatus", "Meinen Status setzen", "Setzt deinen Divera-Status – egal über welche Quelle der Alarm kam.", () => rerender()),
+        d.setStatus && h("div.fields", {},
+          field("Bei „Ich fahre“", statusSelect("divera.statusGo", d.statuses)),
+          field("Bei „Ich fahre nicht“", statusSelect("divera.statusStay", d.statuses))),
+        d.setStatus && h("div.fields", {},
           field("Status zurücksetzen nach (min)", text("divera.resetMin", { type: "number", min: 0, max: 720 }), "0 = nie"),
           d.resetMin > 0 && field("… auf", statusSelect("divera.resetTo", d.statuses, "– wählen –"))),
-        !d.statuses.length && h("p.meta", {}, "Tipp: „Verbinden“ lädt eure Status als Auswahl.")),
+        (d.answer || d.setStatus) && field("Notiz", text("divera.note", { placeholder: "z. B. per Heimalarm", maxlength: 80 }), "Optional, erscheint in Divera."),
+        (d.answer || d.setStatus) && !d.statuses.length && h("p.meta", {}, "Tipp: „Verbinden“ lädt eure Status als Auswahl.")),
     ],
   });
 }
@@ -220,12 +223,21 @@ function apagerSource(rerender) {
   const parts = [isAndroid && settings().alarm.apps.apager.pkg && "Mitlesen", shared().webhookSecret && "Webhook", a.key && a.feedback && "Rückmeldung"].filter(Boolean);
   return sourceRow({
     id: "apager", title: "aPager PRO", on,
-    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Webhook an die Zentrale, Rückmeldung.",
+    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Webhook (Zentrale oder PC), Rückmeldung.",
     onToggle: (v) => { set("alarm.apps.apager.on", v); rerender(); },
     body: [
       notifGroup("apager", rerender),
-      group("Webhook", h("p.meta", {}, "Geht direkt an die Zentrale, auch ohne Handy. Adresse unter ", h("a", { href: "#/einstellungen/zentrale" }, "Zentrale"), ".")),
-      group("Rückmeldung bei Antwort",
+      group("Webhook (Smart-Home-Paket in aPager)",
+        h("p.meta", {}, "aPager auf dem Handy ruft bei Alarm eine Adresse auf – mit Stichwort und Einheit, ohne Alarmtext. In aPager unter Einstellungen → Labor → Webhooks eintragen und in der Einheit „Webhooks aktivieren“."),
+        h("p.meta", {}, "An die Zentrale: Adresse unter ", h("a", { href: "#/einstellungen/zentrale" }, "Zentrale"), ". Geht von überall, wenn die Zentrale erreichbar ist."),
+        hasPcFeatures ? h("div.field", {}, h("span", {}, "Direkt an diesen PC (ohne Zentrale)"),
+          webhookUrl() ? h("code", { style: "overflow-wrap:anywhere" }, webhookUrl()) : h("small", {}, "Startet gerade …"),
+          h("div.row", {},
+            webhookUrl() && h("button.btn.small.ghost", { onclick: () => copyText(webhookUrl()).then(() => toast("Kopiert")) }, "Kopieren"),
+            h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Schlüssel erzeugen? Die alte Adresse in aPager funktioniert dann nicht mehr.")) { await renewHookKey(); rerender(); } } }, "Neuer Schlüssel")),
+          h("small", {}, "Funktioniert, solange das Handy mit aPager im selben WLAN ist wie der PC."))
+          : h("p.meta", {}, "Direkt an einen PC geht auch: Die Adresse steht am PC unter Alarmquellen → aPager PRO.")),
+      group("Rückmeldung bei Antwort (optional)",
         h("div.inline", {},
           field("API-Schlüssel", h("input.input", { type: "password", autocomplete: "off", value: a.key, onchange: (e) => { set("apager.key", e.target.value.trim()); rerender(); } }),
             "aPager → Verfügbarkeit → Zahnrad → Externer Zugriff. Smart-Home-Abo nötig."),
@@ -394,11 +406,25 @@ function androidSection(rerender) {
   );
 }
 
+// ── Zusatzfunktionen: alles aus, bis man es einschaltet ─
+function funktionen(rerender) {
+  const f = settings().features || {};
+  return section("funktionen", "Funktionen", "Zusätzliche Funktionen. Alle sind aus, bis du sie einschaltest – gilt für alle abgeglichenen Geräte.",
+    toggle("features.logbuch", "Einsatz-Logbuch", "Speichert jede echte Alarmierung mit allen Infos (Stichwort, Einheiten, Adresse, Text, Antwort). Mit Notizen, Fahrzeug und Funktion. Unter Protokoll → Einsätze.", () => rerender()),
+    f.logbuch
+      ? toggle("features.stats", "Statistik und Jahresrückblick", "Zahlen, Verlauf, Verteilung nach Art und Rückblick je Jahr – aus dem Logbuch.", () => rerender())
+      : h("p.meta", {}, "Statistik und Jahresrückblick gibt es, sobald das Logbuch an ist."),
+    h("p.meta", {}, "Rückmeldung an Divera und aPager schaltest du unter Alarmquellen bei der jeweiligen App ein."));
+}
+
 function geraet() {
   return section("geraet", "Dieses Gerät", "So erscheint die App bei den anderen unter „Verbundene Apps“.",
     field("Gerätename", text("device.name", { placeholder: hasPcFeatures ? "z. B. PC Arbeitszimmer" : "z. B. Handy Daniel", autocomplete: "off" }, { onSave: () => connect() })),
     toggle("notify.enabled", "Benachrichtigung bei Alarm", hasPcFeatures ? "Für Alarme anderer Personen. Eigene Alarme zeigen die Abfrage." : "Systemmeldung, auch im Hintergrund (E1)."),
     toggle("sync.enabled", "Einstellungen abgleichen", "Einstellungen mit der Zentrale und gekoppelten Geräten abgleichen. Schlüssel für Divera und aPager bleiben immer hier."),
+    !hasPcFeatures && settings().sync?.enabled !== false && field("Abgleich ohne Zentrale alle",
+      select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"], ["900", "15 Minuten"]], String(settings().sync?.intervalSec || 120), (v) => set("sync.intervalSec", Number(v))),
+      "Wie oft das Handy bei gekoppelten PCs nachschaut. Nach jeder Änderung und beim Öffnen der App gleicht es ohnehin sofort ab. Mit Zentrale läuft der Abgleich sofort."),
   );
 }
 
@@ -450,11 +476,21 @@ function sicherheit(rerender) {
   return section("sicherheit", "Sicherheit", null,
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "App-Sperre (H4)"), h("span.chip" + (settings().lock.pinHash ? ".ok" : ""), {}, settings().lock.pinHash ? "aktiv" : "aus")),
       h("p.meta", {}, "PIN beim Öffnen dieser App. Alarme kommen trotzdem an."),
-      h("button.btn.small", { onclick: setPin("App-PIN", (v) => set("lock.pinHash", v)) }, "PIN festlegen")),
+      h("button.btn.small", { onclick: setPin("App-PIN", (v) => set("lock.pinHash", v)) }, "PIN festlegen"),
+      bioToggle(rerender)),
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "Admin-PIN (G3)"), h("span.chip" + (shared().adminPinHash ? ".ok" : ""), {}, shared().adminPinHash ? (isAdmin() ? "entsperrt" : "gesperrt") : "aus")),
       h("p.meta", {}, "Ohne Admin-PIN darf jeder Routinen, Geräte und Personen ändern. Mit PIN können andere nur steuern."),
       h("button.btn.small", { onclick: async () => { if (await requireAdmin()) setPin("Admin-PIN", (v) => updateShared({ adminPinHash: v }))(); } }, "PIN festlegen")),
   );
+}
+
+/** Fingerabdruck / Windows Hello zusätzlich zur App-PIN – nur zeigen, wenn das Gerät es kann. */
+let bioLabel = null;
+function bioToggle(rerender) {
+  if (bioLabel === null) { bioLabel = ""; biometricLabel().then((l) => { bioLabel = l; if (l) rerender(); }); return null; }
+  if (!bioLabel) return null;
+  if (!settings().lock.pinHash) return h("p.meta", {}, `${bioLabel} geht, sobald eine App-PIN festgelegt ist (als Rückfall).`);
+  return toggle("lock.biometric", `Mit ${bioLabel} entsperren`, "Die PIN bleibt als Rückfall, falls es nicht klappt.");
 }
 
 const exportAll = () => JSON.stringify({ heimalarm: "backup", version: 1, app: APP_VERSION, ts: Date.now(), settings: settings(), shared: shared() }, null, 2);
@@ -508,6 +544,7 @@ export function settingsView(rerender) {
     ["betrieb", "Betrieb", betrieb(rerender)],
     z && ["verbindung", "Verbindung", verbindung(rerender)],
     ["quellen", "Alarmquellen", quellen(rerender)],
+    ["funktionen", "Funktionen", funktionen(rerender)],
     ["alarm", "Alarm", alarm()],
     isConfigured() && ["esp32", "ESP32", esp32()],
     hasPcFeatures && ["pc", "PC", pc(rerender)],
@@ -554,7 +591,8 @@ const KEYWORDS = {
   esp32: "melder firmware update mindestdauer",
   pc: "ruhezustand herunterfahren sperren autostart windows wake on lan countdown",
   android: "akku hintergrund benachrichtigung dienst",
-  geraet: "name gerätename benachrichtigung abgleich sync",
+  geraet: "name gerätename benachrichtigung abgleich sync intervall",
+  funktionen: "logbuch statistik jahresrückblick einsätze zusatz",
   personen: "kollege kennung person",
   sprache: "alexa google matter voice monkey ansage sprachassistent",
   zentrale: "selbsttest webhook dienst",

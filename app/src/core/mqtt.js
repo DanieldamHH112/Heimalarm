@@ -142,7 +142,7 @@ function handleHeimalarm(p, msg) {
 const einsaetzeTopic = () => `heimalarm/einsaetze/${settings().alarm.me}`;
 let einsaetzeTimer;
 function publishEinsaetze() {
-  if (!client || !state.connected || settings().sync?.enabled === false) return;
+  if (!client || !state.connected || settings().sync?.enabled === false || !settings().features?.logbuch) return;
   client.publish(einsaetzeTopic(), JSON.stringify(statsEntries()), { retain: true, qos: 1 });
 }
 function receiveEinsaetze(msg) {

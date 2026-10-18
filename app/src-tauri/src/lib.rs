@@ -243,6 +243,47 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// App-Sperre: Windows Hello (Fingerabdruck, Gesicht oder Windows-PIN).
+/// `check = true` fragt nur, ob Windows Hello eingerichtet ist.
+#[tauri::command]
+async fn windows_hello(window: tauri::WebviewWindow, reason: String, check: bool) -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+        tauri::async_runtime::spawn_blocking(move || hello::verify(hwnd, &reason, check))
+            .await
+            .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, reason, check);
+        Ok(false)
+    }
+}
+
+#[cfg(target_os = "windows")]
+mod hello {
+    use windows::core::{factory, HSTRING};
+    use windows::Security::Credentials::UI::{UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability};
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::WinRT::IUserConsentVerifierInterop;
+
+    pub fn verify(hwnd: isize, reason: &str, check: bool) -> Result<bool, String> {
+        let available = UserConsentVerifier::CheckAvailabilityAsync()
+            .and_then(|op| op.join())
+            .map(|a| a == UserConsentVerifierAvailability::Available)
+            .unwrap_or(false);
+        if check || !available {
+            return Ok(available);
+        }
+        let interop = factory::<UserConsentVerifier, IUserConsentVerifierInterop>().map_err(|e| e.message().to_string())?;
+        let op: windows_future::IAsyncOperation<UserConsentVerificationResult> =
+            unsafe { interop.RequestVerificationForWindowAsync(HWND(hwnd as _), &HSTRING::from(reason)) }.map_err(|e| e.message().to_string())?;
+        let result = op.join().map_err(|e| e.message().to_string())?;
+        Ok(result == UserConsentVerificationResult::Verified)
+    }
+}
+
 #[cfg(desktop)]
 fn show_main(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -260,7 +301,7 @@ pub fn run() {
         // Zweiter Start (z. B. Doppelklick aufs Symbol) holt das laufende Fenster nach vorn.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)));
     #[cfg(not(desktop))]
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default().plugin(tauri_plugin_biometric::init());   // App-Sperre per Fingerabdruck (Android)
     let builder = builder
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_http::init())
@@ -300,6 +341,7 @@ pub fn run() {
             mac_address,
             wake_on_lan,
             install_update,
+            windows_hello,
             direct::direct_server,
             direct::direct_set_config
         ])

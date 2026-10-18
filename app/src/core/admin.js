@@ -4,6 +4,7 @@
 import { shared, sha256 } from "./shared.js";
 import { settings } from "./settings.js";
 import { h } from "../ui/dom.js";
+import { biometricLabel, biometricUnlock } from "./biometric.js";
 
 let unlocked = false;
 
@@ -48,11 +49,23 @@ export function appLock() {
       else { msg.textContent = "PIN falsch."; input.value = ""; }
     };
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+    const bioRow = h("div.row", { hidden: true });
     const wrap = h("div.lock", {}, h("div.box", {},
       h("img", { src: "/icon.svg", width: 56, height: 56, alt: "" }), h("h1", {}, "Heimalarm"), msg, input,
       h("button.btn.primary", { onclick: check }, "Öffnen"),
+      bioRow,
       h("p.meta", {}, "Alarme werden auch bei gesperrter App empfangen.")));
     document.body.append(wrap);
     input.focus();
+    // Fingerabdruck / Windows Hello: gleich anbieten, PIN bleibt als Rückfall
+    if (settings().lock.biometric) {
+      biometricLabel().then((label) => {
+        if (!label) return;
+        const tryBio = async () => { if (await biometricUnlock()) { wrap.remove(); resolve(); } else msg.textContent = `${label} nicht erkannt – PIN eingeben oder erneut versuchen.`; };
+        bioRow.replaceChildren(h("button.btn", { onclick: tryBio }, `Mit ${label} öffnen`));
+        bioRow.hidden = false;
+        tryBio();
+      });
+    }
   });
 }

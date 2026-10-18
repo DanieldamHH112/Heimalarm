@@ -16,6 +16,8 @@ export const has = {
   sybos: () => Boolean(settings().alarm.apps?.sybos?.on),
   apager: () => Boolean(settings().alarm.apps?.apager?.on),
   divera: () => Boolean(settings().alarm.apps?.divera?.on),
+  logbuch: () => Boolean(settings().features?.logbuch),                 // Einsatz-Logbuch (Zusatzfunktion)
+  stats: () => Boolean(settings().features?.logbuch && settings().features?.stats),
   diveraApi: () => Boolean(settings().alarm.apps?.divera?.on && settings().divera.key),
 };
 

@@ -10,9 +10,9 @@ import {
 } from "../core/stats.js";
 
 const FILTERS = [
-  ["einsaetze", "Einsätze"], ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
+  ["einsaetze", "Einsätze", () => has.logbuch()], ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
 ];
-let filter = "einsaetze";
+let filter = null;
 let reviewYear = null;
 let shown = 20;
 
@@ -144,17 +144,22 @@ function einsaetzeList(rerender) {
 // ── Seite ──────────────────────────────────────────────────────────────────
 
 export function logView(rerender) {
+  if (filter === null) filter = has.logbuch() ? "einsaetze" : "";   // erster Besuch: Einsätze, wenn das Logbuch an ist
+  if (filter === "einsaetze" && !has.logbuch()) filter = "";
   const tabs = h("div.segmented.scroll", { role: "group", "aria-label": "Filter" },
     FILTERS.filter(([, , show]) => !show || show()).map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; shown = 20; rerender(); } }, label)));
 
   if (filter === "einsaetze") {
     const any = statsEntries().some((e) => !e.deleted);
     return h("div.page", {},
-      head("Jede Alarmierung mit allen Infos, Notizen und Statistik."),
+      head(has.stats() ? "Jede Alarmierung mit allen Infos, Notizen und Statistik." : "Jede Alarmierung mit allen Infos und Notizen."),
       tabs,
       einsaetzeList(rerender),
-      any && statsCard(rerender),
-      any && reviewCard(rerender));
+      any && has.stats() && statsCard(rerender),
+      any && has.stats() && reviewCard(rerender),
+      any && !has.stats() && h("section.card", {}, h("div.card-head", {}, h("h2", {}, "Export")),
+        h("p.hint", {}, "Alle Einsätze als Tabelle für Excel. Statistik und Jahresrückblick lassen sich unter Einstellungen → Funktionen einschalten."),
+        h("div.row", {}, h("button.btn.small", { onclick: () => exportCsv() }, "CSV exportieren"))));
   }
 
   const items = filter === "zentrale" ? state.zlog.filter(Boolean) : getLog(filter);

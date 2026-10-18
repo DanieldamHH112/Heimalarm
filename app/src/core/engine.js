@@ -20,6 +20,7 @@ export const engine = { last: null };
 export function init() {
   on("alarm-in", (a) => handleAlarm(a));
   on("divera-alarm", (data) => forward(data));
+  on("webhook-alarm", (data) => forward(data));   // aPager-Webhook direkt am PC
   on("test-request", () => testAlarm());   // Testalarm an dieses Gerät (von einem anderen Gerät)
   on("alarm-event", (ev) => alarmEvent(ev));   // Rückalarm / Alarmende (aPager-Webhook)
 }

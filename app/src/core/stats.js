@@ -6,6 +6,9 @@
 import { getLog } from "./log.js";
 import { emit } from "./events.js";
 import { settings } from "./settings.js";
+
+/** Logbuch ist eine Zusatzfunktion: ohne Einschalten wird nichts gespeichert. */
+const on = () => Boolean(settings().features?.logbuch);
 import { platformName } from "./platform.js";
 
 const KEY = "heimalarm.stats.v1";
@@ -65,6 +68,7 @@ export const getEinsatz = (id) => list.find((e) => e.id === id);
 
 /** Neuer Alarm (nur echte, eigene). */
 export function recordAlarm(a) {
+  if (!on()) return;
   const e = { id: newId(), ts: a.ts || Date.now(), who: a.who || "", source: a.source || "", sources: a.source ? [a.source] : [], units: a.unit ? [a.unit] : [], answer: null, device: settings().device.name || platformName };
   for (const k of FIELDS) if (a[k]) e[k] = a[k];
   if (a.details && Object.keys(a.details).length) e.details = a.details;
@@ -75,6 +79,7 @@ export function recordAlarm(a) {
 
 /** Weiteres Signal desselben Einsatzes (Sperrzeit): Quelle und fehlende Infos ergänzen. */
 export function addSignal(a) {
+  if (!on()) return;
   const last = list.at(-1);
   if (!last || Math.abs((a.ts || Date.now()) - last.ts) > ANSWER_WINDOW) return;
   if (a.source && !last.sources.includes(a.source)) last.sources.push(a.source);
@@ -89,6 +94,7 @@ export function addSignal(a) {
 
 /** going: true | false, timeout: keine Antwort am PC */
 export function recordAnswer(going, { timeout = false } = {}) {
+  if (!on()) return;
   const last = list.at(-1);
   if (!last || last.answer || Date.now() - last.ts > ANSWER_WINDOW) return;
   last.answer = timeout ? "timeout" : going ? "go" : "stay";
@@ -106,6 +112,7 @@ export function editEinsatz(id, patch) {
 
 /** Rückalarm / Alarmende am letzten Einsatz vermerken. */
 export function markEvent(ev) {
+  if (!on()) return;
   const last = list.findLast((e) => !e.deleted);
   if (!last || (ev.ts || Date.now()) - last.ts > 12 * 3600e3) return;
   if (ev.event === "recall") last.recall = ev.ts || Date.now();
@@ -131,7 +138,7 @@ export function clearStats() {
 
 /** Einträge eines anderen Geräts übernehmen. Liefert true, wenn sich hier etwas geändert hat. */
 export function mergeEinsaetze(remote) {
-  if (!Array.isArray(remote)) return false;
+  if (!Array.isArray(remote) || !on()) return false;
   let changed = false;
   for (const r of remote) {
     if (!r || typeof r.ts !== "number") continue;

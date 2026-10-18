@@ -127,8 +127,8 @@ export async function confirmDiveraAlarm(alarmId, statusId) {
 export async function answerDivera(going, alarm) {
   const d = settings().divera;
   if (!d.key) return false;
-  const answer = going ? d.answerGo : d.answerStay;
-  const status = going ? d.statusGo : d.statusStay;
+  const answer = d.answer ? (going ? d.answerGo : d.answerStay) : "";      // nur wenn eingeschaltet
+  const status = d.setStatus ? (going ? d.statusGo : d.statusStay) : "";
   let ok = false;
   if (alarm?.diveraId && answer) ok = await confirmDiveraAlarm(alarm.diveraId, answer);
   if (status) ok = (await setDiveraStatus(status)) || ok;

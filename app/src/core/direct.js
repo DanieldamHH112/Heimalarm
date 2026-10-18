@@ -23,10 +23,11 @@ const deviceName = () => settings().device.name || platformName;
 export async function startReceiver() {
   if (!hasPcFeatures || !isTauri) return;
   if (!settings().direct.code) set("direct.code", newCode());
+  if (!settings().direct.hookKey) set("direct.hookKey", newCode() + newCode());
   const d = settings().direct;
   try {
     direct.ip = await invoke("direct_server", {
-      port: d.port, code: d.code, phones: (d.phones || []).map((p) => p.code), name: deviceName(),
+      port: d.port, code: d.code, phones: (d.phones || []).map((p) => p.code), name: deviceName(), hook: d.hookKey,
     });
     direct.error = "";
     await publishConfig();
@@ -40,6 +41,11 @@ export async function startReceiver() {
       await listen("direct-config", (e) => {
         try { applyBundle(JSON.parse(e.payload)); }
         catch { log("warn", "Einstellungen vom Handy nicht lesbar"); }
+      });
+      await listen("direct-webhook", (e) => {
+        const raw = String(e.payload);
+        const cut = raw.indexOf("\n");
+        receiveWebhook(cut < 0 ? raw : raw.slice(0, cut), cut < 0 ? "" : raw.slice(cut + 1));
       });
       await listen("direct-pair", (e) => {
         try {
@@ -63,6 +69,34 @@ export async function startReceiver() {
   } catch (e) { direct.error = String(e); log("warn", "Empfang für das Handy nicht gestartet", direct.error); }
   emit("direct", direct);
 }
+
+/** PC: aPager-PRO-Webhook direkt am PC (ohne Zentrale). Gleiche Auswertung wie zentrale/dienst/src/webhook.js. */
+function receiveWebhook(query, body) {
+  const q = Object.fromEntries(new URLSearchParams(query));
+  let json = {};
+  try { json = body.trim().startsWith("{") ? JSON.parse(body) : {}; } catch { /* kein JSON */ }
+  const all = { ...q, ...json };
+  const event = String(all.event || "").toLowerCase();
+  const data = { source: "Webhook", keyword: String(all.keyword || ""), unit: String(all.unit || "") };
+  if (event === "recall" || event === "clear") {
+    emit("alarm-event", { who: settings().alarm.me, ts: Date.now(), event, ...data });
+    return;
+  }
+  for (const k of ["text", "address"]) if (typeof all[k] === "string" && all[k]) data[k] = all[k].slice(0, 1000);
+  const details = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (["who", "keyword", "unit", "text", "address", "event"].includes(k) || v == null || v === "" || typeof v === "object") continue;
+    if (JSON.stringify(details).length > 1500) break;
+    details[k] = typeof v === "string" ? v.slice(0, 300) : v;
+  }
+  if (Object.keys(details).length) data.details = details;
+  log("ok", "aPager-Webhook empfangen", [data.keyword, data.unit].filter(Boolean).join(" · ") || "ohne Stichwort");
+  emit("webhook-alarm", data);   // engine.js: wie ein Alarm aus einer App (mit Zentrale an alle Geräte)
+}
+
+/** PC: Adresse für den aPager-Webhook (in aPager unter Labor → Webhooks eintragen). */
+export const webhookUrl = () => (direct.ip && settings().direct.hookKey ? `http://${direct.ip}:${settings().direct.port}/apager/${settings().direct.hookKey}` : "");
+export async function renewHookKey() { set("direct.hookKey", newCode() + newCode()); await startReceiver(); }
 
 /** PC: aktuellen Stand für GET /config hinterlegen. */
 async function publishConfig() {
@@ -179,11 +213,15 @@ on("sync-dirty", () => { clearTimeout(timer); timer = setTimeout(() => (hasPcFea
 on("sync-applied", () => { if (hasPcFeatures) publishConfig(); });
 on("settings", ({ path }) => { if (hasPcFeatures && String(path).startsWith("device")) startReceiver(); });
 
-/** Handy: beim Start abgleichen, danach alle 2 Minuten und beim Zurückkehren in die App. */
+/** Handy: beim Start abgleichen, danach im eingestellten Abstand und beim Zurückkehren in die App. */
+let syncTimer;
+const intervalMs = () => Math.max(15, Number(settings().sync?.intervalSec) || 120) * 1000;
+function restartSyncTimer() { clearInterval(syncTimer); syncTimer = setInterval(syncPeers, intervalMs()); }
 export function startSync() {
   if (hasPcFeatures) return;
   for (const p of settings().direct.peers || []) if (!p.paired) pingPeer(p);
   syncPeers();
-  setInterval(syncPeers, 120e3);
+  restartSyncTimer();
+  on("settings", ({ path }) => { if (String(path).startsWith("sync")) restartSyncTimer(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) syncPeers(); });
 }

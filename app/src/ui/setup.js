@@ -9,7 +9,7 @@ import { hasPcFeatures } from "../core/platform.js";
 /** Die zwei Betriebsarten als große Auswahl statt Umschalter. */
 export const MODES = [
   { id: "zentrale", title: "Mit Zentrale",
-    text: "Ein Gerät, das immer läuft – UGREEN-NAS, Raspberry Pi oder ein anderer Heimserver. Nötig für den Melder in der Ladeschale.",
+    text: "Ein Gerät, das immer läuft – NAS, Mini-PC, Raspberry Pi oder ein alter Laptop mit Docker. Nötig für den Melder in der Ladeschale.",
     meta: "Melder · Alarm-Apps · alle Geräte" },
   { id: "direkt", title: "Ohne Zentrale",
     text: "Nur Handy und PC im selben WLAN. Der Alarm kommt über SYBOS, aPager oder Divera aufs Handy und geht an den PC.",
@@ -42,7 +42,7 @@ export function setupFlow() {
         node("Melder in der Ladeschale", "ESP32 am Relaiskontakt – oder übergangsweise der Funk-Alarmschalter über die Tuya-Brücke", melder),
         node("Alarm-Apps", "SYBOS, aPager, Divera auf dem Handy", (has.sybos() || has.apager() || has.divera()) || null)),
       column("Zentrale",
-        node("NAS oder Raspberry Pi", s.broker.host ? `${s.broker.host} · läuft immer` : "Adresse unter „Verbindung“ eintragen", s.broker.host ? state.connected : false)),
+        node("Zentrale", s.broker.host ? `${s.broker.host} · läuft immer` : "Adresse unter „Verbindung“ eintragen", s.broker.host ? state.connected : false)),
       column("Das passiert",
         node("Alle PCs & Laptops", "mit deiner Kennung: „Fährst du?“, danach Ruhezustand"),
         node("Handy", "Meldung und Rückmeldung"),
@@ -66,7 +66,7 @@ export function setupSteps() {
   const z = mode() === "zentrale";
   const src = activeSources().length > 0;
   const steps = z ? [
-    ["Zentrale verbinden", s.broker.host ? (state.connected ? `Verbunden mit ${s.broker.host}` : `${s.broker.host} – nicht erreichbar`) : "IP der NAS bzw. des Raspberry Pi eintragen, Port 9001.", state.connected, "#/einstellungen/verbindung"],
+    ["Zentrale verbinden", s.broker.host ? (state.connected ? `Verbunden mit ${s.broker.host}` : `${s.broker.host} – nicht erreichbar`) : "IP der Zentrale (NAS, Mini-PC, Raspberry Pi …) eintragen, Port 9001.", state.connected, "#/einstellungen/verbindung"],
     ["Alarmquelle einschalten", src ? activeSources().join(" · ") : "„Melder“ für die Ladeschale, dazu nach Wunsch SYBOS, aPager oder Divera.", src, "#/einstellungen/quellen"],
     ["Kennung prüfen", `Auf Melder, Handy und jedem PC dieselbe: ${s.alarm.me || "–"}`, Boolean(s.alarm.me), "#/einstellungen/alarm"],
     ["Testen", "Test & Diagnose → Testalarm. Zeigt die Abfrage, ohne dass etwas passiert.", null, "#/diagnose"],

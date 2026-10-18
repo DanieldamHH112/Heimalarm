@@ -18,8 +18,9 @@
 .nav-item[aria-current="page"] { background: var(--signal-soft); color: var(--signal); }
 .nav-foot { margin-top: auto; padding: var(--s3); }
 
-.main { padding: var(--s6) clamp(16px, 4vw, 48px) var(--s7); outline: none; min-width: 0; }
-.page { max-width: var(--content-max); margin: 0 auto; display: grid; gap: var(--s5); grid-template-columns: minmax(0, 1fr); }
+.main { padding: var(--s6) clamp(16px, 2vw, 32px) var(--s7); outline: none; min-width: 0; }
+/* Volle Breite am Monitor (nur der Rand der .main bleibt) */
+.page { max-width: var(--content-max); margin: 0; display: grid; gap: var(--s5); grid-template-columns: minmax(0, 1fr); }
 .page-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--s4); }
 .page-head > div { min-width: 0; }
 .page-head p { color: var(--text-2); margin-top: var(--s1); }

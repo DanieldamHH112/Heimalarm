@@ -2,6 +2,7 @@
 //! Minimaler HTTP-Empfänger (nur Heimnetz), Kopfzeile X-Heimalarm-Key:
 //!   Kopplungscode (am PC angezeigt): GET /ping, POST /pair  → liefert einen eigenen Code für dieses Handy
 //!   Eigener Code des Handys:          GET /ping, POST /alarm, GET /config, POST /config
+//!   aPager-Webhook (Schlüssel im Pfad): GET|POST /apager/<schlüssel>?keyword=&unit=[&event=]
 //! Ein Handy entkoppeln = seinen Code aus der Liste nehmen (direct_server erneut aufrufen).
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
@@ -16,6 +17,7 @@ struct Keys {
     phones: Vec<String>,
     name: String,
     config: String,
+    hook: String,
 }
 
 static KEYS: OnceLock<Mutex<Keys>> = OnceLock::new();
@@ -82,6 +84,18 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
     let _ = reader.read_exact(&mut body);
     let body = String::from_utf8_lossy(&body).to_string();
 
+    // aPager-PRO-Webhook direkt an diesen PC: /apager/<schlüssel>?keyword=..&unit=..[&event=recall|clear]
+    // (aPager auf dem Handy ruft die Adresse selbst auf – geht ohne Zentrale, solange das Handy im WLAN ist)
+    if let Some(rest) = path.strip_prefix("/apager/") {
+        let (key, query) = rest.split_once('?').unwrap_or((rest, ""));
+        let hook = keys().lock().map(|k| k.hook.clone()).unwrap_or_default();
+        if hook.is_empty() || key != hook {
+            return reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Schlüssel falsch"}"#);
+        }
+        let _ = app.emit("direct-webhook", format!("{query}\n{body}"));
+        return reply(&mut stream, "200 OK", r#"{"ok":true}"#);
+    }
+
     let (pairing, phone, name, config) = {
         let k = match keys().lock() {
             Ok(k) => k,
@@ -128,9 +142,10 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
 /// Empfänger starten (einmalig) bzw. Codes und Namen ändern. Liefert die eigene IP.
 /// `code` = Kopplungscode, `phones` = eigene Codes der gekoppelten Handys.
 #[tauri::command]
-pub fn direct_server(app: AppHandle, port: u16, code: String, phones: Option<Vec<String>>, name: Option<String>) -> Result<String, String> {
+pub fn direct_server(app: AppHandle, port: u16, code: String, phones: Option<Vec<String>>, name: Option<String>, hook: Option<String>) -> Result<String, String> {
     {
         let mut k = keys().lock().map_err(|e| e.to_string())?;
+        k.hook = hook.unwrap_or_default();
         k.pairing = code;
         k.phones = phones.unwrap_or_default();
         k.name = name.unwrap_or_default();

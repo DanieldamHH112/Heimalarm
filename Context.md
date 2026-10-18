@@ -190,11 +190,11 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | 8081 | Pi | Zigbee2MQTT-Oberfläche |
 | 5541 | Pi | Matter-Sensoren (Dienst) |
 | 5540, 8283 | Pi | Matterbridge (Matter, Oberfläche) |
-| 8765 | PC | Empfänger für Alarme vom Handy (ohne Zentrale) |
+| 8765 | PC | Empfänger: Handy-Kopplung, Abgleich, Alarme vom Handy; `/apager/<schlüssel>` = aPager-Webhook direkt an den PC |
 
 ### Direktverbindung (ohne Zentrale)
 
-Kopfzeile `X-Heimalarm-Key`. **Kopplungscode** (am PC angezeigt) erlaubt nur `GET /ping` und `POST /pair` `{id, name}` → Antwort `{code, name}` = **eigener Code dieses Handys**. Mit dem eigenen Code: `GET /ping` (`paired:true`), `POST /alarm` (JSON wie `alarm/<kennung>`), `GET /config` / `POST /config` (Abgleich). Falscher Code → 403. PC: Liste `direct.phones` (Umbenennen, Entkoppeln = Code ungültig), „Neuer Kopplungscode“ lässt gekoppelte Handys gekoppelt. Handy: `direct.peers` mit `paired`; ältere Kopplungen holen sich beim ersten Kontakt automatisch einen eigenen Code. Der PC-Empfänger läuft in beiden Betriebsarten. Nur Heimnetz, kein TLS.
+Kopfzeile `X-Heimalarm-Key`. **Kopplungscode** (am PC angezeigt) erlaubt nur `GET /ping` und `POST /pair` `{id, name}` → Antwort `{code, name}` = **eigener Code dieses Handys**. Mit dem eigenen Code: `GET /ping` (`paired:true`), `POST /alarm` (JSON wie `alarm/<kennung>`), `GET /config` / `POST /config` (Abgleich). Falscher Code → 403. PC: Liste `direct.phones` (Umbenennen, Entkoppeln = Code ungültig), „Neuer Kopplungscode“ lässt gekoppelte Handys gekoppelt. Handy: `direct.peers` mit `paired`; ältere Kopplungen holen sich beim ersten Kontakt automatisch einen eigenen Code. Der PC-Empfänger läuft in beiden Betriebsarten. **aPager-Webhook direkt an den PC:** `GET|POST /apager/<direct.hookKey>?keyword=&unit=[&event=]` (kein Header, Schlüssel im Pfad) → Event `direct-webhook` → `webhook-alarm` in `engine.js` (wie eine App-Quelle; mit Zentrale an alle verteilt). aPager auf dem Handy ruft die Adresse selbst auf, also nur im selben WLAN. Nur Heimnetz, kein TLS.
 
 ### Abgleich ohne Zentrale (`core/sync.js`)
 
@@ -224,6 +224,7 @@ Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`,
 | Dienst `DEFAULTS` (`zentrale/dienst/src/index.js`) | Standardwerte derselben gemeinsamen Daten | – |
 | `localStorage heimalarm.divera.seen` | bereits gesehene Divera-Alarme | – |
 | `localStorage heimalarm.stats.v1` | **Einsatz-Logbuch** (`core/stats.js`): jede echte eigene Alarmierung `{id, ts, who, source, sources[], keyword, unit, text, address, diveraId, app, details{}, answer, answerTs, device, via, vehicle, role, note, edited, deleted}`, max. 1000. Anzeige: Protokoll → Einsätze (Detail, Notizen, Statistik, Art, Jahresrückblick, CSV) | ja: mit Zentrale `heimalarm/einsaetze/<kennung>` (retained), ohne über `/config`; zusammengeführt, nicht ersetzt |
+| `settings.features` | Zusatzfunktionen, **Standard aus**: `logbuch`, `stats` (braucht Logbuch). Abgeglichen (in `SYNC_KEYS`). Sichtbarkeit über `has.logbuch()` / `has.stats()` | ja |
 | `localStorage heimalarm.sync.ts` | Zeitstempel der Abgleich-Bereiche (ohne Zentrale) | – |
 
 Routine (gleiches Format in App und Dienst):
@@ -302,10 +303,14 @@ Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
 - **E2 Widget:** kein echtes Android-Widget; Ersatz: Karte „Schnellaktionen“ („Wieder da“, Routinen „Nur per Knopf“).
 - **D5 Ton:** über die App mit eigener Lautstärke; Windows-Stummschaltung wird nicht aufgehoben.
 - **A10 Firmware-Update:** braucht eine `.ota.bin` im Heimnetz plus MD5.
-- **C10 Netzwerkkarte:** Tabelle statt Grafik. **H4 App-Sperre:** PIN, kein Fingerabdruck.
+- **C10 Netzwerkkarte:** Tabelle statt Grafik. **H4 App-Sperre:** PIN, dazu optional Fingerabdruck (Android) bzw. Windows Hello.
 - **F4 Updates:** prüft GitHub-Releases – erst bei öffentlichem Repo.
 - **Ohne Zentrale:** kein ESP32, kein Zigbee (außer über Hue Bridge), kein Google Home, keine Bedingung „Jemand zuhause“, kein „Vorher-Zustand“.
 - **Koppeln Handy↔PC:** per Adresse + Kopplungscode (kein QR-Scan); danach eigener Code je Handy.
+- **Optionale Funktionen sind Standard aus:** Logbuch, Statistik, Rückmeldung an Divera (`divera.answer`, `divera.setStatus`) und aPager (`apager.feedback`). Neue Zusatzfunktion → Schalter unter Einstellungen → Funktionen bzw. bei der Quelle, Standard `false`.
+- **App-Sperre biometrisch:** `core/biometric.js` – Android `tauri-plugin-biometric` (nur mobile Abhängigkeit, Recht in `capabilities/mobile.json`), Windows Hello über Rust-Befehl `windows_hello` (`windows`-Crate 0.62 wie Tauri). PIN bleibt immer Rückfall (`lock.biometric`).
+- **Abgleich-Intervall** ohne Zentrale: `sync.intervalSec` (Standard 120 s), einstellbar unter Dieses Gerät (nur Handy).
+- **Layout:** volle Breite am Monitor (`--content-max: none`), Seiten auf PC und Handy identisch.
 - **Einsatz-Logbuch:** derselbe Einsatz auf zwei Geräten wird an der Zeit erkannt (± 2 min). Löschen bleibt als Markierung gespeichert, damit der Abgleich ihn nicht zurückholt. Art (Brand, TH, RD …) wird aus dem Stichwort erraten (`CATEGORIES`).
 
 | Bereich | Wo in der App |

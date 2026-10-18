@@ -12,6 +12,7 @@ export const defaults = {
   direct: {
     port: 8765,
     code: "",             // PC: Kopplungscode (wird erzeugt)
+    hookKey: "",          // PC: Schlüssel für den aPager-Webhook direkt an diesen PC (wird erzeugt)
     peers: [],            // Handy: gekoppelte PCs [{ id, name, host, port, code, paired }] – code = eigener Code dieses Handys
     phones: [],           // PC: gekoppelte Handys [{ id, name, code, pairedAt, lastSeen }]
     routines: null,       // Routinen auf diesem Gerät ausführen (null = automatisch: nur Handy)
@@ -67,28 +68,32 @@ export const defaults = {
     note: "",               // Freitext zur Rückmeldung (z. B. „per Heimalarm“)
     resetMin: 0,            // Status nach X Minuten zurücksetzen (0 = aus)
     resetTo: "",            // … auf diesen Status
+    answer: false,          // Rückmeldung zum Einsatz senden (optional, Standard aus)
+    setStatus: false,       // eigenen Status setzen (optional, Standard aus)
     unit: "",               // Name der Einheit (nur Anzeige)
     statuses: [],           // Statusgeber-Liste [{ id, name, color }]
     answers: [],            // Rückmelde-Status für Einsätze
   },
   // aPager PRO – Rückmeldung per API (Smart-Home-Abo nötig). Bleibt auf diesem Gerät.
-  apager: { key: "", feedback: true, silent: false },
+  apager: { key: "", feedback: false, silent: false },   // feedback = Zusage/Absage senden (optional, Standard aus)
   // E – dieses Gerät
   device: { id: "", name: "" },
   notify: { enabled: true },       // E1
   ui: { theme: "dark" },           // E5 – dark (Standard) | light
   // H4 – App-Sperre (lokal, SHA-256 der PIN)
-  lock: { pinHash: "" },
+  lock: { pinHash: "", biometric: false },   // biometric = zusätzlich Fingerabdruck / Windows Hello
   // Android: Hintergrund-Dienst für zuverlässigen Empfang
   android: { service: true, batteryAsked: false },
   // Beim Start auf GitHub nach einer neueren Version suchen
   update: { auto: true },
-  // Synchronisation der allgemeinen Einstellungen über die Zentrale
-  sync: { enabled: true },
+  // Abgleich der Einstellungen (Zentrale und gekoppelte Geräte); intervalSec = wie oft ohne Zentrale abgeglichen wird
+  sync: { enabled: true, intervalSec: 120 },
+  // Zusatzfunktionen – bewusst aus, bis man sie einschaltet
+  features: { logbuch: false, stats: false },
 };
 
 /** Diese Bereiche werden zwischen Handy und PC abgeglichen (pc.* nur zwischen PCs). */
-export const SYNC_KEYS = ["alarm", "notify", "ui"];
+export const SYNC_KEYS = ["alarm", "notify", "ui", "features"];
 
 function merge(base, over) {
   const out = structuredClone(base);

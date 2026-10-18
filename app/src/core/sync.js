@@ -60,7 +60,7 @@ export function bundle() {
   const out = { ts: { ...ts }, mode: mode(), betrieb: { mode: mode(), broker: s.broker }, pc: strip(s.pc, PC_LOCAL) };
   for (const k of SYNC_KEYS) out[k] = s[k];
   if (mode() === "direkt") out.shared = strip(shared(), ["common"]);
-  out.einsaetze = statsEntries();   // Einsatz-Logbuch: wird zusammengeführt, nicht ersetzt
+  if (settings().features?.logbuch) out.einsaetze = statsEntries();   // Einsatz-Logbuch: wird zusammengeführt, nicht ersetzt
   return out;
 }
 
