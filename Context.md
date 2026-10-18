@@ -45,7 +45,7 @@ Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkon
 - **UI-Arbeit** mit den Skills `/impeccable` und `/frontend-design`.
 - **Nicht raten:** Bei unklaren Anforderungen oder unbekannten Schnittstellen nachfragen bzw. Quelle prüfen (Doku, Spec).
 
-## Release erstellen (Kurzanleitung – immer so vorgehen)
+## Release erstellen (Kurzanleitung – immer so vorgehen, nur nach anweisung)
 
 1. Version hochzählen: `app/package.json` → `"version"` **und** `app/src-tauri/Cargo.toml` → `version` (gleich halten, z. B. `0.1.6`). Dienst-Version nur, wenn sich `zentrale/dienst` geändert hat.
 2. Lokal prüfen: `cd app && npx -y oxlint@latest src` (0 Befunde) und `cd src-tauri && cargo check`.
