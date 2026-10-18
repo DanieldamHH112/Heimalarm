@@ -315,6 +315,8 @@ Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
 - **Optionale Funktionen sind Standard aus:** Logbuch, Statistik, Rückmeldung an Divera (`divera.answer`, `divera.setStatus`) und aPager (`apager.feedback`). Neue Zusatzfunktion → Schalter unter Einstellungen → Funktionen bzw. bei der Quelle, Standard `false`.
 - **App-Sperre biometrisch:** `core/biometric.js` – Android `tauri-plugin-biometric` (nur mobile Abhängigkeit, Recht in `capabilities/mobile.json`), Windows Hello über Rust-Befehl `windows_hello` (`windows`-Crate 0.62 wie Tauri). PIN bleibt immer Rückfall (`lock.biometric`).
 - **Abgleich-Intervall** ohne Zentrale: `sync.intervalSec` (Standard 120 s), einstellbar unter Dieses Gerät (nur Handy).
+- **Handy-Layout:** Dialoge `max-height: 100%` im Raster der `.dialog-wrap` (Safe-Area-Abstand), `overscroll-behavior: none` auf html/body (sonst zieht der Android-Gummiband-Effekt die feste Leiste unten mit). „So läuft ein Alarm“ ist aufklappbar.
+- **Anleitungen:** `docs/anleitungen/*.pdf` (Quellen nicht im Repo; bei Änderungen an Abläufen aktualisieren).
 - **Layout:** volle Breite am Monitor (`--content-max: none`), Seiten auf PC und Handy identisch.
 - **Einsatz-Logbuch:** derselbe Einsatz auf zwei Geräten wird an der Zeit erkannt (± 2 min). Löschen bleibt als Markierung gespeichert, damit der Abgleich ihn nicht zurückholt. Art (Brand, TH, RD …) wird aus dem Stichwort erraten (`CATEGORIES`).
 

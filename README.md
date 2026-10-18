@@ -87,6 +87,18 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 
 **Voice Monkey** ([voicemonkey.io](https://voicemonkey.io)) startet Alexa-Routinen per Internet. In Voice Monkey einen „Routine Trigger“ anlegen, in der Alexa-App eine Routine damit starten (z. B. Ansage „Einsatz!“, Licht an) und in Heimalarm den API-Token eintragen. In Routinen als Aktion „+ Alexa“.
 
+## Anleitungen als PDF
+
+Zum Herunterladen und Durchlesen – ohne Vorwissen, Schritt für Schritt:
+
+| PDF | Inhalt |
+|---|---|
+| [**Heimalarm im Überblick**](docs/anleitungen/Heimalarm-Uebersicht.pdf) | Was die App kann, Bausteine, Ablauf eines Alarms, Funktionen, Grenzen – ohne Technik-Deutsch |
+| [**Einrichtung: Funk-Alarmschalter + UGREEN NAS**](docs/anleitungen/Heimalarm-Einrichtung-Funkschalter-UGREEN.pdf) | Tuya-Funk-Schalter an der Ladeschale, Zentrale auf der NAS, Apps, Testen |
+| [**Einrichtung: ESP32 + UGREEN NAS oder Raspberry Pi**](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf) | Ladeschale verdrahten, Zentrale auf NAS oder Pi, Firmware bauen und aufspielen |
+
+Auf GitHub die Datei öffnen und oben rechts auf **Download** klicken.
+
 ## Installation & Einrichtung
 
 **Was du brauchst:** Heimalarm auf PC (Windows) und/oder Handy (Android). Optional eine Zentrale (NAS, Raspberry Pi oder anderer Rechner mit Docker) und einen ESP32 für den Melder.

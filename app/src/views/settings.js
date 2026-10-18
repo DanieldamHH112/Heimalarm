@@ -112,7 +112,7 @@ function betrieb(rerender) {
   };
   return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Gekoppelte Geräte übernehmen die Betriebsart automatisch.",
     modeChoice((v) => { set("mode", v); connect(); startReceiver(); rerender(); }),
-    h("div.item.flow-wrap", {}, h("div.item-head", {}, h("b", {}, "So läuft ein Alarm")), setupFlow()),
+    h("details.item.flow-wrap", {}, h("summary", {}, h("b", {}, "So läuft ein Alarm")), setupFlow()),
     hasPcFeatures ? pcPart() : phonePart(),
     m === "direkt" && switchRow("Routinen auf diesem Gerät ausführen", hasPcFeatures ? "Normalerweise macht das das Handy. Nur einschalten, wenn kein Handy Routinen ausführt." : "Licht und Alexa bei Alarm. Nur auf einem Gerät einschalten.",
       runsHere(), (v) => { set("direct.routines", v); rerender(); }),

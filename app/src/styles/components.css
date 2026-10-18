@@ -129,8 +129,8 @@
 }
 
 /* ── Dialog ──────────────────────────────────── */
-.dialog-wrap { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / 55%); display: grid; place-items: center; padding: calc(var(--s4) + var(--safe-top)) var(--s4) calc(var(--s4) + var(--safe-bottom)); }
-.dialog { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s5); display: grid; gap: var(--s4); }
+.dialog-wrap { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / 55%); display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: calc(var(--s4) + var(--safe-top)) var(--s4) calc(var(--s4) + var(--safe-bottom)); }
+.dialog { width: min(560px, 100%); max-height: 100%; overflow: auto; overscroll-behavior: contain; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s5); display: grid; gap: var(--s4); }
 .btn.icon { min-height: 40px; width: 40px; padding: 0; font-size: 1.1rem; }
 .btn.small { min-height: 36px; padding: 0 12px; font-size: var(--fs-sm); }
 .btn.danger { color: var(--signal); }
@@ -370,3 +370,17 @@ h3.sub { font-size: var(--fs-sm); color: var(--text-2); font-weight: 650; margin
 .kv dd { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; white-space: pre-wrap; }
 .kv dd.mono { font-family: "JetBrains Mono", monospace; font-size: 13px; }
 textarea.input { resize: vertical; min-height: 5rem; font: inherit; }
+
+/* Aufklappbarer Ablauf („So läuft ein Alarm“) – spart am Handy eine ganze Bildschirmhöhe */
+details.flow-wrap > summary, details.flow-details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: var(--s2); font-weight: 650; color: var(--text-2); }
+details.flow-wrap > summary::-webkit-details-marker, details.flow-details > summary::-webkit-details-marker { display: none; }
+details.flow-wrap > summary::after, details.flow-details > summary::after { content: ""; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin-left: 2px; transition: transform .15s; }
+details[open].flow-wrap > summary::after, details[open].flow-details > summary::after { transform: rotate(225deg); }
+details.flow-wrap > summary b { color: var(--text); }
+details[open].flow-details > summary, details[open].flow-wrap > summary { margin-bottom: var(--s3); }
+
+/* Handy: weniger Innenabstand, damit verschachtelte Karten nicht schmal werden */
+@media (max-width: 760px) {
+  .card { padding: var(--s4); }
+  .item { padding: var(--s3); }
+}

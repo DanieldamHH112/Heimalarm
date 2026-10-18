@@ -40,8 +40,8 @@ function setupCard() {
     h("div.card-head", {},
       h("div", {}, h("h2", {}, "Einrichtung"), h("p.meta", {}, z ? "Mit Zentrale – ein Gerät, das immer läuft, gibt den Alarm weiter." : "Ohne Zentrale – Handy und PC arbeiten direkt zusammen.")),
       h("a.btn.small", { href: "#/einstellungen/betrieb" }, "Betriebsart ändern")),
-    setupFlow(),
     setupSteps(),
+    h("details.flow-details", {}, h("summary", {}, "So läuft ein Alarm"), setupFlow()),
   );
 }
 const needsSetup = () => !setupDone();
