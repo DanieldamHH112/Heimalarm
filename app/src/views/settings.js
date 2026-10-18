@@ -437,7 +437,7 @@ function zentrale(rerender) {
       h("div.row", {},
         h("button.btn.small", { onclick: async () => { if (await requireAdmin()) { updateShared({ webhookSecret: newId() + newId() }); rerender(); } } }, hook ? "Neuen Schlüssel" : "Schlüssel erzeugen"),
         hook && h("button.btn.small.ghost", { onclick: () => copyText(hook).then(() => toast("Kopiert")) }, "Kopieren")),
-      h("small", {}, "In aPager unter Smart Home → Webhooks eintragen. Stichwort und Einheit werden übernommen.")),
+      h("small", {}, "In aPager PRO unter Einstellungen → Labor → Webhooks eintragen (Smart-Home-Paket nötig) und in der Einheit „Webhooks aktivieren“. aPager liefert nur Stichwort und Einheit – mehrere Einheiten werden zu einem Einsatz zusammengefasst, Rückalarm wird vermerkt.")),
   );
 }
 

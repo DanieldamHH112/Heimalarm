@@ -163,6 +163,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | Topic | Inhalt | Von → An |
 |---|---|---|
 | `alarm/<kennung>` | `ALARM` oder JSON `{source, keyword, unit, text, address, diveraId, test, probe}` | ESP32, Webhook, App → alle |
+| `alarm/<kennung>/event` | `{event: recall\|clear, source, keyword, unit}` – Rückalarm / Alarmende, **kein** Alarm (Dienst hört nicht zu, Apps vermerken es am Einsatz) | Webhook → Apps |
 | `alarm/<kennung>/status` | `online` / `offline` (Last Will) | ESP32 |
 | `alarm/<kennung>/sensor/wifi_signal\|uptime/state`, `…/text_sensor/ip\|version/state` | WLAN, Laufzeit, IP, Firmware | ESP32 |
 | `alarm/<kennung>/number/min_duration/command\|state` | Mindestdauer Kontakt (A3) | App ↔ ESP32 |
@@ -185,7 +186,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 |---|---|---|
 | 1883 | Pi | MQTT (ESP32, Dienst, Matterbridge) |
 | 9001 | Pi | MQTT über WebSocket (App) |
-| 8080 | Pi | aPager-Webhook `/alarm/<schlüssel>?who=<kennung>` |
+| 8080 | Pi | aPager-Webhook `/alarm/<schlüssel>?who=<kennung>&keyword=&unit=[&event=recall\|clear]` |
 | 8081 | Pi | Zigbee2MQTT-Oberfläche |
 | 5541 | Pi | Matter-Sensoren (Dienst) |
 | 5540, 8283 | Pi | Matterbridge (Matter, Oberfläche) |
@@ -204,6 +205,7 @@ Bereiche mit Zeitstempel (localStorage `heimalarm.sync.ts`): `betrieb` (Betriebs
 | Dienst | Endpunkte | Schlüssel |
 |---|---|---|
 | **Divera 24/7** (Spec: `api.divera247.com/docs/*.yaml`) | `GET /api/v2/pull/all` (Einheit, `cluster.status`, `statussorting_statusgeber`/`_alarm`, `status.status_id`) · `GET /api/v2/alarms` · `POST /api/v2/alarms/confirm/{id}` `{Status:{id,note}}` · `POST /api/v2/statusgeber/set-status` `{Status:{id,note,reset_date,reset_to}}` | `?accesskey=` persönlich; ungültig → 401 |
+| **aPager PRO Webhook** (Smart-Home-Paket, Labor → Webhooks) | GET (Query) oder POST (JSON): nur `unit` + `keyword` (Namen in aPager änderbar), ab Android 6.9 ein Aufruf je Einheit; `event=recall\|clear` bei Rückalarm/Alarmende (laut Home-Assistant-Integration). **Keine** Alarmtexte/Adresse (Alamos überträgt sie nie). Mehrere Aufrufe → ein Einsatz mit `units[]` | – |
 | **aPager PRO** (Alamos) | `GET alamos-backend.ey.r.appspot.com/fe2/feedback/user/external?authToken&mode=accept\|reject[&suppressNotification=true]` – 200 ok, 204 kein Alarm (3 min), 403 Schlüssel, 409 kein Abo | aPager → Verfügbarkeit → Externer Zugriff |
 | **Voice Monkey** | `GET https://api-v3.voicemonkey.io/trigger?token&device` | Token aus voicemonkey.io |
 | **Shelly** | Gen2/3 `/rpc/Switch.Set`, `/rpc/Light.Set`; Gen1 `/relay/0?turn=` | – |
@@ -238,6 +240,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.
 - **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` bzw. `alarm-ich-s3.yaml` (`topic_prefix`, beide gleich halten). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
 - **HTTP aus der App** geht nur zu Adressen im Scope von `capabilities/default.json`. Neue externe API → Scope ergänzen, sonst schlägt `fetch` still fehl.
+- **Benachrichtigungen mitlesen** (`AlarmListener.kt`): Titel (groß), Kurztext, Langtext (`EXTRA_BIG_TEXT`), Zeilen (`EXTRA_TEXT_LINES`), Unter-/Zusatztext – zusammengefügt als `text`. Einsatzdetails kommen nur aus Alarm-Apps (Divera-API am meisten, aPager/SYBOS über die Benachrichtigung), ESP32/Tuya liefern nur „Kontakt zu“.
 - **Alarm-Infos:** Alles, was eine Quelle mehr liefert, kommt als `details` (nur einfache Werte, ≤ 1500 Zeichen) ins Alarm-JSON – Divera (`pickDetails` in `divera.js`), Webhook (alle weiteren Parameter, `webhook.js`). Neue Felder mit eigener Bedeutung in `FIELDS` von `stats.js` aufnehmen.
 - **Abgleich ohne Zentrale:** Neue Einstellung, die abgeglichen werden soll → in einen Bereich von `core/sync.js` einordnen; was je Gerät bleiben muss, in `PC_LOCAL` bzw. aus `bundle()` heraushalten. `direct.rs` und `direct.js` gehören zusammen (Endpunkte, Events `direct-alarm|config|pair|seen`).
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.

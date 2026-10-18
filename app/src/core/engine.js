@@ -12,7 +12,7 @@ import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
-import { recordAlarm, recordAnswer, addSignal } from "./stats.js";
+import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
 
 const lastByWho = new Map();
 export const engine = { last: null };
@@ -21,6 +21,7 @@ export function init() {
   on("alarm-in", (a) => handleAlarm(a));
   on("divera-alarm", (data) => forward(data));
   on("test-request", () => testAlarm());   // Testalarm an dieses Gerät (von einem anderen Gerät)
+  on("alarm-event", (ev) => alarmEvent(ev));   // Rückalarm / Alarmende (aPager-Webhook)
 }
 
 /** Alarm aus einer App-Quelle (Benachrichtigung, Divera): über die Zentrale an alle Geräte, ohne Verbindung nur hier. */
@@ -80,6 +81,16 @@ function handleAlarm(a) {
   } else if (!test) {
     notify(own ? "Heimalarm: Einsatz" : `Heimalarm: Alarm von ${a.who}`, `${fmtTime(a.ts)}${extra ? " · " + extra : ""}`);
   }
+}
+
+/** Rückalarm („recall“) oder Alarmende („clear“), z. B. vom aPager-Webhook: kein neuer Alarm. */
+function alarmEvent(ev) {
+  const label = ev.event === "recall" ? "Rückalarm – Einsatz zurückgenommen" : "Alarmende";
+  const extra = [ev.keyword, ev.unit].filter(Boolean).join(" · ");
+  log("info", ev.who === settings().alarm.me ? label : `${label} („${ev.who}“)`, extra || ev.source || "");
+  if (ev.who !== settings().alarm.me) return;
+  markEvent(ev);
+  if (ev.event === "recall") notify("Heimalarm: Rückalarm", extra ? `Einsatz zurückgenommen · ${extra}` : "Einsatz zurückgenommen");
 }
 
 /** I1 – Testalarm nur in dieser App (keine Routinen). */

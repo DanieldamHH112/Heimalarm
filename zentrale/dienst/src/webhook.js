@@ -1,6 +1,7 @@
 // A7 / H2 – Webhook-Empfang, z. B. von aPager PRO.
 //   POST|GET http://<zentrale>:8080/alarm/<geheimnis>?who=<kennung>&keyword=..&unit=..
-// aPager sendet Stichwort und Einheit als Query oder JSON ({ keyword, unit }).
+// aPager sendet Stichwort und Einheit als Query oder JSON ({ keyword, unit }) – ab Android 6.9 einmal je Einheit
+// (die Sperrzeit fasst sie zu einem Einsatz zusammen). event=recall|clear = Rückalarm / Alarmende.
 import { createServer } from "node:http";
 
 export function startWebhook(ctx, log) {
@@ -29,13 +30,21 @@ export function startWebhook(ctx, log) {
       for (const k of ["text", "address"]) if (typeof extra[k] === "string" && extra[k]) payload[k] = extra[k].slice(0, 1000);
       const details = {};
       for (const [k, v] of Object.entries(extra)) {
-        if (["who", "keyword", "unit", "text", "address"].includes(k) || v == null || v === "" || !["string", "number", "boolean"].includes(typeof v)) continue;
+        if (["who", "keyword", "unit", "text", "address", "event"].includes(k) || v == null || v === "" || !["string", "number", "boolean"].includes(typeof v)) continue;
         if (JSON.stringify(details).length > 1500) break;
         details[k] = typeof v === "string" ? v.slice(0, 300) : v;
       }
       if (Object.keys(details).length) payload.details = details;
+      // aPager PRO: Rückalarm / Alarmende (event=recall|clear) ist kein neuer Alarm → eigenes Topic,
+      // die Apps vermerken es am Einsatz, Routinen laufen nicht.
+      const event = String(url.searchParams.get("event") || json.event || "").toLowerCase();
+      if (event === "recall" || event === "clear") {
+        ctx.client.publish(`alarm/${who}/event`, JSON.stringify({ event, source: "Webhook", keyword: payload.keyword, unit: payload.unit }), { qos: 1 });
+        log.info(event === "recall" ? "Rückalarm empfangen" : "Alarmende empfangen", `${who} · ${payload.keyword || payload.unit || "Webhook"}`);
+        return end(res, 200, "ok");
+      }
       ctx.client.publish(`alarm/${who}`, JSON.stringify(payload), { qos: 1 });
-      log.ok("Webhook empfangen", `${who} · ${payload.keyword || "ohne Stichwort"}`);
+      log.ok("Webhook empfangen", `${who} · ${payload.keyword || "ohne Stichwort"}${payload.unit ? " · " + payload.unit : ""}`);
       end(res, 200, "ok");
     });
   }).listen(port, () => log.info("Webhook bereit", `Port ${port}`));

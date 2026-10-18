@@ -14,6 +14,11 @@ const SAME_MS = 2 * 60e3;           // gleicher Einsatz, wenn so nah beieinander
 const ANSWER_WINDOW = 2 * 3600e3;   // Antwort zählt nur für einen Alarm der letzten 2 Stunden
 const FIELDS = ["keyword", "unit", "text", "address", "diveraId", "app"];
 
+/** Ausführlicheres Stichwort gewinnt, wenn es das kürzere enthält („B3“ → „B3 Wohnungsbrand“). */
+function betterKeyword(target, kw) {
+  if (kw && target.keyword && kw.length > target.keyword.length && kw.toLowerCase().includes(target.keyword.toLowerCase())) target.keyword = kw;
+}
+
 const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** Nur einfache Werte übernehmen (Text, Zahl, Ja/Nein), höchstens ~1500 Zeichen. */
@@ -60,7 +65,7 @@ export const getEinsatz = (id) => list.find((e) => e.id === id);
 
 /** Neuer Alarm (nur echte, eigene). */
 export function recordAlarm(a) {
-  const e = { id: newId(), ts: a.ts || Date.now(), who: a.who || "", source: a.source || "", sources: a.source ? [a.source] : [], answer: null, device: settings().device.name || platformName };
+  const e = { id: newId(), ts: a.ts || Date.now(), who: a.who || "", source: a.source || "", sources: a.source ? [a.source] : [], units: a.unit ? [a.unit] : [], answer: null, device: settings().device.name || platformName };
   for (const k of FIELDS) if (a[k]) e[k] = a[k];
   if (a.details && Object.keys(a.details).length) e.details = a.details;
   if (a.viaPhone) e.via = "Handy";
@@ -73,6 +78,10 @@ export function addSignal(a) {
   const last = list.at(-1);
   if (!last || Math.abs((a.ts || Date.now()) - last.ts) > ANSWER_WINDOW) return;
   if (a.source && !last.sources.includes(a.source)) last.sources.push(a.source);
+  // aPager ruft den Webhook je alarmierter Einheit einzeln auf → alle Einheiten sammeln
+  last.units ||= last.unit ? [last.unit] : [];
+  if (a.unit && !last.units.includes(a.unit)) last.units.push(a.unit);
+  betterKeyword(last, a.keyword);
   for (const k of FIELDS) if (a[k] && !last[k]) last[k] = a[k];
   if (a.details) last.details = { ...a.details, ...last.details };
   save();
@@ -92,6 +101,17 @@ export function editEinsatz(id, patch) {
   const e = getEinsatz(id);
   if (!e) return;
   Object.assign(e, patch, { edited: Date.now() });
+  save();
+}
+
+/** Rückalarm / Alarmende am letzten Einsatz vermerken. */
+export function markEvent(ev) {
+  const last = list.findLast((e) => !e.deleted);
+  if (!last || (ev.ts || Date.now()) - last.ts > 12 * 3600e3) return;
+  if (ev.event === "recall") last.recall = ev.ts || Date.now();
+  else last.endTs = ev.ts || Date.now();
+  last.units ||= last.unit ? [last.unit] : [];
+  if (ev.unit && !last.units.includes(ev.unit)) last.units.push(ev.unit);
   save();
 }
 
@@ -125,8 +145,10 @@ export function mergeEinsaetze(remote) {
     }
     if (l.deleted) { if (JSON.stringify(l) !== before) changed = true; continue; }
     // Infos aus der Quelle ergänzen
-    for (const k of [...FIELDS, "answer", "answerTs", "via"]) if (r[k] && !l[k]) l[k] = r[k];
+    for (const k of [...FIELDS, "answer", "answerTs", "via", "recall", "endTs"]) if (r[k] && !l[k]) l[k] = r[k];
+    betterKeyword(l, r.keyword);
     for (const s of r.sources || []) if (!l.sources.includes(s)) l.sources.push(s);
+    if (r.units?.length) { l.units ||= []; for (const u of r.units) if (!l.units.includes(u)) l.units.push(u); }
     if (r.details) l.details = { ...r.details, ...l.details };
     if (r.ts < l.ts) l.ts = r.ts;                 // frühester Zeitpunkt zählt
     if (r.id < l.id) l.id = r.id;                 // auf allen Geräten dieselbe ID
@@ -137,7 +159,9 @@ export function mergeEinsaetze(remote) {
 }
 
 /** Fingerabdruck des Stands, um Ping-Pong beim Abgleich zu vermeiden. */
-export const fingerprint = () => JSON.stringify(list.map((e) => [e.id, e.edited || 0, e.answer || "", (e.sources || []).length]));
+export const fingerprint = () => JSON.stringify(list.map((e) => [e.id, e.edited || 0, e.answer || "", (e.sources || []).length, (e.units || []).length, e.recall || 0, e.endTs || 0]));
+/** Alle Einheiten eines Einsatzes. */
+export const unitsOf = (e) => (e.units?.length ? e.units : e.unit ? [e.unit] : []);
 
 // ── Auswertung ─────────────────────────────────────────────────────────────
 
@@ -228,13 +252,15 @@ const ANSWER_TEXT = { go: "Ich fahre", stay: "Ich fahre nicht", timeout: "keine 
 /** CSV (Semikolon, für Excel auf Deutsch), optional nur ein Jahr. */
 export function toCsv(year) {
   const rows = alive().filter((e) => !year || new Date(e.ts).getFullYear() === year);
-  const head = ["Datum", "Uhrzeit", "Stichwort", "Art", "Einheit", "Adresse", "Text", "Quellen", "Antwort", "Reaktion (s)", "Fahrzeug", "Funktion", "Notiz", "Divera-ID", "Weitere Angaben"];
+  const head = ["Datum", "Uhrzeit", "Stichwort", "Art", "Einheiten", "Adresse", "Text", "Quellen", "Antwort", "Reaktion (s)", "Rückalarm", "Ende", "Fahrzeug", "Funktion", "Notiz", "Divera-ID", "Weitere Angaben"];
   const lines = rows.map((e) => {
     const t = new Date(e.ts);
     return [
       t.toLocaleDateString("de-DE"), t.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
-      e.keyword, category(e), e.unit, e.address, e.text, (e.sources || [e.source]).join(", "),
+      e.keyword, category(e), unitsOf(e).join(", "), e.address, e.text, (e.sources || [e.source]).join(", "),
       ANSWER_TEXT[e.answer] || "", e.answerTs ? Math.round((e.answerTs - e.ts) / 1000) : "",
+      e.recall ? new Date(e.recall).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "",
+      e.endTs ? new Date(e.endTs).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "",
       e.vehicle, e.role, e.note, e.diveraId,
       e.details ? Object.entries(e.details).map(([k, v]) => `${k}: ${v}`).join(" | ") : "",
     ].map(csvCell).join(";");

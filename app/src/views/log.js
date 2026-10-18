@@ -6,7 +6,7 @@ import { state } from "../core/mqtt.js";
 import { isAndroid } from "../core/platform.js";
 import {
   statsEntries, getEinsatz, editEinsatz, deleteEinsatz, clearStats,
-  summary, years, yearReview, category, toCsv, ANSWER_TEXT,
+  summary, years, yearReview, category, toCsv, ANSWER_TEXT, unitsOf,
 } from "../core/stats.js";
 
 const FILTERS = [
@@ -39,7 +39,9 @@ function detailDialog(id, rerender) {
       row("Zeit", `${fmtDay(e.ts)}, ${fmtTime(e.ts)}`),
       row("Art", category(e)),
       row("Stichwort", e.keyword),
-      row("Einheit", e.unit),
+      row(unitsOf(e).length > 1 ? "Einheiten" : "Einheit", unitsOf(e).join(", ")),
+      row("Rückalarm", e.recall && `${fmtHm(e.recall)} – Einsatz zurückgenommen`),
+      row("Alarmende", e.endTs && `${fmtDay(e.endTs)}, ${fmtHm(e.endTs)}`),
       row("Adresse", e.address),
       row("Text", e.text),
       row("Quellen", (e.sources || [e.source]).filter(Boolean).join(", ")),
@@ -135,7 +137,7 @@ function einsaetzeList(rerender) {
           h("b", {}, e.keyword || "Alarm"),
           h("small", {}, [category(e), e.address, (e.sources || [e.source]).filter(Boolean).join(", ")].filter(Boolean).join(" · ")),
           (e.note || e.vehicle) && h("small.einsatz-note", {}, [e.vehicle, e.role, e.note].filter(Boolean).join(" · "))),
-        e.answer && h("span.chip" + (e.answer === "go" ? ".ok" : ""), {}, ANSWER_TEXT[e.answer]))))),
+        e.recall ? h("span.chip.warn", {}, "Rückalarm") : e.answer && h("span.chip" + (e.answer === "go" ? ".ok" : ""), {}, ANSWER_TEXT[e.answer]))))),
     items.length > shown && h("div.row", {}, h("button.btn.small.ghost", { onclick: () => { shown += 30; rerender(); } }, `Weitere ${Math.min(30, items.length - shown)} anzeigen`)));
 }
 

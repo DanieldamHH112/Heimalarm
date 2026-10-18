@@ -85,6 +85,10 @@ function handle(topic, msg, retained) {
     if (data) emit("alarm-in", { who, ts: Date.now(), ...data });
     return;
   }
+  if (p.length === 3 && p[2] === "event") {   // Rückalarm / Alarmende (aPager-Webhook)
+    try { emit("alarm-event", { who, ts: Date.now(), ...JSON.parse(msg) }); } catch { /* nicht lesbar */ }
+    return;
+  }
   const d = device(who);
   d.lastSeen = Date.now();
   if (p[2] === "status") {
@@ -144,7 +148,7 @@ function publishEinsaetze() {
 function receiveEinsaetze(msg) {
   if (settings().sync?.enabled === false) return;
   let remote; try { remote = JSON.parse(msg || "[]"); } catch { return; }
-  const theirs = Array.isArray(remote) ? JSON.stringify(remote.map((e) => [e.id, e.edited || 0, e.answer || "", (e.sources || []).length])) : "";
+  const theirs = Array.isArray(remote) ? JSON.stringify(remote.map((e) => [e.id, e.edited || 0, e.answer || "", (e.sources || []).length, (e.units || []).length, e.recall || 0, e.endTs || 0])) : "";
   mergeEinsaetze(remote);
   // Hat dieses Gerät mehr oder Neueres, den zusammengeführten Stand zurückschreiben
   if (fingerprint() !== theirs) { clearTimeout(einsaetzeTimer); einsaetzeTimer = setTimeout(publishEinsaetze, 1500 + Math.random() * 1500); }
