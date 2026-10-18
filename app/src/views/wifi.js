@@ -10,7 +10,7 @@ const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-htt
 const save = (list) => updateShared({ wifi: list });
 export const doSet = (d, state) => wifiSet(d, state, fetchFn).then(() => toast(`${d.name}: ${state.on ? "an" : "aus"}`)).catch((e) => toast(`${d.name}: ${e.message}`));
 
-function addDialog(rerender, existing) {
+export function addDialog(rerender, existing) {
   const d = existing ? structuredClone(existing) : { id: newId(), name: "", type: "shelly", host: "", user: "", target: "" };
   const body = h("div", { style: "display:grid;gap:16px" });
   let targets = [];
@@ -42,7 +42,7 @@ function addDialog(rerender, existing) {
   const close = dialog(existing ? `WLAN-Gerät: ${existing.name}` : "WLAN-Gerät hinzufügen", body);
 }
 
-function row(d, list, rerender) {
+export function row(d, list, rerender) {
   const edit = async () => { if (await requireAdmin()) addDialog(rerender, d); };
   const del = async () => { if (await requireAdmin() && await ask(`„${d.name}“ entfernen?`)) { save(list.filter((x) => x.id !== d.id)); rerender(); } };
   return h("li", {},

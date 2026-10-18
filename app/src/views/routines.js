@@ -6,6 +6,7 @@ import { state, publish } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
 import { has } from "../core/features.js";
 import { fireLocal } from "../core/routines-local.js";
+import { icon } from "../ui/icons.js";
 
 const TRIGGERS = [["alarm", "Bei Alarm"], ["time", "Zu einer Uhrzeit"], ["device", "Wenn ein Gerät …"], ["manual", "Nur per Knopf"]];
 const CONDS = {
@@ -79,9 +80,12 @@ const actionRow = (a, del) => {
   };
 
 
+/** Editor einer Routine in der rechten Spalte (gibt den Inhalt zurück). */
 function editor(routine, rerender) {
   const r = structuredClone(routine);
   const body = h("div", { style: "display:grid;gap:16px" });
+  // Fertig (Speichern/Abbrechen): zurück zur Ansicht der Routine
+  const close = () => { editing = null; draft = null; if (location.hash === `#/routinen/${r.id}`) rerender(); else location.hash = `#/routinen/${r.id}`; };
 
   const paint = () => body.replaceChildren(...[
     field("Name", h("input.input", { value: r.name, onchange: (e) => (r.name = e.target.value) })),
@@ -126,14 +130,24 @@ function editor(routine, rerender) {
   ].filter(Boolean));
 
   paint();
-  const close = dialog(routine.name === "Neue Routine" ? "Neue Routine" : `Routine: ${routine.name}`, body);
+  return body;
 }
 
-// ── Seite ──────────────────────────────────────────
+// ── Seite: zwei Spalten (Liste links, Routine rechts) ──
+let editing = null;   // id der Routine, die rechts bearbeitet wird
+let draft = null;     // neue, noch nicht gespeicherte Routine
+
+const sel = () => decodeURIComponent(location.hash.replace("#/", "").split("/")[1] || "");
+const isPhone = () => window.matchMedia("(max-width: 760px)").matches;
+
 export function routinesView(rerender) {
   const list = shared().routines || [];
   const s = shared();
-  const edit = (r) => async () => { if (await requireAdmin()) editor(r, rerender); };
+  const startEdit = async (r, isNew = false) => {
+    if (!(await requireAdmin())) return;
+    editing = r.id; draft = isNew ? r : null;
+    if (location.hash !== `#/routinen/${r.id}`) location.hash = `#/routinen/${r.id}`; else rerender();
+  };
 
   const exportJson = () => JSON.stringify({ heimalarm: "routinen", version: 1, routines: list }, null, 2);
   const importDialog = async () => {
@@ -149,34 +163,62 @@ export function routinesView(rerender) {
       } }, "Importieren")));
   };
 
-  return h("div.page", {},
-    h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Routinen"), h("p", {}, `Was bei Alarm, zu einer Uhrzeit oder per Knopf passiert. Läuft ${has.pi() ? "auf der Zentrale" : "auf dem Handy"}.`)),
-      h("div.row", {},
-        h("button.btn", { onclick: edit(template()) }, "Vorlage"),
-        h("button.btn.primary", { onclick: edit(blank()) }, "Neue Routine"))),
+  const all = draft ? [...list, draft] : list;
+  const key = sel();
+  const current = key === "allgemein" ? "allgemein" : all.find((r) => r.id === key)?.id || (isPhone() ? null : all[0]?.id || "allgemein");
+  if (editing && editing !== current) { editing = null; draft = null; }
 
-    has.pi() && !state.dienst?.online && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zentralen-Dienst nicht erreichbar"), "Routinen werden gespeichert, laufen aber erst, wenn der Dienst auf der Zentrale läuft.")),
+  const item = (r) => h("a.split-item", { href: `#/routinen/${r.id}`, "aria-current": current === r.id ? "page" : null },
+    h("span.ico", { style: `--a:var(${r.enabled ? "--c-routine" : "--text-2"})` }, icon("flow")),
+    h("span.split-item-text", {}, h("b", {}, r.name), h("small", {}, r === draft ? "neu, noch nicht gespeichert" : r.enabled ? (TRIGGERS.find(([k]) => k === r.trigger?.type)?.[1] || "") : "ausgeschaltet")),
+    h("span.chev", {}, icon("chev")));
 
-    h("section.card", {},
-      switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ (B9).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
-      h("div.row", {},
-        has.pi() && h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"),
-        h("button.btn.small", { onclick: async () => { if (await copyText(exportJson())) toast("In die Zwischenablage kopiert"); download("heimalarm-routinen.json", exportJson()); } }, "Exportieren"),
-        h("button.btn.small", { onclick: importDialog }, "Importieren"))),
+  const listPane = h("aside.split-list", {},
+    h("h1", {}, "Routinen"),
+    h("div.row", { style: "padding:0 4px 12px;gap:8px" },
+      h("button.btn.primary.small", { onclick: () => startEdit(blank(), true) }, "Neue Routine"),
+      h("button.btn.small", { onclick: () => startEdit(template(), true) }, "Vorlage")),
+    has.pi() && !state.dienst?.online && h("p.split-warn", {}, "Zentralen-Dienst nicht erreichbar – Routinen laufen erst, wenn er läuft."),
+    h("nav.split-nav", { "aria-label": "Routinen" },
+      all.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, "Noch keine Routine. Tipp: „Vorlage“ legt „Alarm nachts: Licht an“ an.") : all.map(item),
+      h("div.split-grp", {}, "Allgemein"),
+      h("a.split-item", { href: "#/routinen/allgemein", "aria-current": current === "allgemein" ? "page" : null },
+        h("span.ico", { style: "--a:var(--c-app)" }, icon("home")),
+        h("span.split-item-text", {}, h("b", {}, "Urlaubsmodus & Export"), h("small" + (s.vacation ? ".warn" : ""), {}, s.vacation ? "Urlaubsmodus an" : "Wieder da, Sichern, Laden")),
+        h("span.chev", {}, icon("chev")))));
 
-    list.length === 0
-      ? h("section.card", {}, h("p.empty", {}, "Noch keine Routine. Tipp: „Vorlage“ legt „Alarm nachts: Licht an“ an."))
-      : h("div.cards", {}, list.map((r) => h("div.item", {},
-          h("div.item-head", {}, h("b", {}, r.name),
-            h("input", { type: "checkbox", role: "switch", class: "mini-switch", checked: r.enabled, "aria-label": "Aktiv",
-              onchange: async (e) => { if (await requireAdmin()) save(list.map((x) => (x.id === r.id ? { ...x, enabled: e.target.checked } : x))); else rerender(); } })),
-          h("p.meta", {}, describe(r)),
-          h("div.row", {},
-            h("button.btn.small", { onclick: () => { run(r); toast(`„${r.name}“ wird ausgeführt`); } }, "Ausführen"),
-            h("button.btn.small.ghost", { onclick: () => { run(r, true); toast("Test: nur im Protokoll"); } }, "Test"),
-            h("button.btn.small.ghost", { onclick: edit(r) }, "Bearbeiten"),
-            h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask(`„${r.name}“ löschen?`)) { save(list.filter((x) => x.id !== r.id)); rerender(); } } }, "Löschen")),
-        ))),
-  );
+  let detail = null;
+  if (current === "allgemein") {
+    detail = h("section.split-detail", { style: "--a:var(--c-app)" },
+      h("a.split-back", { href: "#/routinen" }, icon("back"), "Routinen"),
+      h("div.split-head", {}, h("span.ico.big", { style: "--a:var(--c-app)" }, icon("home")), h("div", {}, h("p.crumb", {}, "Routinen"), h("h2", {}, "Urlaubsmodus & Export"))),
+      h("p.split-sub", {}, `Routinen laufen ${has.pi() ? "auf der Zentrale" : "auf dem Handy"}.`),
+      h("section.card", {},
+        switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ – und die Abfrage bei Alarm (wie „Inaktiv“ auf Start).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
+        has.pi() && h("div.row", {}, h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"))),
+      h("section.card", {}, h("h3", {}, "Sichern und laden"),
+        h("p.hint", {}, "Alle Routinen als Text – zum Sichern oder für eine andere Zentrale."),
+        h("div.row", {},
+          h("button.btn.small", { onclick: async () => { if (await copyText(exportJson())) toast("In die Zwischenablage kopiert"); download("heimalarm-routinen.json", exportJson()); } }, "Exportieren"),
+          h("button.btn.small", { onclick: importDialog }, "Importieren"))));
+  } else if (current) {
+    const r = all.find((x) => x.id === current);
+    detail = h("section.split-detail", { style: "--a:var(--c-routine)" },
+      h("a.split-back", { href: "#/routinen" }, icon("back"), "Routinen"),
+      h("div.split-head", {},
+        h("span.ico.big", { style: `--a:var(${r.enabled ? "--c-routine" : "--text-2"})` }, icon("flow")),
+        h("div", { style: "flex:1;min-width:0" }, h("p.crumb", {}, "Routinen"), h("h2", {}, r.name)),
+        r !== draft && h("input", { type: "checkbox", role: "switch", class: "mini-switch", checked: r.enabled, "aria-label": "Routine aktiv",
+          onchange: async (e) => { if (await requireAdmin()) save(list.map((x) => (x.id === r.id ? { ...x, enabled: e.target.checked } : x))); else rerender(); } })),
+      editing === r.id
+        ? h("section.card", {}, editor(r, rerender))
+        : [
+          h("section.card", {}, h("p", {}, describe(r)),
+            h("div.row", {},
+              h("button.btn.primary.small", { onclick: () => { run(r); toast(`„${r.name}“ wird ausgeführt`); } }, "Ausführen"),
+              h("button.btn.small", { onclick: () => { run(r, true); toast("Test: nur im Protokoll"); } }, "Test"),
+              h("button.btn.small", { onclick: () => startEdit(r) }, "Bearbeiten"),
+              h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask(`„${r.name}“ löschen?`)) { save(list.filter((x) => x.id !== r.id)); location.hash = "#/routinen"; rerender(); } } }, "Löschen")))]);
+  }
+  return h("div.split" + (detail && current ? ".has-detail" : ""), {}, listPane, detail || h("section.split-detail.empty-pane", {}, h("p.empty", {}, "Routine links auswählen.")));
 }

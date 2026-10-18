@@ -62,3 +62,5 @@
 .split-list .segmented { max-width: 100%; }
 .empty-pane { place-content: center; }
 @media (max-width: 760px) { .facts-row { gap: 8px; } .fact { padding: 10px 12px; } .fact b { font-size: .95rem; } .empty-pane { display: none; } }
+.split-warn { margin: 0 4px 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--warn); font-size: var(--fs-xs); }
+.split-detail .item { background: none; padding: 0; }
