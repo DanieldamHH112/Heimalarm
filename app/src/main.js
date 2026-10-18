@@ -23,6 +23,7 @@ import { restartDivera } from "./core/divera.js";
 import { has } from "./core/features.js";
 import { startReceiver, startSync } from "./core/direct.js";
 import { initLocalRoutines } from "./core/routines-local.js";
+import { initCheckup } from "./core/checkup.js";
 
 const routes = {
   uebersicht: overview, geraete: devicesView, routinen: routinesView,
@@ -121,6 +122,7 @@ connect();
 restartDivera();
 startReceiver();
 startSync();
+initCheckup();
 on("sync-applied", (secs) => { if (secs.includes("betrieb")) connect(); render(); });
 initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
 initUpdates();

@@ -1,5 +1,6 @@
 /* Heimalarm – Design-Tokens
-   Farbwelt "Leitstelle": ruhige, kontrastreiche Flächen, Signalrot nur für Alarm und Hauptaktion. */
+   Farbwelt "Leitstelle, lebendig": ruhige Flächen, Signalrot nur für Alarm und Hauptaktion,
+   jeder Bereich hat eine feste Farbe (Symbol, Balken, Zeitleiste). Flächen statt Rahmenlinien. */
 
 @font-face { font-family: "Archivo"; src: url("/fonts/Archivo.ttf") format("truetype"); font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight: 100 800; font-display: swap; }
@@ -8,8 +9,11 @@
   /* Farben – Dunkel (Standard) */
   --bg: #0e1013;
   --surface: #171a1f;
+  --bg-2: #12151a;          /* Navigation, linke Spalte */
   --surface-2: #1e2228;
+  --surface-3: #262b34;     /* Knöpfe, Chips, Felder auf Karten */
   --line: #2c313a;
+  --line-2: #22272f;        /* feine Trennlinien in Listen */
   --text: #f1f2f4;
   --text-2: #b0b6c0;
   --signal: #e5432f;        /* Alarm, Hauptaktion */
@@ -23,6 +27,16 @@
   --info-soft: #172433;
   --focus: #7cb0e4;
   --shadow: none;
+  /* Bereichsfarben – immer dieselbe Farbe für denselben Bereich */
+  --c-alarm: #e5432f;
+  --c-net: #5b9cf0;
+  --c-pc: #2fb9a8;
+  --c-phone: #a78bfa;
+  --c-people: #e9a945;
+  --c-voice: #4cc287;
+  --c-safe: #f472b6;
+  --c-app: #94a3b8;
+  --c-routine: #a78bfa;
 
   /* Typo – Mindestgröße 14 px für gute Lesbarkeit */
   --font: "Archivo", system-ui, sans-serif;
@@ -35,9 +49,10 @@
 
   /* Raum & Form */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --radius: 4px;
-  --radius-sm: 3px;
-  --nav-w: 240px;
+  --radius: 12px;      /* Karten */
+  --radius-sm: 8px;    /* Knöpfe, Felder, Chips */
+  --radius-lg: 16px;   /* Status-Karte, Handy-Listen */
+  --nav-w: 84px;
   --content-max: none;
   /* Abstand zu Status- und Navigationsleiste: env() im Browser, --inset-* setzt die Android-App */
   --safe-top: max(env(safe-area-inset-top, 0px), var(--inset-top, 0px));
@@ -54,7 +69,8 @@
 
 /* Hell – zweite Auswahl */
 :root[data-theme="light"] {
-  --bg: #f4f2ee; --surface: #ffffff; --surface-2: #faf9f6; --line: #e0dbd2;
+  --bg: #f4f2ee; --bg-2: #ebe8e2; --surface: #ffffff; --surface-2: #f6f4f0; --surface-3: #ece9e3; --line: #e0dbd2; --line-2: #ebe7e0;
+  --c-alarm: #c42d21; --c-net: #2f6fc4; --c-pc: #12857a; --c-phone: #7454d6; --c-people: #a86b06; --c-voice: #22704a; --c-safe: #c2347f; --c-app: #5d6878; --c-routine: #7454d6;
   --text: #16181d; --text-2: #4a505b;
   --signal: #c42d21; --signal-soft: #fbe9e6;
   --ok: #22704a; --ok-soft: #e4f1e9; --warn: #8a590d; --warn-soft: #fbf0dc;

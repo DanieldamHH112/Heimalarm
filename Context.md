@@ -38,8 +38,9 @@ Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkon
 - **Nur zeigen, was eingerichtet ist:** Übersicht, Diagnose, Navigation und Protokoll blenden alles aus, was der Nutzer nicht nutzt (`core/features.js`). **Einstellungen zeigen immer alles.**
 - **Tests nicht im Dashboard:** Testalarm und Simulation liegen unter Einstellungen → Alarm bzw. Test & Diagnose.
 - **Ohne Vorwissen einrichtbar:** sinnvolle Standardwerte, „In 3 Schritten startklar“, Testalarm ohne Folgen.
-- **Responsiv:** Seitenleiste (breit) → nur Symbole (≤ 1080 px) → Leiste unten (Handy, ≤ 760 px).
-- **Dunkel ist Standard**, Hell die zweite Auswahl. **Ecken nur minimal gerundet** (`--radius` 4 px, `--radius-sm` 3 px).
+- **Responsiv:** PC = schmale Symbolleiste links, Handy (≤ 760 px) = Leiste unten mit Pillen-Markierung. Einstellungen und Protokoll (Einsätze) sind zwei Spalten (Liste links, eine Seite rechts); am Handy Liste → Unterseite mit „Zurück“.
+- **Dunkel ist Standard**, Hell die zweite Auswahl. **Weiche Ecken** (`--radius-sm` 8 px, `--radius` 12 px, `--radius-lg` 16 px), Flächen statt Rahmenlinien. **Bereichsfarben** (`--c-alarm`, `--c-net`, `--c-pc` …) – derselbe Bereich hat überall dieselbe Farbe.
+- **PC und Handy zeigen dieselben Teile** (Start: Status, Kennzahlen, Licht & Geräte, Schnellaktionen, Zuletzt) – nur die Anordnung unterscheidet sich.
 - **Keine Geheimnisse im Repo.** WLAN-, MQTT- und Signier-Daten nur lokal (`secrets.yaml`) oder als GitHub-Secret. API-Schlüssel der Nutzer (Divera, aPager) bleiben nur auf dem Gerät.
 - **Repo bleibt privat** während der Entwicklung. **iOS-Build** vorerst nicht vorgesehen.
 - **UI-Arbeit** mit den Skills `/impeccable` und `/frontend-design`.
@@ -280,7 +281,9 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 
 ## Design-System
 
-Farbwelt **„Leitstelle“**: ruhig und kontrastreich, Signalrot nur für Alarm und Hauptaktion. Dunkel ist Standard. Ecken minimal (4 px / 3 px), Statuspunkte und der Countdown-Ring bleiben rund.
+Farbwelt **„Leitstelle, lebendig“**: ruhig und kontrastreich, Signalrot nur für Alarm und Hauptaktion, jeder Bereich mit eigener Farbe (Symbol, Balken, Zeitleiste). Dunkel ist Standard. Ecken 8/12/16 px, Schalter und Chips als Pillen.
+
+Start (`views/overview.js`, `styles/home.css`): Status-Karte **Aktiv / Verbindet / Inaktiv** (Inaktiv = Urlaubsmodus `shared.vacation`: verbunden, bei Alarm passiert nichts – `engine.js` und Dienst prüfen es). Darunter eine Pille: „Verbunden“, rot „Verbindung fehlgeschlagen“ oder während „Verbindet“ der laufende Check aus `core/checkup.js` (eine Zeile wie im Terminal). Die Pille liegt absolut in einem festen Platzhalter (`.stslot`) – nichts darf sich durch ihren Text verschieben. Symbole aus `ui/icons.js`. Einstellungs-Gruppen: `GROUPS` in `views/settings.js` (neuer Abschnitt → einer Gruppe zuordnen und in `BUILD` eintragen).
 Schriftgrößen: mindestens 14 px (Labels), Hilfstexte 15 px, Fließtext 16 px.
 
 | Token | Hell | Dunkel | Einsatz |
@@ -293,7 +296,8 @@ Schriftgrößen: mindestens 14 px (Labels), Hilfstexte 15 px, Fließtext 16 px.
 | `--ok` | `#24704a` | `#4cc287` | Verbunden, online |
 | `--warn` | `#8f5d0e` | `#e9a945` | Warnungen |
 | `--info` | `#2c5a88` | `#7cb0e4` | Hinweise, Fokus |
-| `--radius` / `--radius-sm` | 4 px / 3 px | | Karten / Knöpfe, Chips, Felder |
+| `--radius-lg` / `--radius` / `--radius-sm` | 16 / 12 / 8 px | | Status-Karte / Karten / Knöpfe, Felder |
+| `--c-alarm` `--c-net` `--c-pc` `--c-phone` `--c-people` `--c-voice` `--c-safe` `--c-app` | je Bereich | | Symbol-Kacheln, Balken, Zeitleiste |
 
 Schrift: **Archivo** (Text, Titel), **JetBrains Mono** (Topics, Uhrzeiten, Codes) – in `app/public/fonts`. Logo: Haus mit Funkwellen auf Signalrot, `docs/logo.svg`. README-Grafiken (`docs/*.svg`) nutzen dieselben Farben und passen sich hell/dunkel an.
 

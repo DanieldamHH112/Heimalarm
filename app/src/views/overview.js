@@ -1,14 +1,14 @@
 // E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
-import { h, fmtAgo, fmtTime, fmtDate, toast } from "../ui/dom.js";
-import { state, publish, testDevice, renameDevice, forgetDevice } from "../core/mqtt.js";
+import { h, fmtAgo, fmtTime, toast } from "../ui/dom.js";
+import { state, publish, testDevice, renameDevice, forgetDevice, setDevice } from "../core/mqtt.js";
 import { field, dialog, ask } from "../ui/form.js";
 import { emit } from "../core/events.js";
 import { shared } from "../core/shared.js";
-import { settings, isConfigured, mode } from "../core/settings.js";
+import { settings, mode } from "../core/settings.js";
 import { setupFlow, setupSteps, setupDone } from "../ui/setup.js";
 import { update, installUpdate } from "../core/update.js";
 import { getLog } from "../core/log.js";
-import { ACTIONS, wakeOnLan } from "../core/pc.js";
+import { wakeOnLan } from "../core/pc.js";
 import { has, activeSources } from "../core/features.js";
 import { direct } from "../core/direct.js";
 import { fireLocal } from "../core/routines-local.js";
@@ -16,7 +16,13 @@ import { engine, answerApps } from "../core/engine.js";
 import { recordAnswer } from "../core/stats.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
-import { themeToggle } from "../ui/theme.js";
+import { on } from "../core/events.js";
+import { updateShared } from "../core/shared.js";
+import { testAlarm } from "../core/engine.js";
+import { statsEntries } from "../core/stats.js";
+import { checkup, runCheckup, statusKind, connectionFailed } from "../core/checkup.js";
+import { doSet as wifiToggle } from "./wifi.js";
+import { icon } from "../ui/icons.js";
 
 const chip = (kind, text) => h("span.chip" + (kind ? "." + kind : ""), {}, text);
 
@@ -55,29 +61,6 @@ function updateBanner() {
     h("div.row", {},
       h("button.btn.primary.small", { onclick: installUpdate, disabled: update.installing }, update.installing ? "Lädt …" : "Installieren"),
       h("a.btn.small", { href: "#/einstellungen/updates" }, "Details")));
-}
-
-const tile = (label, value, status) => h("div.tile", {}, h("span.tile-label", {}, label), h("b", {}, value), status);
-
-function tiles() {
-  const s = settings();
-  const dev = state.devices[s.alarm.me];
-  const apps = Object.values(state.clients).filter((c) => c.online).length;
-  const alarms24 = getLog("alarm").filter((e) => Date.now() - e.ts < 86400e3).length;
-  const src = activeSources();
-  return h("div.tiles", {},
-    tile("Alarmquellen", src.length ? String(src.length) : "Keine", h("span.chip.wrap" + (src.length ? ".ok" : ""), {}, src.length ? src.join(" · ") : "nicht eingerichtet")),
-    has.direct() && hasPcFeatures && tile("Empfang vom Handy", direct.error ? "Fehler" : direct.ip ? "Bereit" : "Startet", chip(direct.error ? "bad" : direct.ip ? "ok" : "", direct.error ? "siehe Einstellungen" : direct.ip || "…")),
-    has.direct() && !hasPcFeatures && tile("Gekoppelte PCs", String(s.direct.peers.length), chip(s.direct.peers.length ? "ok" : "", s.direct.peers.length ? s.direct.peers.map((p) => p.name).join(" · ") : "keiner")),
-    has.pi() && tile("Zentrale", state.connected ? "Verbunden" : isConfigured() ? "Getrennt" : "Fehlt",
-      state.connected ? chip("ok", s.broker.host || "aktiv") : chip(isConfigured() ? "bad" : "", isConfigured() ? "nicht erreichbar" : "nicht eingerichtet")),
-    has.esp() && has.tuya() && tile("Funk-Alarmschalter", !state.tuya.online ? "Offline" : state.tuya.angemeldet ? "Bereit" : "Nicht angemeldet",
-      chip(state.tuya.online && state.tuya.angemeldet ? "ok" : "bad", !state.tuya.online ? "Tuya-Brücke aus" : state.tuya.angemeldet ? (state.tuya.geraet || "angemeldet") : "Port 8082 öffnen")),
-    has.esp() && !has.tuya() && tile("Mein ESP32", !dev || dev.online === null ? "Kein Signal" : dev.online ? "Online" : "Offline",
-      dev?.online ? chip("ok", `seit ${fmtAgo(dev.since).replace("vor ", "")}`) : chip(dev ? "bad" : "", dev ? `seit ${fmtTime(dev.since)}` : `alarm/${s.alarm.me}`)),
-    has.pi() && tile("Apps verbunden", String(apps), chip(apps > 0 ? "ok" : "", apps > 0 ? "inkl. dieser" : "keine")),
-    tile("Alarme 24 h", String(alarms24), chip(alarms24 > 0 ? "bad" : "", alarms24 > 0 ? fmtAgo(getLog("alarm")[0].ts) : "ruhig")),
-  );
 }
 
 /** Melder über den Funk-Alarmschalter (Tuya-Brücke) statt ESP32. */
@@ -124,18 +107,6 @@ function wake(c) {
   else viaZentrale();
 }
 
-/** Schnellaktionen (statt Startbildschirm-Widget): Testalarm, Wieder da, manuelle Routinen */
-function quickCard() {
-  const manual = has.routines() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
-  if (!has.zigbee() && manual.length === 0) return null;   // Tests liegen unter Einstellungen → Test & Diagnose
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Schnellaktionen")),
-    h("div.quick", {},
-      has.zigbee() && h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
-      ...manual.map((r) => h("button.btn", { onclick: () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); } }, r.name))),
-  );
-}
-
 function renameClientDialog(id, c) {
   const name = h("input.input", { value: c.name || "" });
   const close = dialog("Gerät umbenennen", field("Name", name, "Das Gerät übernimmt den Namen, sobald es verbunden ist."),
@@ -160,45 +131,6 @@ function appsCard() {
             h("button.btn.small.ghost", { onclick: () => renameClientDialog(id, c) }, "Umbenennen"),
             !c.online && h("button.btn.small.ghost.danger", { onclick: async () => { if (await ask(`„${c.name}“ aus der Liste entfernen? Meldet es sich wieder, erscheint es erneut.`) && forgetDevice(id)) { toast("Entfernt"); emit("devices", state); } } }, "Entfernen")),
         ))),
-  );
-}
-
-function alarmsCard() {
-  const alarms = getLog("alarm").slice(0, 5);
-  const recent = alarms[0] && Date.now() - alarms[0].ts < 3600e3;
-  return h("section.card" + (recent ? ".alarm" : ""), {},
-    h("div.card-head", {}, h("h2", {}, "Letzte Einsätze"), h("a.link", { href: "#/protokoll" }, "Alle")),
-    alarms.length === 0 ? h("p.hint", {}, "Bisher kein Alarm.")
-      : h("ul.log", {}, alarms.map((e) => h("li.alarm", {},
-          h("time", {}, fmtTime(e.ts)), h("span.ico", {}),
-          h("div", {}, e.text, h("small", {}, `${fmtDate(e.ts)} · ${fmtAgo(e.ts)} · ${e.detail}`))))),
-  );
-}
-
-function eventsCard() {
-  const ev = getLog().filter((e) => e.kind !== "alarm").slice(0, 6);
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Letzte Ereignisse"), h("a.link", { href: "#/protokoll" }, "Protokoll")),
-    ev.length === 0 ? h("p.hint", {}, "Noch nichts passiert.")
-      : h("ul.log", {}, ev.map((e) => h("li." + e.kind, {}, h("time", {}, fmtTime(e.ts)), h("span.ico", {}), h("div", {}, e.text, e.detail && h("small", {}, e.detail))))),
-  );
-}
-
-function zigbeeCard() {
-  const z = state.zigbee;
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, h("a", { href: "#/geraete", style: "text-decoration:none" }, "Licht & Geräte")), z ? chip("ok", `${z.length} Geräte`) : chip("", "noch nicht eingerichtet")),
-    z && z.length > 0
-      ? h("ul.rows.compact", {}, z.slice(0, 8).map((d) => h("li", {}, h("div.row-main", {}, h("b", {}, d.friendly_name), h("span.hint", {}, d.definition?.description || d.type)))))
-      : h("p.hint", {}, z ? "Zigbee2MQTT läuft, aber noch kein Gerät angelernt." : "Zigbee2MQTT auf der Zentrale starten, dann unter Geräte anlernen."),
-  );
-}
-
-function pcCard() {
-  const p = settings().pc;
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Bei Alarm am PC"), h("a.link", { href: "#/einstellungen" }, "Ändern")),
-    h("div.stat", {}, h("b", {}, ACTIONS[p.action]?.label), h("span", {}, `Countdown ${p.countdownSec} s · ohne Antwort ${p.onTimeout === "run" ? "ausführen" : "abbrechen"}`)),
   );
 }
 
@@ -231,21 +163,177 @@ function diveraCard() {
     h("small.meta", {}, d.unit || "Divera 24/7"));
 }
 
+/* ── Status-Karte: Aktiv / Verbindet / Inaktiv ─────────────────────────── */
+
+const ST_TEXT = { ok: "Aktiv", wait: "Verbindet", off: "Inaktiv" };
+const ST_ICON = { ok: "check", wait: "net", off: "pause" };
+let stopStatus = null;
+
+/** Pille unter dem Status. Liegt absolut in einem festen Platzhalter: der wechselnde Text
+ *  verschiebt nie Knöpfe oder Kennzahlen. */
+function statusPill() {
+  const kind = checkup.running ? "wait" : connectionFailed() ? "bad" : "ok";
+  const text = checkup.running ? checkup.line || "verbinde …"
+    : connectionFailed() ? "Verbindung fehlgeschlagen" : "Verbunden";
+  const pill = h("button.stpill." + kind, {
+    type: "button", title: connectionFailed() ? `Nicht erreichbar: ${checkup.failed.join(", ") || "Zentrale"} · tippen zum erneuten Prüfen` : "Tippen zum erneuten Prüfen",
+    onclick: () => { if (!checkup.running) runCheckup(); },
+  }, h("i", { "aria-hidden": "true" }),
+  h("span" + (checkup.running && checkup.lineOk === null ? ".cur" : ""), {},
+    checkup.running && checkup.lineOk !== null
+      ? [checkup.line.replace(/ (ok|fehlgeschlagen)$/u, " "), h("b." + (checkup.lineOk ? "ok" : "bad"), {}, checkup.lineOk ? "ok" : (checkup.line.endsWith("fehlgeschlagen") ? "fehlgeschlagen" : ""))]
+      : text));
+  return pill;
+}
+
+function statusCard() {
+  const vacation = Boolean(shared().vacation);
+  const kind = statusKind(vacation);
+  const slot = h("div.stslot", { "aria-live": "polite" }, statusPill());
+  const title = h("h2.st-title", {}, ST_TEXT[kind]);
+  const toggle = h("button.btn.st-toggle" + (kind === "off" ? ".primary" : ""), {
+    type: "button", disabled: kind === "wait",
+    title: kind === "off" ? "Alarme lösen wieder Abfrage, Routinen und Ton aus" : "Urlaubsmodus: alles bleibt verbunden, bei Alarm passiert nichts",
+    onclick: () => { updateShared({ vacation: !vacation }); toast(vacation ? "Aktiv – Alarme lösen wieder alles aus" : "Inaktiv – bei Alarm passiert nichts"); },
+  }, kind === "off" ? "Aktivieren" : "Inaktiv schalten");
+  const card = h("section.status-card", { "data-st": kind },
+    h("div.st-pulse", { "aria-hidden": "true" }, icon(ST_ICON[kind])),
+    h("div.st-text", {}, title, slot),
+    h("div.st-actions", {},
+      h("button.btn", { type: "button", onclick: testAlarm }, "Testalarm"),
+      toggle));
+  // Nur Pille und Zustand aktualisieren, nicht die ganze Seite (kein Springen während des Checks)
+  stopStatus?.();
+  stopStatus = on("checkup", () => {
+    if (!card.isConnected) { stopStatus?.(); stopStatus = null; return; }
+    const k = statusKind(Boolean(shared().vacation));
+    card.dataset.st = k;
+    title.textContent = ST_TEXT[k];
+    card.querySelector(".st-pulse").replaceChildren(icon(ST_ICON[k]));
+    slot.replaceChildren(statusPill());
+    toggle.disabled = k === "wait";
+  });
+  return card;
+}
+
+/* ── Kennzahlen ────────────────────────────────────────────────────────── */
+
+const kpi = (color, label, value, ratio) => h("div.kpi", { style: `--a:var(${color})` },
+  h("span.kpi-l", {}, label), h("b.kpi-n", {}, value),
+  h("span.kpi-bar", { "aria-hidden": "true" }, h("i", { style: `width:${Math.round(Math.max(0, Math.min(1, ratio || 0)) * 100)}%` })));
+
+function devicesOnline() {
+  const items = [];
+  if (has.pi()) for (const c of Object.values(state.clients)) if (c) items.push(Boolean(c.online));
+  if (has.esp()) for (const d of Object.values(state.devices)) items.push(Boolean(d.online));
+  if (has.direct() && !hasPcFeatures) for (const p of settings().direct.peers || []) items.push(Boolean(direct.peers[p.id]?.ok));
+  if (has.zigbee()) for (const v of Object.values(state.zavail)) items.push(v === "online");
+  return { on: items.filter(Boolean).length, all: items.length };
+}
+
+function kpis() {
+  const d = devicesOnline();
+  const devKpi = kpi("--c-pc", "Geräte online", d.all ? `${d.on}/${d.all}` : "–", d.all ? d.on / d.all : 0);
+  if (has.logbuch()) {
+    const y = new Date().getFullYear();
+    const all = statsEntries().filter((e) => !e.deleted);
+    const year = all.filter((e) => new Date(e.ts).getFullYear() === y);
+    const prev = all.filter((e) => new Date(e.ts).getFullYear() === y - 1).length;
+    const go = year.filter((e) => e.answer === "go").length;
+    const secs = year.filter((e) => e.answerTs).map((e) => (e.answerTs - e.ts) / 1000).filter((x) => x >= 0).toSorted((a, b) => a - b);
+    const med = secs.length ? Math.round(secs[Math.floor(secs.length / 2)]) : null;
+    return h("div.kpis", {},
+      kpi("--c-alarm", `Einsätze ${y}`, String(year.length), year.length / Math.max(prev, year.length, 1)),
+      kpi("--ok", "Gefahren", String(go), year.length ? go / year.length : 0),
+      kpi("--c-net", "Ø Antwortzeit", med == null ? "–" : `${med} s`, med == null ? 0 : 1 - Math.min(med, 60) / 60),
+      devKpi);
+  }
+  const log = getLog("alarm");
+  const a24 = log.filter((e) => Date.now() - e.ts < 86400e3).length;
+  const src = activeSources();
+  return h("div.kpis", {},
+    kpi("--c-alarm", "Alarme 24 h", String(a24), Math.min(a24 / 3, 1)),
+    kpi("--ok", "Alarme gesamt", String(log.length), log.length ? 1 : 0),
+    kpi("--c-net", "Alarmquellen", String(src.length), src.length / 4),
+    devKpi);
+}
+
+/* ── Licht & Geräte, Schnellaktionen, Zuletzt ─────────────────────────── */
+
+function deviceTiles() {
+  const tiles = [];
+  for (const d of (state.zigbee || []).filter((x) => x.type !== "Coordinator").slice(0, 6)) {
+    const name = d.friendly_name, st = state.zstate[name] || {};
+    if (!("state" in st)) continue;
+    const isOn = st.state === "ON";
+    const bri = Number.isFinite(st.brightness) ? ` · ${Math.round((st.brightness / 254) * 100)} %` : "";
+    tiles.push(h("button.dev" + (isOn ? ".on" : ""), { type: "button", "aria-pressed": String(isOn), onclick: () => setDevice(name, { state: isOn ? "OFF" : "ON", transition: 1 }) },
+      h("span.dev-h", {}, h("span.ico", { style: `--a:var(${isOn ? "--warn" : "--text-2"})` }, icon("bulb")), h("span.sw" + (isOn ? ".on" : ""), { "aria-hidden": "true" })),
+      h("b", {}, name), h("small", {}, isOn ? `an${bri}` : "aus")));
+  }
+  for (const d of (shared().wifi || []).slice(0, 6 - tiles.length)) {
+    tiles.push(h("div.dev", {},
+      h("span.dev-h", {}, h("span.ico", { style: "--a:var(--c-net)" }, icon("bulb")),
+        h("span.row", { style: "gap:6px" },
+          h("button.btn.small", { type: "button", onclick: () => wifiToggle(d, { on: true }) }, "An"),
+          h("button.btn.small", { type: "button", onclick: () => wifiToggle(d, { on: false }) }, "Aus"))),
+      h("b", {}, d.name), h("small", {}, "WLAN")));
+  }
+  return tiles;
+}
+
+const q = (color, ico, label, fn) => h("button.q", { type: "button", onclick: fn }, h("span.ico", { style: `--a:var(${color})` }, icon(ico)), h("span", {}, label));
+
+function quickActions() {
+  const manual = has.routines() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
+  const wakeable = has.pi() ? Object.values(state.clients).filter((c) => c && !c.online && c.mac) : [];
+  return [
+    ...manual.map((r) => q("--c-routine", "flow", r.name, () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); })),
+    ...wakeable.map((c) => q("--c-net", "pc", `${c.name} wecken`, () => wake(c))),
+    has.zigbee() && q("--ok", "home", "Wieder da", () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt")),
+  ].filter(Boolean);
+}
+
+const KIND_COLOR = { alarm: "--c-alarm", action: "--c-routine", warn: "--warn", info: "--c-net", ok: "--ok" };
+function recentPanel() {
+  const ev = getLog().slice(0, 5);
+  return h("section.panel", {},
+    h("div.panel-head", {}, h("h3", {}, "Zuletzt"), h("a.link", { href: "#/protokoll" }, "Protokoll ›")),
+    ev.length === 0 ? h("p.hint", {}, "Noch nichts passiert.")
+      : h("ol.tl", {}, ev.map((e) => h("li", { style: `--a:var(${KIND_COLOR[e.kind] || "--text-2"})` },
+          h("i", { "aria-hidden": "true" }),
+          h("div", {}, h("b", {}, e.text), e.detail && h("small", {}, e.detail)),
+          h("time.mono", {}, fmtTime(e.ts))))));
+}
+
+function devicesPanel() {
+  const tiles = has.zigbee() || has.wifi() ? deviceTiles() : [];
+  const quick = quickActions();
+  if (!tiles.length && !quick.length) return null;
+  return h("section.panel", {},
+    tiles.length > 0 && [
+      h("div.panel-head", {}, h("h3", {}, "Licht & Geräte"), h("a.link", { href: "#/geraete" }, "Alle ›")),
+      h("div.devs", {}, tiles)],
+    quick.length > 0 && [
+      h("div.panel-head", { style: tiles.length ? "margin-top:var(--s4)" : "" }, h("h3", {}, "Schnellaktionen")),
+      h("div.quick", {}, quick)]);
+}
+
 export function overview() {
   const s = settings();
   if (divera.current === null && has.diveraApi() && !divera.loading) { divera.loading = true; loadDivera().catch(() => {}); }
-  return h("div.page", {},
-    h("header.page-head", {},
-      h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, s.device.name || platformName, has.pi() && " · Kennung ", has.pi() && h("code", {}, s.alarm.me))),
-      h("div.row", {}, themeToggle("only-mobile")),
-    ),
+  const left = devicesPanel();
+  return h("div.page.home", {},
+    h("h1.sr-only", {}, `Start · ${s.device.name || platformName}`),
+    statusCard(),
+    answerCard(),
     update.available && updateBanner(),
     needsSetup() && setupCard(),
-    answerCard(),
-    tiles(),
-    h("div.dash", {},
-      h("div.dash-main", {}, alarmsCard(), has.esp() && (has.tuya() ? tuyaCard() : espCard()), has.zigbee() && zigbeeCard()),
-      h("div.dash-side", {}, has.diveraApi() && diveraCard(), quickCard(), hasPcFeatures && pcCard(), has.pi() && appsCard(), eventsCard()),
-    ),
+    kpis(),
+    h("div.home-cols" + (left ? "" : ".single"), {}, left, recentPanel()),
+    h("div.home-more", {},
+      has.diveraApi() && diveraCard(),
+      has.esp() && (has.tuya() ? tuyaCard() : espCard()),
+      has.pi() && appsCard()),
   );
 }

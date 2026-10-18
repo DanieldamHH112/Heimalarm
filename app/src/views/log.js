@@ -1,9 +1,10 @@
 import { has } from "../core/features.js";
 import { h, fmtTime, fmtDate, toast } from "../ui/dom.js";
-import { field, dialog, copyText, download, ask } from "../ui/form.js";
+import { field, copyText, download, ask } from "../ui/form.js";
 import { getLog, clearLog } from "../core/log.js";
 import { state } from "../core/mqtt.js";
 import { isAndroid } from "../core/platform.js";
+import { icon } from "../ui/icons.js";
 import {
   statsEntries, getEinsatz, editEinsatz, deleteEinsatz, clearStats,
   summary, years, yearReview, category, toCsv, ANSWER_TEXT, unitsOf,
@@ -26,38 +27,49 @@ const row = (label, value, mono) => value != null && value !== "" && h("div.kv",
 const fact = (label, value) => value && h("li", {}, h("span", {}, label), h("b", {}, value));
 const head = (sub, action) => h("header.page-head", {}, h("div", {}, h("h1", {}, "Protokoll"), h("p", {}, sub)), action);
 
-function detailDialog(id, rerender) {
+const ANSWER_COLOR = { go: "--ok", stay: "--text-2" };
+
+/** Einsatz-Details als Seite (rechte Spalte bzw. Unterseite am Handy). */
+function detailPane(id, rerender) {
   const e = getEinsatz(id);
-  if (!e) return;
+  if (!e) return h("p.empty", {}, "Einsatz nicht gefunden.");
   const vehicle = h("input.input", { value: e.vehicle || "", placeholder: "z. B. HLF 20" });
   const role = h("input.input", { value: e.role || "", placeholder: "z. B. Atemschutz, Maschinist" });
   const note = h("textarea.input", { rows: 4, placeholder: "Was war los, was ist aufgefallen …" });
   note.value = e.note || "";
   const reaction = e.answerTs ? Math.round((e.answerTs - e.ts) / 1000) : null;
-  const close = dialog(e.keyword || "Einsatz",
-    h("dl.kvs", {},
-      row("Zeit", `${fmtDay(e.ts)}, ${fmtTime(e.ts)}`),
-      row("Art", category(e)),
-      row("Stichwort", e.keyword),
-      row(unitsOf(e).length > 1 ? "Einheiten" : "Einheit", unitsOf(e).join(", ")),
-      row("Rückalarm", e.recall && `${fmtHm(e.recall)} – Einsatz zurückgenommen`),
-      row("Alarmende", e.endTs && `${fmtDay(e.endTs)}, ${fmtHm(e.endTs)}`),
-      row("Adresse", e.address),
-      row("Text", e.text),
-      row("Quellen", (e.sources || [e.source]).filter(Boolean).join(", ")),
-      row("Antwort", ANSWER_TEXT[e.answer]),
-      row("Reaktion", reaction != null && reaction >= 0 ? fmtSec(reaction) : null),
-      row("Empfangen auf", [e.device, e.via && `über ${e.via}`].filter(Boolean).join(" ")),
-      row("Alarm-App", e.app, true),
-      row("Divera-ID", e.diveraId, true),
-      ...Object.entries(e.details || {}).map(([k, v]) => row(k, v, true))),
-    e.address && h("div.row", {}, h("a.btn.small.ghost", { href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e.address)}`, target: "_blank", rel: "noopener" }, "Adresse in Karte öffnen")),
-    field("Fahrzeug", vehicle),
-    field("Funktion", role),
-    field("Notiz", note, "Nur für dich – wird mit deinen anderen Geräten abgeglichen."),
-    h("div.row", {},
-      h("button.btn.primary", { onclick: () => { editEinsatz(id, { vehicle: vehicle.value.trim(), role: role.value.trim(), note: note.value.trim() }); close(); rerender(); toast("Gespeichert"); } }, "Speichern"),
-      h("button.btn.ghost.danger", { onclick: async () => { if (await ask("Diesen Einsatz löschen?")) { deleteEinsatz(id); close(); rerender(); } } }, "Löschen")));
+  const sources = (e.sources || [e.source]).filter(Boolean).join(", ");
+  return [
+    h("a.split-back", { href: "#/protokoll" }, icon("back"), "Protokoll"),
+    h("div.split-head", {},
+      h("span.ico.big", { style: "--a:var(--c-alarm)" }, icon("bell")),
+      h("div", { style: "min-width:0;flex:1" }, h("p.crumb", {}, `${fmtDay(e.ts)} · ${fmtTime(e.ts)}${e.address ? " · " + e.address : ""}`), h("h2", {}, e.keyword || "Einsatz")),
+      e.recall ? h("span.chip.warn", {}, "Rückalarm") : e.answer && h("span.chip" + (e.answer === "go" ? ".ok" : ""), { style: `--a:var(${ANSWER_COLOR[e.answer] || "--text-2"})` }, ANSWER_TEXT[e.answer])),
+    h("div.facts-row", {},
+      h("div.fact", {}, h("span", {}, "Antwort nach"), h("b.mono", {}, reaction != null && reaction >= 0 ? fmtSec(reaction) : "–")),
+      h("div.fact", {}, h("span", {}, "Art"), h("b", {}, category(e) || "–")),
+      h("div.fact", {}, h("span", {}, "Quellen"), h("b", {}, sources || "–"))),
+    h("section.card", {},
+      h("dl.kvs", {},
+        row("Stichwort", e.keyword),
+        row(unitsOf(e).length > 1 ? "Einheiten" : "Einheit", unitsOf(e).join(", ")),
+        row("Rückalarm", e.recall && `${fmtHm(e.recall)} – Einsatz zurückgenommen`),
+        row("Alarmende", e.endTs && `${fmtDay(e.endTs)}, ${fmtHm(e.endTs)}`),
+        row("Adresse", e.address),
+        row("Text", e.text),
+        row("Empfangen auf", [e.device, e.via && `über ${e.via}`].filter(Boolean).join(" ")),
+        row("Alarm-App", e.app, true),
+        row("Divera-ID", e.diveraId, true),
+        ...Object.entries(e.details || {}).map(([k, v]) => row(k, v, true))),
+      e.address && h("div.row", {}, h("a.btn.small.ghost", { href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e.address)}`, target: "_blank", rel: "noopener" }, "Adresse in Karte öffnen"))),
+    h("section.card", {},
+      h("h3", {}, "Notiz"),
+      h("div.fields", {}, field("Fahrzeug", vehicle), field("Funktion", role)),
+      field("Notiz", note, "Nur für dich – wird mit deinen anderen Geräten abgeglichen."),
+      h("div.row", {},
+        h("button.btn.primary", { onclick: () => { editEinsatz(id, { vehicle: vehicle.value.trim(), role: role.value.trim(), note: note.value.trim() }); toast("Gespeichert"); rerender(); } }, "Speichern"),
+        h("button.btn.ghost.danger", { onclick: async () => { if (await ask("Diesen Einsatz löschen?")) { deleteEinsatz(id); location.hash = "#/protokoll"; rerender(); } } }, "Löschen"))),
+  ];
 }
 
 // ── Einsätze-Ansicht ────────────────────────────────────────────────────────
@@ -125,20 +137,35 @@ async function exportCsv(year) {
   toast(`${name} gespeichert`);
 }
 
-function einsaetzeList(rerender) {
+const dayStart = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+const dayLabel = (ts) => {
+  const d = new Date(ts), now = new Date();
+  const start = dayStart;
+  const diff = Math.round((start(now) - start(d)) / 86400e3);
+  if (diff === 0) return "Heute";
+  if (diff === 1) return "Gestern";
+  if (diff < 7) return "Diese Woche";
+  return d.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+};
+
+function einsaetzeList(selected, rerender) {
   const items = statsEntries().filter((e) => !e.deleted).toReversed();
-  if (!items.length) return h("section.card", {}, h("p.empty", {}, "Noch kein Einsatz. Jede echte Alarmierung landet hier mit allen Infos – Tests nicht."));
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Einsätze"), h("span.meta", {}, `${items.length} gespeichert`)),
-    h("ul.einsaetze", {}, items.slice(0, shown).map((e) => h("li", {},
-      h("button.einsatz", { onclick: () => detailDialog(e.id, rerender) },
-        h("span.einsatz-time", {}, h("b", {}, fmtHm(e.ts)), h("small", {}, fmtDay(e.ts))),
-        h("span.einsatz-main", {},
-          h("b", {}, e.keyword || "Alarm"),
-          h("small", {}, [category(e), e.address, (e.sources || [e.source]).filter(Boolean).join(", ")].filter(Boolean).join(" · ")),
-          (e.note || e.vehicle) && h("small.einsatz-note", {}, [e.vehicle, e.role, e.note].filter(Boolean).join(" · "))),
-        e.recall ? h("span.chip.warn", {}, "Rückalarm") : e.answer && h("span.chip" + (e.answer === "go" ? ".ok" : ""), {}, ANSWER_TEXT[e.answer]))))),
-    items.length > shown && h("div.row", {}, h("button.btn.small.ghost", { onclick: () => { shown += 30; rerender(); } }, `Weitere ${Math.min(30, items.length - shown)} anzeigen`)));
+  if (!items.length) return h("p.empty", {}, "Noch kein Einsatz. Jede echte Alarmierung landet hier mit allen Infos – Tests nicht.");
+  const out = [];
+  let group = "";
+  for (const e of items.slice(0, shown)) {
+    const g = dayLabel(e.ts);
+    if (g !== group) { group = g; out.push(h("div.split-grp", {}, g)); }
+    const gone = e.answer === "go";
+    out.push(h("a.split-item", { href: `#/protokoll/${e.id}`, "aria-current": selected === e.id ? "page" : null },
+      h("span.ico", { style: `--a:var(${e.recall ? "--warn" : e.answer && !gone ? "--text-2" : "--c-alarm"})` }, icon("bell")),
+      h("span.split-item-text", {}, h("b", {}, e.keyword || "Alarm"),
+        h("small", {}, [(e.sources || [e.source]).filter(Boolean)[0], e.recall ? "Rückalarm" : ANSWER_TEXT[e.answer]].filter(Boolean).join(" · ") || category(e))),
+      h("time.mono.small", {}, dayLabel(e.ts) === "Heute" ? fmtHm(e.ts) : new Date(e.ts).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })),
+      h("span.chev", {}, icon("chev"))));
+  }
+  if (items.length > shown) out.push(h("button.btn.small.ghost", { style: "margin:8px", onclick: () => { shown += 30; rerender(); } }, `Weitere ${Math.min(30, items.length - shown)} anzeigen`));
+  return h("nav.split-nav", { "aria-label": "Einsätze" }, out);
 }
 
 // ── Seite ──────────────────────────────────────────────────────────────────
@@ -150,16 +177,34 @@ export function logView(rerender) {
     FILTERS.filter(([, , show]) => !show || show()).map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; shown = 20; rerender(); } }, label)));
 
   if (filter === "einsaetze") {
-    const any = statsEntries().some((e) => !e.deleted);
-    return h("div.page", {},
-      head(has.stats() ? "Jede Alarmierung mit allen Infos, Notizen und Statistik." : "Jede Alarmierung mit allen Infos und Notizen."),
-      tabs,
-      einsaetzeList(rerender),
-      any && has.stats() && statsCard(rerender),
-      any && has.stats() && reviewCard(rerender),
-      any && !has.stats() && h("section.card", {}, h("div.card-head", {}, h("h2", {}, "Export")),
+    const all = statsEntries().filter((e) => !e.deleted).toReversed();
+    const anchor = location.hash.replace("#/", "").split("/")[1] || "";
+    const isPhone = window.matchMedia("(max-width: 760px)").matches;
+    // rechts: gewählter Einsatz, „statistik“ oder (am PC) der neueste
+    const sel = anchor === "statistik" ? "statistik" : all.find((e) => e.id === anchor)?.id || (isPhone ? null : all[0]?.id || (has.stats() ? "statistik" : null));
+    const list = h("aside.split-list", {},
+      h("h1", {}, "Protokoll"),
+      h("div", { style: "padding:0 4px 12px" }, tabs),
+      has.stats() && all.length > 0 && h("nav.split-nav", { style: "margin-bottom:8px" },
+        h("a.split-item", { href: "#/protokoll/statistik", "aria-current": sel === "statistik" ? "page" : null },
+          h("span.ico", { style: "--a:var(--c-net)" }, icon("chart")),
+          h("span.split-item-text", {}, h("b", {}, "Statistik & Rückblick"), h("small", {}, `${all.length} Einsätze gespeichert`)),
+          h("span.chev", {}, icon("chev")))),
+      einsaetzeList(sel, rerender));
+    let detail = null;
+    if (sel === "statistik") {
+      detail = h("section.split-detail", {},
+        h("a.split-back", { href: "#/protokoll" }, icon("back"), "Protokoll"),
+        h("div.split-head", {}, h("span.ico.big", { style: "--a:var(--c-net)" }, icon("chart")), h("div", {}, h("p.crumb", {}, "Protokoll"), h("h2", {}, "Statistik & Rückblick"))),
+        statsCard(rerender), reviewCard(rerender));
+    } else if (sel) {
+      detail = h("section.split-detail", {}, ...detailPane(sel, rerender));
+    } else if (!isPhone && all.length && !has.stats()) {
+      detail = h("section.split-detail", {}, h("section.card", {}, h("div.card-head", {}, h("h2", {}, "Export")),
         h("p.hint", {}, "Alle Einsätze als Tabelle für Excel. Statistik und Jahresrückblick lassen sich unter Einstellungen → Funktionen einschalten."),
         h("div.row", {}, h("button.btn.small", { onclick: () => exportCsv() }, "CSV exportieren"))));
+    }
+    return h("div.split" + (detail && sel ? ".has-detail" : ""), {}, list, detail || h("section.split-detail.empty-pane", {}, h("p.empty", {}, "Einsatz links auswählen.")));
   }
 
   const items = filter === "zentrale" ? state.zlog.filter(Boolean) : getLog(filter);

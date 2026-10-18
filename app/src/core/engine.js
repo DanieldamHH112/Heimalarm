@@ -12,6 +12,7 @@ import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
+import { shared } from "./shared.js";
 import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
 
 const lastByWho = new Map();
@@ -76,6 +77,8 @@ function handleAlarm(a) {
   emit("alarm", engine.last);
   if (own && !test && !probe) recordAlarm(a);   // Einsatz-Statistik
 
+  // Inaktiv (Urlaubsmodus, Start → „Inaktiv schalten“): verbunden, aber bei Alarm passiert nichts
+  if (shared().vacation && !test && !probe) { log("info", "Inaktiv (Urlaubsmodus) – keine Abfrage, kein Ton"); return; }
   if (forThisPc && hasPcFeatures) {
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
     emit("takeover", engine.last);

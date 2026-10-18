@@ -20,6 +20,8 @@ import { divera, loadDivera, restartDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
 import qrcode from "qrcode-generator";
 import { toneSettings, percentSlider } from "../ui/tone.js";
+import { icon } from "../ui/icons.js";
+import { activeSources } from "../core/features.js";
 
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$|[a-z0-9-]+\.local$|[a-z0-9-]+$)/iu;
 let hibernateOn = null;
@@ -596,6 +598,29 @@ function darstellung() {
     h("div.field", {}, h("span", {}, "Farbschema"), segmented([["dark", "Dunkel"], ["light", "Hell"]], get("ui.theme"), (v) => { set("ui.theme", v); applyTheme(); })));
 }
 
+/* ── Gruppen: links die Liste, rechts genau eine Seite (Handy: Liste → Unterseite) ── */
+const GROUPS = () => [
+  { id: "alarm", label: "Alarm & Quellen", icon: "bell", color: "--c-alarm", sections: ["quellen", "alarm", "esp32", "funktionen"],
+    sub: () => activeSources().join(", ") || "Noch keine Quelle" },
+  { id: "betrieb", label: "Betrieb & Verbindung", icon: "net", color: "--c-net", sections: ["betrieb", "verbindung", "zentrale"],
+    sub: () => (mode() === "direkt" ? "Ohne Zentrale" : mode() === "zentrale" ? (state.connected ? "Mit Zentrale · verbunden" : isConfigured() ? "Mit Zentrale · getrennt" : "Mit Zentrale · nicht eingerichtet") : "Noch nicht gewählt"),
+    warn: () => isConfigured() && !state.connected },
+  { id: "geraet", label: hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät", icon: hasPcFeatures ? "pc" : "phone", color: hasPcFeatures ? "--c-pc" : "--c-phone",
+    sections: ["pc", "android", "geraet"],
+    sub: () => (hasPcFeatures ? `${ACTIONS[settings().pc.action]?.label} nach ${settings().pc.countdownSec} s` : android?.batteryOptimized ? "Akku-Optimierung aktiv" : settings().device.name || "Name, Benachrichtigung, Abgleich"),
+    warn: () => (hasPcFeatures && settings().pc.action === "hibernate" && hibernateOn === false) || Boolean(android?.batteryOptimized) },
+  { id: "personen", label: "Personen", icon: "people", color: "--c-people", sections: ["personen"],
+    sub: () => { const n = (shared().persons || []).length; return n ? `${n} ${n === 1 ? "Person" : "Personen"}` : "Nur du"; } },
+  { id: "sprache", label: "Alexa & Google", icon: "voice", color: "--c-voice", sections: ["sprache"],
+    sub: () => (state.voice?.commissioned ? "Gekoppelt" : shared().voicemonkey?.token ? "Voice Monkey" : "Nicht eingerichtet") },
+  { id: "sicherheit", label: "Sicherheit & Backup", icon: "lock", color: "--c-safe", sections: ["sicherheit", "backup"],
+    sub: () => (settings().lock?.pinHash || settings().lock?.biometric ? "App-Sperre an" : "App-Sperre aus") },
+  { id: "darstellung", label: "Darstellung & Updates", icon: "paint", color: "--c-app", sections: ["darstellung", "updates"], app: true,
+    sub: () => `${get("ui.theme") === "light" ? "Hell" : "Dunkel"} · Version ${APP_VERSION}`, warn: () => Boolean(update.available) },
+];
+
+const isPhone = () => window.matchMedia("(max-width: 760px)").matches;
+
 export function settingsView(rerender) {
   const z = mode() === "zentrale";
   /** Abschnitt, der sich bei Änderungen allein neu zeichnet: Fokus, Scroll-Position und offene Regler
@@ -606,58 +631,82 @@ export function settingsView(rerender) {
     const re = () => {
       if (!el?.isConnected) return rerender();
       const next = fn(re);
-      sectionObserver?.unobserve(el);
       el.replaceWith(next); el = next;
-      sectionObserver?.observe(next);
       applySearch();
     };
     el = fn(re);
     return el;
   };
-  const parts = [
-    ["betrieb", "Betrieb", betrieb(rerender)],
-    z && ["verbindung", "Verbindung", verbindung(rerender)],
-    ["quellen", "Alarmquellen", quellen(rerender)],
-    ["funktionen", "Funktionen", funktionen(rerender)],
-    ["alarm", "Alarm", alarm()],
-    isConfigured() && ["esp32", "ESP32", esp32()],
-    hasPcFeatures && ["pc", "PC", part(pc)],
-    isTauri && isAndroid && ["android", "Android", part(androidSection)],
-    ["geraet", "Dieses Gerät", geraet()],
-    ["personen", "Personen", part(personen)],
-    ["sprache", "Alexa & Google", part(sprache)],
-    z && ["zentrale", "Zentrale", part(zentrale)],
-    ["sicherheit", "Sicherheit", part(sicherheit)],
-    ["backup", "Backup", part(backup)],
-    isTauri && ["updates", "Updates", part(updates)],
-    ["darstellung", "Darstellung", darstellung()],
-  ].filter(Boolean);
-  const index = h("nav.section-index", { "aria-label": "Abschnitte" },
-    h("ol", {}, parts.map(([id, label]) => h("li", {}, h("a", {
-      href: `#/einstellungen/${id}`, "data-id": id,
-      // Ohne Hash-Wechsel scrollen: sonst springt jede spätere Änderung wieder zum Abschnitt zurück.
-      onclick: (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); markSection(index, id); },
-    }, label)))));
-  queueMicrotask(() => { watchSections(index, parts.map(([id]) => id)); applySearch(); });
-  const empty = h("p.empty.search-empty", { hidden: true }, "Nichts gefunden. Anderen Begriff versuchen, z. B. „PIN“, „Alexa“ oder „Kennung“.");
+  // Nur die Abschnitte der sichtbaren Gruppe bauen (spart Abfragen beim Öffnen)
+  const BUILD = {
+    betrieb: () => betrieb(rerender),
+    verbindung: () => z && verbindung(rerender),
+    quellen: () => quellen(rerender),
+    funktionen: () => funktionen(rerender),
+    alarm: () => alarm(),
+    esp32: () => isConfigured() && esp32(),
+    pc: () => hasPcFeatures && part(pc),
+    android: () => isTauri && isAndroid && part(androidSection),
+    geraet: () => geraet(),
+    personen: () => part(personen),
+    sprache: () => part(sprache),
+    zentrale: () => z && part(zentrale),
+    sicherheit: () => part(sicherheit),
+    backup: () => part(backup),
+    updates: () => isTauri && part(updates),
+    darstellung: () => darstellung(),
+  };
+  const groups = GROUPS();
+  const anchor = location.hash.replace("#/", "").split("/")[1] || "";
+  const current = groups.find((g) => g.id === anchor || g.sections.includes(anchor)) || (isPhone() ? null : groups[0]);
+  const searching = query.trim().length > 0;
+
   const searchField = h("input.input", {
     type: "search", value: query, placeholder: "Einstellung suchen …", "aria-label": "Einstellungen durchsuchen",
     autocomplete: "off", spellcheck: "false", enterkeyhint: "search",
-    oninput: (e) => { query = e.target.value; applySearch(); },
-    onkeydown: (e) => { if (e.key === "Escape") { query = ""; e.target.value = ""; applySearch(); } },
+    // Beim ersten Buchstaben in die Ergebnisansicht wechseln, danach nur filtern (Fokus bleibt im Feld)
+    oninput: (e) => { const was = query.trim().length > 0; query = e.target.value; if (was !== query.trim().length > 0) { rerender(); queueMicrotask(() => { const f = document.querySelector(".split-list input[type=search]"); f?.focus(); f?.setSelectionRange(f.value.length, f.value.length); }); } else applySearch(); },
+    onkeydown: (e) => { if (e.key === "Escape") { query = ""; rerender(); } },
   });
-  const top = h("div.settings-top", {},
-    h("header.page-head", {}, h("div", {}, h("h1", {}, "Einstellungen"), h("p", {}, "Änderungen werden sofort gespeichert.")),
-      h("a.btn", { href: "#/diagnose" }, "Test & Diagnose")),
-    h("label.search", {}, SEARCH_ICON(), searchField));
-  // Höhe der fixierten Kopfzeile für Abschnittsliste und Sprungziele bereitstellen.
-  if (typeof ResizeObserver === "function") {
-    new ResizeObserver(() => document.documentElement.style.setProperty("--settings-top-h", `${top.offsetHeight}px`)).observe(top);
+  const item = (g) => h("a.split-item", {
+    href: `#/einstellungen/${g.id}`, "aria-current": !searching && current?.id === g.id ? "page" : null,
+    onclick: () => { query = ""; },
+  },
+  h("span.ico", { style: `--a:var(${g.color})` }, icon(g.icon)),
+  h("span.split-item-text", {}, h("b", {}, g.label), h("small" + (g.warn?.() ? ".warn" : ""), {}, g.sub())),
+  g.warn?.() && h("span.dot", { title: "Braucht Aufmerksamkeit" }),
+  h("span.chev", {}, icon("chev")));
+
+  const list = h("aside.split-list", { "aria-label": "Bereiche" },
+    h("h1", {}, "Einstellungen"),
+    h("label.search", {}, SEARCH_ICON(), searchField),
+    h("nav.split-nav", {},
+      groups.filter((g) => !g.app).map(item),
+      h("div.split-grp", {}, "App"),
+      groups.filter((g) => g.app).map(item),
+      h("a.split-item", { href: "#/diagnose" }, h("span.ico", { style: "--a:var(--c-app)" }, icon("tool")),
+        h("span.split-item-text", {}, h("b", {}, "Test & Diagnose"), h("small", {}, "Testalarm, Probe, Verbindungstest")),
+        h("span.chev", {}, icon("chev")))));
+
+  let detail = null;
+  if (searching) {
+    const all = groups.flatMap((g) => g.sections.map((id) => BUILD[id]())).filter(Boolean);
+    detail = h("section.split-detail", {},
+      h("div.split-head", {}, h("h2", {}, "Suchergebnisse")),
+      h("div.settings-body", {}, ...all,
+        h("p.empty.search-empty", { hidden: true }, "Nichts gefunden. Anderen Begriff versuchen, z. B. „PIN“, „Alexa“ oder „Kennung“.")));
+    queueMicrotask(applySearch);
+  } else if (current) {
+    const secs = current.sections.map((id) => BUILD[id]()).filter(Boolean);
+    detail = h("section.split-detail", { style: `--a:var(${current.color})` },
+      h("a.split-back", { href: "#/einstellungen" }, icon("back"), "Einstellungen"),
+      h("div.split-head", {}, h("span.ico.big", { style: `--a:var(${current.color})` }, icon(current.icon)),
+        h("div", {}, h("p.crumb", {}, "Einstellungen"), h("h2", {}, current.label))),
+      h("p.split-sub", {}, current.sub(), " · Änderungen werden sofort gespeichert."),
+      h("div.settings-body", {}, ...secs));
+    queueMicrotask(() => highlight([], []));
   }
-  return h("div.page", {},
-    top,
-    h("div.settings-layout", {}, index, h("div.settings-body", {}, ...parts.map(([, , el]) => el), empty)),
-  );
+  return h("div.split" + (searching ? ".searching" : detail ? ".has-detail" : ""), {}, list, detail);
 }
 
 /* ── Suche: blendet Abschnitte aus, die nicht passen, und markiert Treffer ── */
@@ -692,14 +741,13 @@ const norm = (t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,
 function applySearch() {
   const q = norm(query.trim());
   const words = q.split(/\s+/).filter(Boolean);
-  const sections = [...document.querySelectorAll(".settings-body > .section")];
+  const sections = [...document.querySelectorAll(".split-detail .settings-body > .section")];
   let shown = 0;
   for (const sec of sections) {
     const hay = norm(sec.textContent + " " + (KEYWORDS[sec.id] || ""));
     const hit = words.every((w) => hay.includes(w));
     sec.hidden = !hit;
     if (hit) shown++;
-    document.querySelector(`.section-index a[data-id="${sec.id}"]`)?.closest("li")?.toggleAttribute("hidden", !hit);
   }
   const empty = document.querySelector(".search-empty");
   if (empty) empty.hidden = shown > 0;
@@ -723,26 +771,4 @@ function highlight(sections, words) {
     }
   }
   CSS.highlights.set("suche", new Highlight(...ranges));
-}
-
-/* Aktiven Abschnitt in der Abschnittsliste markieren (folgt dem Scrollen). */
-let sectionObserver = null;
-function markSection(index, id) {
-  index.querySelectorAll("a").forEach((a) => {
-    const on = a.dataset.id === id;
-    if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
-    // In der waagerechten Leiste (Handy) den aktiven Eintrag sichtbar halten
-    if (on && index.scrollWidth > index.clientWidth) index.scrollTo({ left: a.offsetLeft - 16, behavior: "smooth" });
-  });
-}
-function watchSections(index, ids) {
-  sectionObserver?.disconnect();
-  const visible = new Map();
-  sectionObserver = new IntersectionObserver((entries) => {
-    for (const e of entries) visible.set(e.target.id, e.isIntersecting ? e.boundingClientRect.top : null);
-    const top = ids.find((id) => visible.get(id) != null);
-    if (top) markSection(index, top);
-  }, { rootMargin: "-20% 0px -60% 0px" });
-  ids.forEach((id) => { const el = document.getElementById(id); if (el) sectionObserver.observe(el); });
-  markSection(index, ids[0]);
 }

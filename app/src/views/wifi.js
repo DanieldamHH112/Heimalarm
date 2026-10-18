@@ -8,7 +8,7 @@ import { WIFI_TYPES, wifiSet, huePair, hueTargets } from "../core/wifi.js";
 
 const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch)(...a);
 const save = (list) => updateShared({ wifi: list });
-const doSet = (d, state) => wifiSet(d, state, fetchFn).then(() => toast(`${d.name}: ${state.on ? "an" : "aus"}`)).catch((e) => toast(`${d.name}: ${e.message}`));
+export const doSet = (d, state) => wifiSet(d, state, fetchFn).then(() => toast(`${d.name}: ${state.on ? "an" : "aus"}`)).catch((e) => toast(`${d.name}: ${e.message}`));
 
 function addDialog(rerender, existing) {
   const d = existing ? structuredClone(existing) : { id: newId(), name: "", type: "shelly", host: "", user: "", target: "" };
