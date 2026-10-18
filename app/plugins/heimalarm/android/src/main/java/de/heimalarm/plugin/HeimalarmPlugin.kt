@@ -155,6 +155,8 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         val args = invoke.parseArgs(ServiceArgs::class.java)
         val intent = Intent(activity, KeepAliveService::class.java)
         if (args.enabled) {
+            // Läuft schon: nicht neu starten, sonst sendet Android die Mitteilung erneut.
+            if (KeepAliveService.running) { invoke.resolve(JSObject()); return }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) activity.startForegroundService(intent)
             else activity.startService(intent)
         } else {

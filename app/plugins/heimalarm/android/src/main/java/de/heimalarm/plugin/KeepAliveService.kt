@@ -13,7 +13,8 @@ import android.os.IBinder
 class KeepAliveService : Service() {
     companion object {
         var running = false
-        private const val CHANNEL = "heimalarm_dienst"
+        private const val CHANNEL = "heimalarm_dienst_still"
+        private const val OLD_CHANNEL = "heimalarm_dienst"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -21,7 +22,13 @@ class KeepAliveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Heimalarm im Hintergrund", NotificationManager.IMPORTANCE_LOW))
+            // Alter Kanal (IMPORTANCE_LOW) konnte als Pop-up erscheinen; Wichtigkeit lässt sich nicht nachträglich ändern.
+            nm.deleteNotificationChannel(OLD_CHANNEL)
+            val ch = NotificationChannel(CHANNEL, "Heimalarm im Hintergrund", NotificationManager.IMPORTANCE_MIN)
+            ch.setShowBadge(false)
+            ch.setSound(null, null)
+            ch.enableVibration(false)
+            nm.createNotificationChannel(ch)
         }
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, CHANNEL) else Notification.Builder(this)
         val notification = builder
@@ -29,6 +36,12 @@ class KeepAliveService : Service() {
             .setContentText("Empfängt Alarme im Hintergrund")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setPriority(Notification.PRIORITY_MIN)
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .setVisibility(Notification.VISIBILITY_SECRET)
+            .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_DEFERRED) }
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)

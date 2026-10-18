@@ -73,6 +73,7 @@ object Native {
     }
 
     fun startService(ctx: Context) {
+        if (KeepAliveService.running) return
         val intent = Intent(ctx, KeepAliveService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(intent) else ctx.startService(intent)
     }
