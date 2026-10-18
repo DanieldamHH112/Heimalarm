@@ -388,9 +388,12 @@ function pc(rerender) {
     h("div.fields", {},
       field("Überschrift", text("pc.title")), field("Knopf „fahren“", text("pc.goText")), field("Knopf „bleiben“", text("pc.stayText"))),
     toggle("pc.sound", "Ton während des Countdowns", "Gut hörbar, auch mit Kopfhörern (D5)."),
-    p.sound && h("div.field", {}, h("span", {}, `Lautstärke ${p.volume} %`),
-      h("div.row", {}, h("input", { type: "range", min: 10, max: 100, value: p.volume, style: "flex:1;accent-color:var(--signal)", onchange: (e) => { set("pc.volume", Number(e.target.value)); rerender(); } }),
-        h("button.btn.small", { onclick: () => playAlarmTone(1500) }, "Ton testen"))),
+    p.sound && (() => {
+      const label = h("span", {}, `Lautstärke ${p.volume} %`);
+      return h("div.field", {}, label,
+      h("div.row", {}, h("input", { type: "range", min: 10, max: 100, value: p.volume, style: "flex:1;accent-color:var(--signal)", "aria-label": "Lautstärke", oninput: (e) => { label.textContent = `Lautstärke ${e.target.value} %`; }, onchange: (e) => set("pc.volume", Number(e.target.value)) }),
+        h("button.btn.small", { onclick: () => playAlarmTone(1500) }, "Ton testen")));
+    })(),
     toggle("pc.stopMedia", "Medien vorher stoppen", "Musik und Videos anhalten (D8)."),
     field("Ausnahmen", text("pc.exceptions", { placeholder: "z. B. obs64.exe, Teams.exe" }), "Läuft eines davon, wird der PC nur gesperrt (D7)."),
     h("div.fields", {},
