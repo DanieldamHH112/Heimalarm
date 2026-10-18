@@ -22,6 +22,9 @@ import qrcode from "qrcode-generator";
 import { toneSettings, percentSlider } from "../ui/tone.js";
 import { icon } from "../ui/icons.js";
 import { activeSources } from "../core/features.js";
+import { discordSection } from "./discord.js";
+import { hassSection } from "./hass.js";
+import { discord } from "../core/discord.js";
 
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$|[a-z0-9-]+\.local$|[a-z0-9-]+$)/iu;
 let hibernateOn = null;
@@ -306,10 +309,10 @@ function sprache(rerender) {
   const vm = shared().voicemonkey || {};
   const vmItem = h("div.item", {},
     h("div.item-head", {}, h("b", {}, "Alexa über Voice Monkey"), h("span.chip" + (vm.token ? ".ok" : ""), {}, vm.token ? "eingerichtet" : "aus")),
-    h("p.meta", {}, "Startet Alexa-Routinen per Internet – geht auch ohne Zentrale. In Routinen als Aktion „+ Alexa“."),
+    h("p.meta", {}, "Geht auch ohne Zentrale. In Routinen: „+ Alexa sagt an“ liest Stichwort und Adresse vor, „+ Alexa-Routine“ startet eine Routine."),
     field("API-Token", h("input.input", { type: "password", autocomplete: "off", value: vm.token || "", placeholder: "aus voicemonkey.io → Dashboard → API",
       onchange: async (e) => { if (await requireAdmin()) { updateShared({ voicemonkey: { token: e.target.value.trim() } }); rerender(); } } }),
-      "In Voice Monkey einen „Routine Trigger“ anlegen und in der Alexa-App als Auslöser einer Routine wählen."));
+      "Ansage: in Voice Monkey unter Devices einen „Speaker“ für deinen Echo anlegen. Routine: einen „Routine Trigger“ anlegen und in der Alexa-App als Auslöser wählen."));
   if (!has.pi()) {
     return section("sprache", "Alexa & Google Home", "Ohne Zentrale über Voice Monkey (Alexa). Matter und Google brauchen die Zentrale.", vmItem);
   }
@@ -613,8 +616,10 @@ const GROUPS = () => [
     warn: () => (hasPcFeatures && settings().pc.action === "hibernate" && hibernateOn === false) || Boolean(android?.batteryOptimized) },
   { id: "personen", label: "Personen", icon: "people", color: "--c-people", sections: ["personen"],
     sub: () => { const n = (shared().persons || []).length; return n ? `${n} ${n === 1 ? "Person" : "Personen"}` : "Nur du"; } },
-  { id: "sprache", label: "Alexa & Google", icon: "voice", color: "--c-voice", sections: ["sprache"],
-    sub: () => (state.voice?.commissioned ? "Gekoppelt" : shared().voicemonkey?.token ? "Voice Monkey" : "Nicht eingerichtet") },
+  { id: "sprache", label: "Alexa, Google & HA", icon: "voice", color: "--c-voice", sections: ["sprache", "hass"],
+    sub: () => [state.voice?.commissioned && "Matter gekoppelt", shared().voicemonkey?.token && "Voice Monkey", shared().hass?.enabled && "Home Assistant"].filter(Boolean).join(" · ") || "Nicht eingerichtet" },
+  ...(hasPcFeatures ? [{ id: "discord", label: "Discord", icon: "chat", color: "--c-discord", sections: ["discord"],
+    sub: () => (discord.active && discord.active.end > Date.now() ? "Gerade „Im Einsatz“" : settings().discord.enabled ? "An bei Alarm" : settings().discord.clientId ? "Eingerichtet, aus" : "Status „Im Einsatz“ zeigen") }] : []),
   { id: "sicherheit", label: "Sicherheit & Backup", icon: "lock", color: "--c-safe", sections: ["sicherheit", "backup"],
     sub: () => (settings().lock?.pinHash || settings().lock?.biometric ? "App-Sperre an" : "App-Sperre aus") },
   { id: "darstellung", label: "Darstellung & Updates", icon: "paint", color: "--c-app", sections: ["darstellung", "updates"], app: true,
@@ -652,6 +657,8 @@ export function settingsView(rerender) {
     geraet: () => geraet(),
     personen: () => part(personen),
     sprache: () => part(sprache),
+    hass: () => part(hassSection),
+    discord: () => hasPcFeatures && part(discordSection),
     zentrale: () => z && part(zentrale),
     sicherheit: () => part(sicherheit),
     backup: () => part(backup),
@@ -725,7 +732,9 @@ const KEYWORDS = {
   geraet: "name gerätename benachrichtigung abgleich sync intervall",
   funktionen: "logbuch statistik jahresrückblick einsätze zusatz",
   personen: "kollege kennung person",
-  sprache: "alexa google matter voice monkey ansage sprachassistent",
+  sprache: "alexa google matter voice monkey ansage sprachassistent echo vorlesen",
+  hass: "home assistant ha mqtt discovery automation smart home",
+  discord: "discord rich presence status profil spielt im einsatz freunde",
   zentrale: "selbsttest webhook dienst",
   sicherheit: "pin sperre admin passwort",
   backup: "sichern wiederherstellen export import",

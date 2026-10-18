@@ -13,6 +13,7 @@ import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
 import { shared } from "./shared.js";
+import { presenceSettled } from "./discord.js";
 import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
 
 const lastByWho = new Map();
@@ -147,6 +148,7 @@ export async function answerApps(going) {
 export async function decide(going, { test = false, timeout = false } = {}) {
   const p = settings().pc;
   if (!test) recordAnswer(going, { timeout });
+  emit("answer", { going, test, timeout, alarm: engine.last });   // z. B. Discord-Status (core/discord.js)
   // Rückmeldung an Divera / aPager (nicht bei Tests, nicht ohne Antwort)
   if (!test && !timeout) answerApps(going);
   if (!going) {
@@ -167,6 +169,8 @@ export async function decide(going, { test = false, timeout = false } = {}) {
     return;
   }
   if (p.stopMedia) await stopMedia().catch(() => {}); // D8
+  // Discord-Status soll noch rausgehen, bevor der PC schläft (höchstens 3 s warten)
+  await Promise.race([presenceSettled(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
   log("action", `${why} → ${label}`, "wird ausgeführt");
   try { await runPcAction(action); }
   catch (e) { log("warn", `${label} fehlgeschlagen`, String(e)); }

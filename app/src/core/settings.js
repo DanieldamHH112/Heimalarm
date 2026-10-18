@@ -102,6 +102,27 @@ export const defaults = {
   update: { auto: true },
   // Abgleich der Einstellungen (Zentrale und gekoppelte Geräte); intervalSec = wie oft ohne Zentrale abgeglichen wird
   sync: { enabled: true, intervalSec: 120 },
+  // Discord Rich Presence (nur Windows): „Im Einsatz“ im Discord-Profil. Platzhalter wie {stichwort}, siehe ui/template.js
+  discord: {
+    enabled: false,
+    appName: "",            // Name der Discord-App (nur für die Vorschau)
+    clientId: "",           // Application-ID aus discord.com/developers – ihr Name steht als „Spielt …“ im Profil
+    start: "alarm",         // alarm = sofort bei Alarm · go = erst bei „Ich fahre“
+    onStay: "clear",        // clear = bei „Ich fahre nicht“ wieder entfernen · keep = stehen lassen
+    type: 0,                // 0 Spielt · 3 Schaut · 2 Hört · 5 Tritt an bei
+    details: "Im Einsatz",  // erste Zeile
+    state: "{stichwort}",   // zweite Zeile
+    timer: "since",         // since = „seit 12:34“ · remaining = Restzeit · none
+    durationMin: 90,        // so lange bleibt der Status (danach automatisch weg)
+    largeImage: "",         // Bild-Schlüssel aus „Rich Presence → Art Assets“ oder https-Adresse
+    largeText: "Heimalarm",
+    smallImage: "",
+    smallText: "{einheit}",
+    buttons: [{ label: "", url: "" }, { label: "", url: "" }],
+    clearOnRestore: true,   // „Wieder da“ beendet den Status
+    resume: true,           // nach dem Aufwachen aus dem Ruhezustand wieder anzeigen
+    tests: false,           // auch bei Testalarmen anzeigen
+  },
   // Zusatzfunktionen – bewusst aus, bis man sie einschaltet
   features: { logbuch: false, stats: false },
 };

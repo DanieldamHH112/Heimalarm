@@ -8,8 +8,9 @@ import { createRules } from "./rules.js";
 import { startWebhook } from "./webhook.js";
 import { startSelftest } from "./selftest.js";
 import { startVoice } from "./voice.js";
+import { startHass } from "./hass.js";
 
-export const VERSION = "0.2.2";
+export const VERSION = "0.2.3";
 const URL = process.env.MQTT_URL || "mqtt://mosquitto:1883";
 
 const client = mqtt.connect(URL, {
@@ -19,7 +20,7 @@ const client = mqtt.connect(URL, {
   will: { topic: "heimalarm/dienst/status", payload: JSON.stringify({ online: false }), retain: true, qos: 1 },
 });
 
-const DEFAULTS = { voice: { enabled: true, openSec: 30, tests: false }, persons: [], routines: [], location: { lat: 51.16, lon: 10.45 }, vacation: false, lockoutSec: 60, webhookSecret: "" };
+const DEFAULTS = { voice: { enabled: true, openSec: 30, tests: false }, persons: [], routines: [], location: { lat: 51.16, lon: 10.45 }, vacation: false, lockoutSec: 60, webhookSecret: "", hass: { enabled: false, prefix: "homeassistant", activeMin: 30, tests: false, buttons: true } };
 
 /** Gemeinsamer Zustand, den alle Module lesen. */
 export const ctx = {
@@ -30,12 +31,14 @@ export const ctx = {
   clients: {},   // Heimalarm-Apps: id -> { online, platform, name }
   esp: {},       // kennung -> { online }
   bridge: null,  // zigbee2mqtt/bridge/state
+  version: VERSION,
 };
 
 const log = createLog(client);
 const rules = createRules(ctx, log);
 const voice = startVoice(ctx, log);
-ctx.onAlarmAccepted = (e) => voice.onAlarm(e).catch(() => {});
+const hass = startHass(ctx, log);
+ctx.onAlarmAccepted = (e) => { voice.onAlarm(e).catch(() => {}); hass.onAlarm(e); };
 
 client.on("connect", () => {
   client.publish("heimalarm/dienst/status", JSON.stringify({ online: true, version: VERSION, ts: Date.now() }), { retain: true, qos: 1 });
@@ -44,7 +47,7 @@ client.on("connect", () => {
     "alarm/+", "alarm/+/status", "zigbee2mqtt/bridge/devices", "zigbee2mqtt/bridge/state", "zigbee2mqtt/+",
   ], { qos: 1 });
   log.info("Dienst gestartet", `Version ${VERSION}`);
-  setTimeout(() => voice.onConfig(), 1500); // ohne gespeicherte Konfiguration trotzdem starten
+  setTimeout(() => { voice.onConfig(); hass.sync(); }, 1500); // ohne gespeicherte Konfiguration trotzdem starten
 });
 
 client.on("message", (topic, buf, packet) => {
@@ -55,6 +58,7 @@ client.on("message", (topic, buf, packet) => {
       ctx.config = { ...structuredClone(DEFAULTS), ...JSON.parse(msg || "{}") };
       rules.reschedule();
       voice.onConfig();
+      hass.sync();
     } else if (parts[0] === "heimalarm" && parts[1] === "clients") {
       if (msg) ctx.clients[parts[2]] = JSON.parse(msg);
       else delete ctx.clients[parts[2]];   // Gerät in der App entfernt
@@ -64,8 +68,10 @@ client.on("message", (topic, buf, packet) => {
       const cmd = parts.slice(2).join("/"), data = msg ? JSON.parse(msg) : {};
       if (parts[2] === "voice") voice.command(parts.slice(3).join("/"), data);
       else rules.command(cmd, data);
+      if (cmd === "restore") hass.onRestore();
     } else if (parts[0] === "alarm" && parts.length === 3 && parts[2] === "status") {
       ctx.esp[parts[1]] = { online: msg === "online", ts: Date.now() };
+      hass.onEsp();
     } else if (parts[0] === "alarm" && parts.length === 2 && !packet.retain) {
       rules.onAlarm(parts[1], parseAlarm(msg));
     } else if (topic === "zigbee2mqtt/bridge/devices") {

@@ -6,7 +6,7 @@ import { settings, mode } from "./settings.js";
 import { shared } from "./shared.js";
 import { log } from "./log.js";
 import { isTauri, hasPcFeatures } from "./platform.js";
-import { wifiSet, voiceMonkey } from "./wifi.js";
+import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
 
 const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch)(...a);
 
@@ -38,7 +38,7 @@ function switchDevice(name, payload) {
     .catch((e) => log("warn", `WLAN-Gerät ${name}`, e.message));
 }
 
-function runActions(r, dry) {
+function runActions(r, dry, ev = {}) {
   let wait = 0;
   for (const a of r.actions || []) {
     if (a.type === "delay") { wait += (Number(a.sec) || 0) * 1000; continue; }
@@ -51,6 +51,10 @@ function runActions(r, dry) {
         const token = shared().voicemonkey?.token;
         if (!token) return log("warn", "Voice Monkey: kein Token eingetragen");
         voiceMonkey(token, a.device, fetchFn).then(() => log("action", "Alexa-Routine gestartet", a.device)).catch((e) => log("warn", "Voice Monkey", e.message));
+      } else if (a.type === "announce") {
+        const token = shared().voicemonkey?.token;
+        if (!token) return log("warn", "Alexa-Ansage: kein Voice-Monkey-Token eingetragen");
+        voiceMonkeyAnnounce(token, a, ev, fetchFn).then((t) => log("action", "Alexa sagt an", t)).catch((e) => log("warn", "Alexa-Ansage", e.message));
       }
     };
     if (wait) setTimeout(go, wait); else go();
@@ -64,7 +68,7 @@ export function fireLocal(r, ev = {}) {
   const okConds = ev.manual || !items.length || (r.conditions.mode === "or" ? items.some((c) => check(c, ev)) : items.every((c) => check(c, ev)));
   if (!okConds) return log("info", "Bedingungen nicht erfüllt", r.name);
   log("action", ev.test ? `Routine (Test): ${r.name}` : `Routine: ${r.name}`);
-  runActions(r, Boolean(ev.test));
+  runActions(r, Boolean(ev.test), ev);
 }
 
 export function initLocalRoutines() {

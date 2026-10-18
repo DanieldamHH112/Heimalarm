@@ -3,6 +3,7 @@ import { h, fmtAgo, fmtTime, toast } from "../ui/dom.js";
 import { state, publish, testDevice, renameDevice, forgetDevice, setDevice } from "../core/mqtt.js";
 import { field, dialog, ask } from "../ui/form.js";
 import { emit } from "../core/events.js";
+import { discord, endPresence } from "../core/discord.js";
 import { shared } from "../core/shared.js";
 import { settings, mode } from "../core/settings.js";
 import { setupFlow, setupSteps, setupDone } from "../ui/setup.js";
@@ -297,7 +298,9 @@ function quickActions() {
   return [
     ...manual.map((r) => q("--c-routine", "flow", r.name, () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); })),
     ...wakeable.map((c) => q("--c-net", "pc", `${c.name} wecken`, () => wake(c))),
-    has.zigbee() && q("--ok", "home", "Wieder da", () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt")),
+    has.zigbee() && q("--ok", "home", "Wieder da", () => { emit("restore"); if (publish("heimalarm/cmd/restore", {})) toast("Vorheriger Zustand wird wiederhergestellt"); }),
+    // Discord-Status läuft, aber kein „Wieder da“ (ohne Zigbee): eigener Knopf
+    !has.zigbee() && discord.active && discord.active.end > Date.now() && q("--c-discord", "chat", "Einsatz beenden", () => { emit("restore"); endPresence("von Hand"); toast("Discord-Status entfernt"); }),
   ].filter(Boolean);
 }
 

@@ -18,6 +18,7 @@ export const sharedDefaults = {
   common: null,                                   // synchronisierte Einstellungen
   wifi: [],                                       // WLAN-Geräte [{ id, name, type, host, user, target }]
   voicemonkey: { token: "" },                     // Alexa-Routinen über Voice Monkey (Cloud)
+  hass: { enabled: false, prefix: "homeassistant", activeMin: 30, tests: false, buttons: true }, // Home Assistant (MQTT-Discovery, nur mit Zentrale)
 };
 
 // Ohne Zentrale liegen die gemeinsamen Daten (Routinen, Geräte, Personen) auf diesem Gerät.

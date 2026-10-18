@@ -23,6 +23,7 @@ import { restartDivera } from "./core/divera.js";
 import { has } from "./core/features.js";
 import { startReceiver, startSync } from "./core/direct.js";
 import { initLocalRoutines } from "./core/routines-local.js";
+import { initDiscord } from "./core/discord.js";
 import { initCheckup } from "./core/checkup.js";
 
 const routes = {
@@ -86,6 +87,7 @@ if (isTauri && !import.meta.env.DEV) {
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
 initEngine();
 initLocalRoutines();
+initDiscord();
 on("conn", live);
 on("devices", live);
 on("log", live);

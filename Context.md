@@ -91,6 +91,7 @@ Heimalarm/
 │     ├─ src/rules.js      Routinen: Auslöser, Bedingungen, Aktionen, „Wieder da“, Wake-on-LAN
 │     ├─ src/webhook.js    aPager-Webhook (Port 8080, mit Schlüssel)
 │     ├─ src/selftest.js   wöchentlicher Selbsttest
+│     ├─ src/hass.js       Home Assistant (MQTT-Discovery)
 │     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5540 (Alexa koppelt nur über 5540)
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
@@ -185,6 +186,8 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/report` | Selbsttest-Bericht (retained) | Dienst |
 | `heimalarm/dienst/status`, `heimalarm/ping` → `heimalarm/pong` | Dienst-Status, Verbindungstest | Dienst |
 | `zigbee2mqtt/#` | Geräte, Gruppen, Zustände, Befehle | Zigbee2MQTT |
+| `homeassistant/<comp>/heimalarm_*/config` | MQTT-Discovery für Home Assistant (retained, nur wenn `shared.hass.enabled`) | Dienst (`hass.js`) |
+| `heimalarm/ha/einsatz/<key>` (+`/attr`), `heimalarm/ha/letzter` | Einsatz ON/OFF je Person bzw. „alle“, letzter Alarm (JSON) | Dienst → Home Assistant |
 
 ### Ports
 
@@ -213,7 +216,8 @@ Bereiche mit Zeitstempel (localStorage `heimalarm.sync.ts`): `betrieb` (Betriebs
 | **Divera 24/7** (Spec: `api.divera247.com/docs/*.yaml`) | `GET /api/v2/pull/all` (Einheit, `cluster.status`, `statussorting_statusgeber`/`_alarm`, `status.status_id`) · `GET /api/v2/alarms` · `POST /api/v2/alarms/confirm/{id}` `{Status:{id,note}}` · `POST /api/v2/statusgeber/set-status` `{Status:{id,note,reset_date,reset_to}}` | `?accesskey=` persönlich; ungültig → 401 |
 | **aPager PRO Webhook** (Smart-Home-Paket, Labor → Webhooks) | GET (Query) oder POST (JSON): nur `unit` + `keyword` (Namen in aPager änderbar), ab Android 6.9 ein Aufruf je Einheit; `event=recall\|clear` bei Rückalarm/Alarmende (laut Home-Assistant-Integration). **Keine** Alarmtexte/Adresse (Alamos überträgt sie nie). Mehrere Aufrufe → ein Einsatz mit `units[]` | – |
 | **aPager PRO** (Alamos) | `GET alamos-backend.ey.r.appspot.com/fe2/feedback/user/external?authToken&mode=accept\|reject[&suppressNotification=true]` – 200 ok, 204 kein Alarm (3 min), 403 Schlüssel, 409 kein Abo | aPager → Verfügbarkeit → Externer Zugriff |
-| **Voice Monkey** | `GET https://api-v3.voicemonkey.io/trigger?token&device` | Token aus voicemonkey.io |
+| **Voice Monkey** | `GET https://api-v3.voicemonkey.io/trigger?token&device` (Routine) · `GET …/announce?token&device&speech&voice&chime&language&text_display` (Ansage, Gerät = „Speaker“) | Token aus voicemonkey.io |
+| **Discord RPC** (nur Windows) | Named Pipe `\\.\pipe\discord-ipc-0…9`, Handshake `{v:1, client_id}`, `SET_ACTIVITY` (`src-tauri/src/discord.rs`) | Application-ID aus discord.com/developers (kein Geheimnis) |
 | **Shelly** | Gen2/3 `/rpc/Switch.Set`, `/rpc/Light.Set`; Gen1 `/relay/0?turn=` | – |
 | **Hue Bridge** (API v1) | `POST /api {devicetype}` nach Knopfdruck → Schlüssel; `PUT /api/<key>/lights/<id>/state`, `/groups/<id>/action` | Schlüssel aus Koppeln |
 | **WLED / Tasmota** | `POST /json/state` · `/cm?cmnd=Power On\|Dimmer 40` | – |
@@ -233,7 +237,7 @@ Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`,
 | `settings.features` | Zusatzfunktionen, **Standard aus**: `logbuch`, `stats` (braucht Logbuch). Abgeglichen (in `SYNC_KEYS`). Sichtbarkeit über `has.logbuch()` / `has.stats()` | ja |
 | `localStorage heimalarm.sync.ts` | Zeitstempel der Abgleich-Bereiche (ohne Zentrale) | – |
 
-Routine (gleiches Format in App und Dienst):
+Routine (gleiches Format in App und Dienst; Aktion `announce` = Alexa-Ansage `{device, speech, voice, chime, show}`, Text mit Platzhaltern `{stichwort} {adresse} {einheit} {uhrzeit} {quelle} {person} {text}` → `fillTemplate` in `wifi.js`):
 `{ id, name, enabled, who:[kennung], trigger:{type: alarm|time|device|manual, at, device, property, value}, conditions:{mode: and|or, items:[{type: time|weekday|sun|home|keyword|unit, …}]}, actions:[{type: device|group|delay|restore|voicemonkey|publish, …}], restoreAfterMin }`
 Aktion `device` schaltet ein WLAN-Gerät, wenn ein Gerät mit diesem Namen in `shared.wifi` steht, sonst Zigbee.
 
@@ -241,7 +245,9 @@ Aktion `device` schaltet ein WLAN-Gerät, wenn ein Gerät mit diesem Namen in `s
 
 Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehen:
 
-- **`app/src/core/wifi.js` ⇄ `zentrale/dienst/src/wifi.js`** sind dieselbe Datei. Immer beide ändern (kopieren).
+- **`app/src/core/wifi.js` ⇄ `zentrale/dienst/src/wifi.js`** sind dieselbe Datei. Immer beide ändern (kopieren). Enthält auch `fillTemplate` und `voiceMonkeyAnnounce`.
+- **Discord-Status** (`core/discord.js`, `views/discord.js`, `src-tauri/src/discord.rs`): nur Windows, Einstellungen lokal in `settings.discord`. Hört auf die Ereignisse `alarm`, `answer` (aus `engine.decide`) und `restore` („Wieder da“). `engine.decide` wartet bis 3 s auf `presenceSettled()`, damit der Status vor dem Ruhezustand rausgeht. Laufender Einsatz in localStorage `heimalarm.discord.active`.
+- **Home Assistant** (`zentrale/dienst/src/hass.js`): Konfiguration `shared.hass` (auch im Dienst-`DEFAULTS`). Entity-IDs (`heimalarm_einsatz_alle` …) nicht umbenennen – Automationen der Nutzer hängen daran.
 - **Routinen-Format** wird in `views/routines.js` gebaut und von `zentrale/dienst/src/rules.js` **und** `core/routines-local.js` ausgeführt. Neue Aktion/Bedingung in allen dreien.
 - **Gemeinsame Daten:** neues Feld in `shared.js` (`sharedDefaults`) **und** Dienst `DEFAULTS`. Der Dienst übernimmt die Konfiguration flach (`{...DEFAULTS, ...cfg}`) – verschachtelte Objekte immer komplett schreiben.
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.

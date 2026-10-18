@@ -7,6 +7,40 @@ import { requireAdmin } from "../core/admin.js";
 import { has } from "../core/features.js";
 import { fireLocal } from "../core/routines-local.js";
 import { icon } from "../ui/icons.js";
+import { emit } from "../core/events.js";
+import { templateField, SAMPLE } from "../ui/template.js";
+import { voiceMonkeyAnnounce } from "../core/wifi.js";
+import { isTauri } from "../core/platform.js";
+
+// Deutsche Stimmen von Amazon Polly (Voice Monkey „voice“); leer = Standardstimme des Echos
+const VOICES = [["", "Standard (wie Alexa)"], ["Vicki", "Vicki"], ["Marlene", "Marlene"], ["Daniel", "Daniel"], ["Hans", "Hans"]];
+const CHIMES = [["", "Kein Ton"], ["soundbank://soundlibrary/alarms/air_horns/air_horn_01", "Signalhorn"]];
+const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch)(...a);
+
+async function testAnnounce(a, btn) {
+  const token = shared().voicemonkey?.token;
+  if (!token) return toast("Erst den Voice-Monkey-Token eintragen (Einstellungen → Alexa & Google)");
+  if (!a.device) return toast("Erst den Lautsprecher eintragen");
+  btn.disabled = true;
+  try { const t = await voiceMonkeyAnnounce(token, a, SAMPLE, fetchFn); toast(`Alexa sagt: „${t}“`); }
+  catch (e) { toast(e.message); }
+  btn.disabled = false;
+}
+
+function announceRow(a, del) {
+  a.speech ??= "Einsatz. {stichwort}. {adresse}";
+  return h("div.item", {},
+    h("div.item-head", {}, h("b", {}, "Alexa sagt an"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+    field("Lautsprecher", h("input.input", { value: a.device || "", placeholder: "z. B. echo-flur", autocomplete: "off", spellcheck: "false", onchange: (e) => (a.device = e.target.value.trim()) }),
+      "ID des Echos aus voicemonkey.io → Devices → Speakers. Mehrere Echos = mehrere Aktionen."),
+    templateField("Text", a.speech, (v) => (a.speech = v), { multiline: true, maxlength: 400, keys: ["stichwort", "adresse", "einheit", "uhrzeit", "person", "text"],
+      hint: "Fehlt ein Wert (z. B. keine Adresse beim Melder-Alarm), fällt er einfach weg." }),
+    h("div.fields", {},
+      field("Stimme", select(VOICES, a.voice || "", (v) => (a.voice = v))),
+      field("Ton davor", select(CHIMES, a.chime || "", (v) => (a.chime = v)))),
+    switchRow("Auf dem Echo Show anzeigen", "Zeigt den Text groß auf rotem Grund, solange Alexa spricht.", a.show, (v) => (a.show = v)),
+    h("div.row", {}, h("button.btn.small", { onclick: (e) => testAnnounce(a, e.currentTarget) }, "Mit Beispiel testen")));
+}
 
 const TRIGGERS = [["alarm", "Bei Alarm"], ["time", "Zu einer Uhrzeit"], ["device", "Wenn ein Gerät …"], ["manual", "Nur per Knopf"]];
 const CONDS = {
@@ -20,6 +54,12 @@ const blank = () => ({
   trigger: { type: "alarm" }, conditions: { mode: "and", items: [] },
   actions: [{ type: "device", device: "", payload: { state: "ON", brightness: 254 }, transition: 1, offAfterSec: 0 }],
   restoreAfterMin: 0,
+});
+
+/** Vorlage: Alexa sagt den Einsatz an */
+const templateAnnounce = () => ({
+  ...blank(), name: "Alarm: Alexa sagt an",
+  actions: [{ type: "announce", device: "", speech: "Einsatz. {stichwort}. {adresse}", chime: "soundbank://soundlibrary/alarms/air_horns/air_horn_01" }],
 });
 
 /** B – Vorlage: Licht bei Alarm (nachts gedimmt), passend zum Konzept */
@@ -64,6 +104,7 @@ const actionRow = (a, del) => {
       field("Sekunden", h("input.input", { type: "number", min: 1, value: a.sec, onchange: (e) => (a.sec = Number(e.target.value)) })));
     if (a.type === "voicemonkey") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Alexa-Routine (Voice Monkey)"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
       field("Auslöser-ID", h("input.input", { value: a.device || "", placeholder: "z. B. heimalarm-einsatz", onchange: (e) => (a.device = e.target.value.trim()) }), "In Voice Monkey als „Routine Trigger“ angelegt."));
+    if (a.type === "announce") return announceRow(a, del);
     if (a.type === "restore") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vorherigen Zustand wiederherstellen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")));
     a.payload ||= {};
     return h("div.item", {},
@@ -118,7 +159,8 @@ function editor(routine, rerender) {
       h("div.row", {},
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "device", device: "", payload: { state: "ON" }, transition: 1 }); paint(); } }, "+ Gerät"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "delay", sec: 5 }); paint(); } }, "+ Warten"),
-        h("button.btn.small", { onclick: () => { r.actions.push({ type: "voicemonkey", device: "" }); paint(); } }, "+ Alexa"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "announce", device: "", speech: "Einsatz. {stichwort}. {adresse}" }); paint(); } }, "+ Alexa sagt an"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "voicemonkey", device: "" }); paint(); } }, "+ Alexa-Routine"),
         has.pi() && h("button.btn.small", { onclick: () => { r.actions.push({ type: "restore" }); paint(); } }, "+ Vorher-Zustand"))),
 
     // B8 – Rückkehr
@@ -177,10 +219,11 @@ export function routinesView(rerender) {
     h("h1", {}, "Routinen"),
     h("div.row", { style: "padding:0 4px 12px;gap:8px" },
       h("button.btn.primary.small", { onclick: () => startEdit(blank(), true) }, "Neue Routine"),
-      h("button.btn.small", { onclick: () => startEdit(template(), true) }, "Vorlage")),
+      h("button.btn.small", { onclick: () => startEdit(template(), true) }, "Vorlage Licht"),
+      h("button.btn.small", { onclick: () => startEdit(templateAnnounce(), true) }, "Vorlage Ansage")),
     has.pi() && !state.dienst?.online && h("p.split-warn", {}, "Zentralen-Dienst nicht erreichbar – Routinen laufen erst, wenn er läuft."),
     h("nav.split-nav", { "aria-label": "Routinen" },
-      all.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, "Noch keine Routine. Tipp: „Vorlage“ legt „Alarm nachts: Licht an“ an.") : all.map(item),
+      all.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, "Noch keine Routine. Tipp: „Vorlage Licht“ oder „Vorlage Ansage“ legt eine fertige Routine an.") : all.map(item),
       h("div.split-grp", {}, "Allgemein"),
       h("a.split-item", { href: "#/routinen/allgemein", "aria-current": current === "allgemein" ? "page" : null },
         h("span.ico", { style: "--a:var(--c-app)" }, icon("home")),
@@ -195,7 +238,7 @@ export function routinesView(rerender) {
       h("p.split-sub", {}, `Routinen laufen ${has.pi() ? "auf der Zentrale" : "auf dem Handy"}.`),
       h("section.card", {},
         switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ – und die Abfrage bei Alarm (wie „Inaktiv“ auf Start).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
-        has.pi() && h("div.row", {}, h("button.btn", { onclick: () => { publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"))),
+        has.pi() && h("div.row", {}, h("button.btn", { onclick: () => { emit("restore"); publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"))),
       h("section.card", {}, h("h3", {}, "Sichern und laden"),
         h("p.hint", {}, "Alle Routinen als Text – zum Sichern oder für eine andere Zentrale."),
         h("div.row", {},

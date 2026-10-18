@@ -9,7 +9,7 @@
 // Bedingungen: time {from,to} · weekday {days:[1..7]} · sun {is:"dark"|"light"} ·
 //              home {who:"any"|clientId} · keyword {contains} · unit {contains} · night {}
 import SunCalc from "suncalc";
-import { wifiSet, voiceMonkey } from "./wifi.js";
+import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
 
 export function createRules(ctx, log) {
   const lastAlarm = new Map();   // Sperrzeit je Person
@@ -81,7 +81,7 @@ export function createRules(ctx, log) {
     snapshot = null;
   }
 
-  async function runActions(routine, { dry = false } = {}) {
+  async function runActions(routine, { dry = false, event = {} } = {}) {
     let wait = 0;
     for (const a of routine.actions || []) {
       if (a.type === "delay") { wait += (Number(a.sec) || 0) * 1000; continue; }
@@ -96,6 +96,10 @@ export function createRules(ctx, log) {
           const token = ctx.config.voicemonkey?.token;
           if (!token) log.warn("Voice Monkey: kein Token eingetragen");
           else voiceMonkey(token, a.device, fetch).then(() => log.action("Alexa-Routine gestartet", a.device)).catch((e) => log.warn("Voice Monkey", e.message));
+        } else if (a.type === "announce") {
+          const token = ctx.config.voicemonkey?.token;
+          if (!token) log.warn("Alexa-Ansage: kein Voice-Monkey-Token eingetragen");
+          else voiceMonkeyAnnounce(token, a, event, fetch).then((t) => log.action("Alexa sagt an", t)).catch((e) => log.warn("Alexa-Ansage", e.message));
         } else if (a.type === "publish") {
           pub(a.topic, a.payload ?? "");
         } else if (a.type === "restore") {
@@ -110,6 +114,7 @@ export function createRules(ctx, log) {
     if (a.type === "device") return `${a.device}: ${JSON.stringify(a.payload)}`;
     if (a.type === "group") return `Gruppe ${a.group}`;
     if (a.type === "voicemonkey") return `Alexa-Routine ${a.device}`;
+    if (a.type === "announce") return `Alexa-Ansage auf ${a.device}`;
     return a.type;
   }
 
@@ -121,7 +126,7 @@ export function createRules(ctx, log) {
     const dry = Boolean(event.test);
     log.action(dry ? `Routine (Test): ${routine.name}` : `Routine: ${routine.name}`, event.who ? `alarm/${event.who}` : routine.trigger?.type);
     if (!dry) takeSnapshot(routine.actions || []);
-    runActions(routine, { dry });
+    runActions(routine, { dry, event });
     if (!dry && Number(routine.restoreAfterMin) > 0) later(routine.restoreAfterMin * 60e3, restore);
   }
 

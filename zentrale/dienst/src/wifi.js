@@ -85,3 +85,28 @@ export async function voiceMonkey(token, device, fetchFn) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.success === false) throw new Error({ INVALID_TOKEN: "Token ungültig", DEVICE_NOT_FOUND: "Auslöser nicht gefunden", THROTTLED: "Zu viele Aufrufe", MONTHLY_QUOTA_EXCEEDED: "Monatslimit erreicht" }[j.error] || `Voice Monkey: Fehler ${r.status}`);
 }
+
+/** Platzhalter in Texten füllen: {stichwort} {einheit} {adresse} {text} {quelle} {person} {uhrzeit}. Leere fallen weg. */
+export function fillTemplate(tpl, ev = {}) {
+  const t = ev.ts ? new Date(ev.ts) : new Date();
+  const vals = {
+    stichwort: ev.keyword, einheit: ev.unit, adresse: ev.address, text: ev.text, quelle: ev.source,
+    person: ev.who, uhrzeit: `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`,
+  };
+  return String(tpl || "")
+    .replace(/\{(\w+)\}/gu, (m, k) => (k in vals ? String(vals[k] ?? "").trim() : m))
+    .replace(/\s+([,.:;!?])/gu, "$1").replace(/([,:;–-])\s*(?=[,.:;!?]|$)/gu, "").replace(/\s{2,}/gu, " ").trim();
+}
+
+/** Alexa spricht einen Text auf einem Echo (Voice Monkey „Speaker“-Gerät). a = { device, speech, voice, chime, show } */
+export async function voiceMonkeyAnnounce(token, a, ev, fetchFn) {
+  const speech = fillTemplate(a.speech || "Einsatz. {stichwort}. {adresse}", ev).slice(0, 400) || "Einsatz";
+  const q = new URLSearchParams({ token, device: a.device || "", speech, language: "de-DE" });
+  if (a.voice) q.set("voice", a.voice);
+  if (a.chime) q.set("chime", a.chime);
+  if (a.show) { q.set("text_display", speech); q.set("text_display_bg_colour", "#C42D21"); q.set("text_display_size", "40"); }
+  const r = await fetchFn(`https://api-v3.voicemonkey.io/announce?${q}`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false) throw new Error({ INVALID_TOKEN: "Token ungültig", DEVICE_NOT_FOUND: "Lautsprecher nicht gefunden", THROTTLED: "Zu viele Aufrufe", MONTHLY_QUOTA_EXCEEDED: "Monatslimit erreicht" }[j.error] || `Voice Monkey: Fehler ${r.status}`);
+  return speech;
+}
