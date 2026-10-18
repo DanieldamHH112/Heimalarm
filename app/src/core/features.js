@@ -9,8 +9,9 @@ export const has = {
   zigbee: () => isConfigured() && state.zigbee !== null,                // Zigbee2MQTT meldet sich
   direct: () => mode() === "direkt",
   wifi: () => (shared().wifi || []).length > 0,
-  /** Routinen gibt es mit Zentrale oder direkt (Handy führt sie aus). */
-  routines: () => isConfigured() || mode() === "direkt",
+  /** Routinen und Geräte gibt es in beiden Betriebsarten – auch bevor die Zentrale-Adresse eingetragen ist
+   *  (sonst fehlen nach „Betriebsart ändern“ die Tabs Geräte und Routinen). */
+  routines: () => mode() === "zentrale" || mode() === "direkt",
   voice: () => isConfigured() && Boolean(state.voice?.enabled),
   sybos: () => Boolean(settings().alarm.apps?.sybos?.on),
   apager: () => Boolean(settings().alarm.apps?.apager?.on),

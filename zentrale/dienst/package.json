@@ -14,8 +14,8 @@
     "suncalc": "^1.9.0"
   },
   "devDependencies": {
-    "aedes": "^0.51.3",
-    "websocket-stream": "^5.5.2"
+    "aedes": "^1.2.0",
+    "ws": "^8.22.0"
   },
   "type": "module",
   "private": true

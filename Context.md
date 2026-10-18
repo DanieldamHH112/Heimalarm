@@ -189,7 +189,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 
 ### Direktverbindung (ohne Zentrale)
 
-`GET /ping`, `POST /alarm` (JSON wie `alarm/<kennung>`), Kopfzeile `X-Heimalarm-Key: <8-stelliger Code>`. Falscher Code → 403. Code am PC unter Einstellungen → Betrieb, „Neuer Code“ macht alte Kopplungen ungültig. Nur Heimnetz, kein TLS.
+`GET /ping`, `POST /alarm` (JSON wie `alarm/<kennung>`), `POST /config` (`{mode, broker, common}` – Handy gleicht Betriebsart, Zentrale-Adresse und `SYNC_KEYS` mit den gekoppelten PCs ab; der PC-Empfänger läuft dafür in beiden Betriebsarten), Kopfzeile `X-Heimalarm-Key: <8-stelliger Code>`. Falscher Code → 403. Code am PC unter Einstellungen → Betrieb, „Neuer Code“ macht alte Kopplungen ungültig. Nur Heimnetz, kein TLS.
 
 ### Externe APIs
 
@@ -239,7 +239,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
 - **Im Hintergrund:** Windows schließt per X nur das Fenster (Symbol im Infobereich, `lib.rs` → `setup_tray`); Autostart startet mit `--im-hintergrund` verborgen; zweiter Start holt das Fenster per Single-Instance nach vorn. Android: Vordergrund-Dienst + einmalige Abfrage der Akku-Ausnahme (`android.batteryAsked`). Nach einem Neustart des Handys muss die App einmal geöffnet werden.
-- **Safe-Area (Handy):** Abstände zu Status-/Navigationsleiste nur über `--safe-top`/`--safe-bottom` (tokens.css). Die Android-App setzt `--inset-top/-bottom` aus den Fenster-Insets (`HeimalarmPlugin.kt`), weil die WebView `env(safe-area-inset-*)` oft als 0 meldet.
+- **Safe-Area (Handy):** `core/android.js` fragt die Insets beim Start mehrfach ab (sie sind anfangs oft 0) und bei Größenänderung; bis dahin gelten über `:root.is-android` Mindestabstände (28/48 px). Abstände zu Status-/Navigationsleiste nur über `--safe-top`/`--safe-bottom` (tokens.css). Die Android-App setzt `--inset-top/-bottom` aus den Fenster-Insets (`HeimalarmPlugin.kt`), weil die WebView `env(safe-area-inset-*)` oft als 0 meldet.
 - **Plugin-Befehle:** Was JS am Heimalarm-Plugin aufruft (auch `registerListener` für `addPluginListener`), muss in `plugins/heimalarm/build.rs` → `COMMANDS` und in `permissions/default.toml` stehen, sonst „not allowed“.
 - **`run()` in lib.rs** braucht `#[cfg_attr(mobile, tauri::mobile_entry_point)]` direkt darüber, sonst scheitert der Android-Build.
 - **Android-Symbole** liegen fertig in `src-tauri/icons/android` (adaptiv: weißes Haus auf `#C42D21`) und werden im Release-Workflow kopiert – nicht mit `tauri icon` überschreiben.

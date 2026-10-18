@@ -53,6 +53,16 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         ViewCompat.requestApplyInsets(webView)
     }
 
+    /** Insets direkt vom Fenster lesen – der Listener feuert oft, bevor die Seite geladen ist,
+     *  oder gar nicht, wenn eine übergeordnete View die Insets schon verbraucht hat. */
+    private fun readInsets() {
+        val root = ViewCompat.getRootWindowInsets(activity.window.decorView) ?: return
+        val bars = root.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        val d = activity.resources.displayMetrics.density
+        if (bars.top > 0) insetTop = Math.round(bars.top / d)
+        if (bars.bottom > 0) insetBottom = Math.round(bars.bottom / d)
+    }
+
     private fun applyInsets(webView: WebView) {
         val js = "document.documentElement.style.setProperty('--inset-top','${insetTop}px');" +
             "document.documentElement.style.setProperty('--inset-bottom','${insetBottom}px');"
@@ -67,6 +77,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun status(invoke: Invoke) {
+        readInsets()
         val pm = activity.getSystemService(Context.POWER_SERVICE) as PowerManager
         val ret = JSObject()
         ret.put("supported", true)

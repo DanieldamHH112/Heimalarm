@@ -1,5 +1,5 @@
 //! Direktverbindung ohne Zentrale: Der PC nimmt Alarme vom Handy im Heimnetz an.
-//! Minimaler HTTP-Empfänger (nur Heimnetz): GET /ping, POST /alarm mit Kopfzeile X-Heimalarm-Key.
+//! Minimaler HTTP-Empfänger (nur Heimnetz): GET /ping, POST /alarm, POST /config (Einstellungen vom Handy) mit Kopfzeile X-Heimalarm-Key.
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::sync::{Mutex, OnceLock};
@@ -61,6 +61,10 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
         ("GET", "/ping") => reply(&mut stream, "200 OK", r#"{"ok":true,"app":"heimalarm"}"#),
         ("POST", "/alarm") => {
             let _ = app.emit("direct-alarm", String::from_utf8_lossy(&body).to_string());
+            reply(&mut stream, "200 OK", r#"{"ok":true}"#);
+        }
+        ("POST", "/config") => {
+            let _ = app.emit("direct-config", String::from_utf8_lossy(&body).to_string());
             reply(&mut stream, "200 OK", r#"{"ok":true}"#);
         }
         _ => reply(&mut stream, "404 Not Found", r#"{"ok":false}"#),

@@ -1,9 +1,9 @@
 // Ohne Zentrale: Handy und PC direkt im Heimnetz.
 //   PC:    nimmt Alarme an (Rust-Empfänger, Port 8765, Kopplungscode).
 //   Handy: schickt jeden erkannten Alarm an alle gekoppelten PCs.
-import { settings, set, mode } from "./settings.js";
+import { settings, set, replace, mode, SYNC_KEYS } from "./settings.js";
 import { log } from "./log.js";
-import { emit } from "./events.js";
+import { emit, on } from "./events.js";
 import { isTauri, hasPcFeatures } from "./platform.js";
 
 export const direct = { ip: "", error: "", peers: {} };   // peers: id -> { ok, at }
@@ -11,9 +11,9 @@ export const direct = { ip: "", error: "", peers: {} };   // peers: id -> { ok, 
 const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => String(b % 100).padStart(2, "0")).join("");
 async function http() { return isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch; }
 
-/** PC: Empfänger starten. */
+/** PC: Empfänger starten – in beiden Betriebsarten, damit das Handy Einstellungen schicken kann. */
 export async function startReceiver() {
-  if (!hasPcFeatures || !isTauri || mode() !== "direkt") return;
+  if (!hasPcFeatures || !isTauri) return;
   if (!settings().direct.code) set("direct.code", newCode());
   try {
     const core = await import("@tauri-apps/api/core");
@@ -25,6 +25,10 @@ export async function startReceiver() {
       await listen("direct-alarm", (e) => {
         try { emit("alarm-in", { who: settings().alarm.me, ts: Date.now(), ...JSON.parse(e.payload), viaPhone: true }); }
         catch { log("warn", "Alarm vom Handy nicht lesbar"); }
+      });
+      await listen("direct-config", (e) => {
+        try { applyConfig(JSON.parse(e.payload)); }
+        catch { log("warn", "Einstellungen vom Handy nicht lesbar"); }
       });
     }
   } catch (e) { direct.error = String(e); log("warn", "Empfang für das Handy nicht gestartet", direct.error); }
@@ -65,3 +69,45 @@ export async function sendToPeers(data) {
 
 export const addPeer = (peer) => set("direct.peers", [...(settings().direct.peers || []), { id: Math.random().toString(36).slice(2, 8), port: 8765, ...peer }]);
 export const removePeer = (id) => set("direct.peers", settings().direct.peers.filter((p) => p.id !== id));
+
+// ── Einstellungen abgleichen (Handy → gekoppelte PCs) ─────────────────────────
+// Betriebsart, Zentrale-Adresse und die allgemeinen Einstellungen (SYNC_KEYS).
+// Das Handy schickt sie bei jeder Änderung und beim Start; die Kennung bleibt je Gerät.
+const SYNC_ROOTS = ["mode", "broker", ...SYNC_KEYS];
+
+function configPayload() {
+  const s = settings();
+  return { mode: mode(), broker: s.broker, common: Object.fromEntries(SYNC_KEYS.map((k) => [k, s[k]])) };
+}
+
+/** PC: Einstellungen vom Handy übernehmen. */
+function applyConfig(cfg) {
+  if (!cfg || typeof cfg !== "object" || settings().sync?.enabled === false) return;
+  for (const k of SYNC_KEYS) {
+    if (!cfg.common?.[k]) continue;
+    replace(k, k === "alarm" ? { ...cfg.common[k], me: settings().alarm.me } : cfg.common[k]);
+  }
+  const before = JSON.stringify([mode(), settings().broker]);
+  if (cfg.broker) replace("broker", cfg.broker);
+  if (cfg.mode === "zentrale" || cfg.mode === "direkt") set("mode", cfg.mode, { silent: true });
+  if (JSON.stringify([mode(), settings().broker]) !== before) {
+    log("info", `Betriebsart vom Handy übernommen: ${mode() === "zentrale" ? "Mit Zentrale" : "Ohne Zentrale"}`);
+    emit("direct-config", cfg);   // main.js verbindet neu und zeichnet die Ansicht neu
+  }
+}
+
+let pushTimer;
+/** Handy: Einstellungen an alle gekoppelten PCs schicken. */
+export function pushConfig() {
+  if (hasPcFeatures || settings().sync?.enabled === false) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(async () => {
+    const body = configPayload();
+    await Promise.all((settings().direct.peers || []).map((p) => call(p, "/config", body).catch(() => { /* PC aus – beim nächsten Start */ })));
+  }, 800);
+}
+
+on("settings", ({ path, silent }) => {
+  if (silent || hasPcFeatures) return;
+  if (SYNC_ROOTS.includes(String(path).split(".")[0])) pushConfig();
+});

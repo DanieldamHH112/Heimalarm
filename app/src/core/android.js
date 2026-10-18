@@ -6,6 +6,8 @@ import { log } from "./log.js";
 import { alarmFromNotification } from "./engine.js";
 
 const enabled = isTauri && isAndroid;
+// Sofort beim Laden, damit schon der erste Bildaufbau die Mindestabstände nutzt (tokens.css)
+if (enabled) document.documentElement.classList.add("is-android");
 
 async function call(cmd, args) {
   const core = await import("@tauri-apps/api/core");
@@ -21,8 +23,30 @@ export async function setBackgroundService(on) {
   set("android.service", on);
 }
 
+/** Abstand zu Status- und Navigationsleiste übernehmen. Die Werte kommen vom Fenster;
+ *  beim Start sind sie oft noch 0, daher mehrmals nachfragen und bei Größenänderung erneut. */
+async function syncInsets() {
+  try {
+    const st = await call("status");
+    const root = document.documentElement.style;
+    if (st.insetTop) root.setProperty("--inset-top", `${st.insetTop}px`);
+    if (st.insetBottom) root.setProperty("--inset-bottom", `${st.insetBottom}px`);
+    return Boolean(st.insetTop && st.insetBottom);
+  } catch { return false; }
+}
+
+async function watchInsets() {
+  for (const ms of [0, 150, 400, 1000, 2500]) {
+    await new Promise((r) => setTimeout(r, ms));
+    if (await syncInsets()) break;
+  }
+  window.addEventListener("resize", () => syncInsets());
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) syncInsets(); });
+}
+
 export async function initAndroid() {
   if (!enabled) return;
+  watchInsets();
   const core = await import("@tauri-apps/api/core");
   try {
     await core.addPluginListener("heimalarm", "notification", (n) => alarmFromNotification(n));
@@ -32,13 +56,6 @@ export async function initAndroid() {
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
   }
-  // Abstand zu Status-/Navigationsleiste übernehmen (falls die App sie vor dem Laden der Seite gemeldet hat)
-  try {
-    const st = await call("status");
-    const root = document.documentElement.style;
-    if (st.insetTop) root.setProperty("--inset-top", `${st.insetTop}px`);
-    if (st.insetBottom) root.setProperty("--inset-bottom", `${st.insetBottom}px`);
-  } catch { /* ältere App-Version */ }
   // Beim ersten Start einmal um die Ausnahme von der Akku-Optimierung bitten (sonst stoppt Android die App im Hintergrund).
   if (!settings().android?.batteryAsked) {
     try {

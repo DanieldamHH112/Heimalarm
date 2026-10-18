@@ -45,6 +45,13 @@
   color-scheme: dark;
 }
 
+/* Android: bis die echten Werte vom Fenster da sind, sichere Mindestabstände
+   (Statusleiste ≈ 28 px, Navigationsleiste mit drei Knöpfen ≈ 48 px). */
+:root.is-android {
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--inset-top, 28px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--inset-bottom, 48px));
+}
+
 /* Hell – zweite Auswahl */
 :root[data-theme="light"] {
   --bg: #f4f2ee; --surface: #ffffff; --surface-2: #faf9f6; --line: #e0dbd2;

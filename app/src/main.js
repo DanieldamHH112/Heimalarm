@@ -21,7 +21,7 @@ import { initAndroid } from "./core/android.js";
 import { appLock } from "./core/admin.js";
 import { restartDivera } from "./core/divera.js";
 import { has } from "./core/features.js";
-import { startReceiver } from "./core/direct.js";
+import { startReceiver, pushConfig } from "./core/direct.js";
 import { initLocalRoutines } from "./core/routines-local.js";
 
 const routes = {
@@ -105,6 +105,8 @@ await appLock();
 connect();
 restartDivera();
 startReceiver();
+pushConfig();
+on("direct-config", () => { connect(); render(); });
 initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
 initUpdates();
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
