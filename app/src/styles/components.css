@@ -71,10 +71,10 @@
 .empty { color: var(--text-2); padding: var(--s5) 0; text-align: center; }
 
 /* Hinweis-Leiste */
-.banner { display: flex; gap: var(--s3); align-items: start; padding: var(--s4); border-radius: var(--radius); background: var(--info-soft); color: var(--text); }
+.banner { min-width: 0; max-width: 100%; display: flex; gap: var(--s3); align-items: start; padding: var(--s4); border-radius: var(--radius); background: var(--info-soft); color: var(--text); }
 .banner.warn { background: var(--warn-soft); }
 .banner.update { justify-content: space-between; flex-wrap: wrap; background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
-.banner.update > div:first-child { min-width: min(100%, 260px); flex: 1; color: var(--text-2); font-size: var(--fs-sm); }
+.banner.update > div:first-child { min-width: min(100%, 260px); flex: 1; overflow-wrap: anywhere; color: var(--text-2); font-size: var(--fs-sm); }
 .banner.update b { color: var(--text); font-size: var(--fs-md); }
 .banner b { display: block; }
 
@@ -152,9 +152,16 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
 
 @media (min-width: 1081px) {
   .settings-layout { grid-template-columns: 196px minmax(0, 1fr); align-items: start; }
-  .section-index { position: sticky; top: var(--s6); }
+  /* Titel + Suche bleiben beim Scrollen oben stehen */
+  .settings-top {
+    position: sticky; top: 0; z-index: 6;
+    margin: calc(-1 * var(--s6)) calc(-1 * clamp(16px, 2vw, 32px)) 0;
+    padding: var(--s6) clamp(16px, 2vw, 32px) var(--s4);
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .section-index { position: sticky; top: calc(var(--settings-top-h, 150px) + var(--s4)); }
   .section-index ol { display: grid; gap: 2px; }
-  .section { scroll-margin-top: var(--s6); }
+  .section { scroll-margin-top: calc(var(--settings-top-h, 150px) + var(--s4)); }
 }
 @media (max-width: 1080px) {
   .section-index {
@@ -218,7 +225,8 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
 .step-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── Suche (Einstellungen) ───────────────────── */
-.search { position: relative; display: block; }
+.search { position: relative; display: block; max-width: 560px; }
+.settings-top { display: grid; gap: var(--s5); }
 .search svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; translate: 0 -50%; fill: none; stroke: var(--text-2); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
 .search .input { padding-left: 44px; min-height: 48px; background: var(--surface); font-size: var(--fs-md); }
 .search .input::placeholder { color: var(--text-2); }

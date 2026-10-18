@@ -157,6 +157,10 @@ function pickPackage(path, rerender) {
     list.length && h("ul.rows.compact", {}, list.map((pkg) => h("li", {}, h("button.btn.ghost.pick", { onclick: () => { set(path, pkg); close(); rerender(); toast("Übernommen"); } }, h("code", {}, pkg))))));
 }
 
+/** Erste lesbare Zeile der Release-Notizen – ohne Markdown, Links und „Full Changelog“. */
+const noteLine = (notes = "") => notes.split("\n").map((l) => l.replace(/[*_#`>]/gu, "").replace(/https?:\/\/\S+/gu, "").trim())
+  .find((l) => l && !/^full changelog:?$/iu.test(l)) || "";
+
 const group = (title, ...body) => h("div.group", {}, h("h3.group-title", {}, title), ...body.flat().filter(Boolean));
 
 function sourceRow({ id, title, summary, on, onToggle, badge, body }) {
@@ -564,7 +568,7 @@ function updates(rerender) {
     h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Dienst " + state.dienst.version : ""}`),
     toggle("update.auto", "Beim Start nach Updates suchen", "Nur eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
     u.available
-      ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || (u.available.notes ? u.available.notes.split("\n")[0] : "")),
+      ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || noteLine(u.available.notes)),
           h("div.row", {},
             h("button.btn.primary.small", { onclick: () => installUpdate().then(rerender), disabled: u.installing }, u.installing ? "Lädt …" : "Installieren"),
             h("a.btn.small", { href: u.available.page, target: "_blank", rel: "noopener" }, "Änderungen")))
@@ -615,10 +619,16 @@ export function settingsView(rerender) {
     oninput: (e) => { query = e.target.value; applySearch(); },
     onkeydown: (e) => { if (e.key === "Escape") { query = ""; e.target.value = ""; applySearch(); } },
   });
-  return h("div.page", {},
+  const top = h("div.settings-top", {},
     h("header.page-head", {}, h("div", {}, h("h1", {}, "Einstellungen"), h("p", {}, "Änderungen werden sofort gespeichert.")),
       h("a.btn", { href: "#/diagnose" }, "Test & Diagnose")),
-    h("label.search", {}, SEARCH_ICON(), searchField),
+    h("label.search", {}, SEARCH_ICON(), searchField));
+  // Höhe der fixierten Kopfzeile für Abschnittsliste und Sprungziele bereitstellen.
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => document.documentElement.style.setProperty("--settings-top-h", `${top.offsetHeight}px`)).observe(top);
+  }
+  return h("div.page", {},
+    top,
     h("div.settings-layout", {}, index, h("div.settings-body", {}, ...parts.map(([, , el]) => el), empty)),
   );
 }
