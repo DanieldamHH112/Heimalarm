@@ -45,7 +45,7 @@ CONTACT_CODES = ("doorcontact_state", "contact_state", "switch")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("bruecke")
-logging.getLogger("tuya_sharing").setLevel(logging.WARNING)
+logging.getLogger("tuya_sharing").setLevel(logging.INFO)
 
 state = {
     "angemeldet": False,
@@ -55,6 +55,7 @@ state = {
     "ziel": None,        # überwachtes Gerät
     "letzter_alarm": None,
     "verlauf": [],       # letzte Meldungen
+    "roh": None,         # Zeit der letzten Cloud-Meldung (Diagnose)
 }
 lock = threading.Lock()
 manager: Manager | None = None
@@ -170,6 +171,12 @@ class DeviceListener(SharingDeviceListener):
         refresh_list()
 
 
+def on_raw(msg: dict):
+    log.info("Cloud-Meldung: %s", json.dumps(msg, ensure_ascii=False)[:500])
+    with lock:
+        state["roh"] = time.strftime("%H:%M:%S")
+
+
 def refresh_list():
     if not manager:
         return
@@ -206,7 +213,13 @@ def start_manager(data: dict) -> None:
     )
     manager.add_device_listener(DeviceListener())
     manager.update_device_cache()
+    for d in manager.device_map.values():
+        log.info("Gerät %s (%s): set_up=%s, lokal=%s, Status=%s", d.name, d.id,
+                 getattr(d, "set_up", None), getattr(d, "support_local", None), d.status)
+        # Schlafende Batteriegeräte melden set_up=False – ohne das würde ihr Topic nicht abonniert
+        d.set_up = True
     manager.refresh_mq()
+    manager.mq.add_message_listener(on_raw)
     refresh_list()
     with lock:
         state["angemeldet"] = True
@@ -321,7 +334,8 @@ def page() -> str:
         ziel = s["ziel"]
         parts.append('<div class="card"><b class="ok">● Angemeldet</b>'
                      f'<p>Überwacht: <b>{e(ziel["name"]) if ziel else "– kein Kontaktsensor –"}</b>'
-                     f' · Alarm bei <b>{e(ALARM_BEI)}</b><br>Letzter Alarm: {e(s["letzter_alarm"] or "–")}</p>'
+                     f' · Alarm bei <b>{e(ALARM_BEI)}</b><br>Letzter Alarm: {e(s["letzter_alarm"] or "–")}'
+                     f'<br><span class="muted">Letzte Cloud-Meldung: {e(s["roh"] or "–")}</span></p>'
                      '<form method="post" action="/abmelden"><button>Abmelden</button></form></div>')
         rows = "".join(
             f'<tr><td>{e(g["name"])}</td><td class="muted">{e(g["id"])}</td>'
