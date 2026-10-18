@@ -23,3 +23,7 @@ zentrale/dienst/data/
 zentrale/matterbridge/
 zentrale/tuya-bruecke/data/
 zentrale/.env
+
+# Python
+__pycache__/
+*.pyc

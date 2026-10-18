@@ -10,6 +10,8 @@ der Smart-Life-App scannen. Die Anmeldung wird in /data/tuya.json gespeichert.
 
 from __future__ import annotations
 
+import base64
+import hmac
 import html
 import io
 import json
@@ -37,6 +39,8 @@ MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_USER = os.environ.get("MQTT_USER", "")
 MQTT_PW = os.environ.get("MQTT_PW", "")
 WEB_PORT = int(os.environ.get("WEB_PORT", "8082"))
+# Weboberfläche nur mit Passwort (Benutzer egal); leer = MQTT-Passwort der Zentrale
+WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "").strip() or MQTT_PW
 GERAET = os.environ.get("GERAET", "").strip()  # Name oder ID; leer = erster Kontaktsensor
 ALARM_BEI = os.environ.get("ALARM_BEI", "geschlossen").strip().lower()  # geschlossen | offen
 SPERRE = int(os.environ.get("SPERRE_S", "30"))  # gleiche Meldung innerhalb dieser Zeit ignorieren
@@ -370,7 +374,28 @@ class Web(BaseHTTPRequestHandler):
         self.send_header("Location", "/")
         self.end_headers()
 
+    def authorized(self) -> bool:
+        """Basic-Auth gegen WEB_PASSWORD. Ohne gesetztes Passwort ist die Seite gesperrt."""
+        if not WEB_PASSWORD:
+            self.send(403, "<p>Weboberfläche gesperrt: MQTT_PASSWORD bzw. TUYA_WEB_PASSWORD in zentrale/.env setzen.</p>")
+            return False
+        header = self.headers.get("Authorization", "")
+        if header.startswith("Basic "):
+            try:
+                _, _, pw = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+                if hmac.compare_digest(pw.encode(), WEB_PASSWORD.encode()):
+                    return True
+            except Exception:  # noqa: BLE001
+                pass
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Heimalarm Tuya-Bruecke", charset="UTF-8"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_GET(self):
+        if not self.authorized():
+            return
         path = urlsplit(self.path).path
         if path == "/status":
             with lock:
@@ -379,6 +404,8 @@ class Web(BaseHTTPRequestHandler):
             self.send(200, page())
 
     def do_POST(self):
+        if not self.authorized():
+            return
         path = urlsplit(self.path).path
         length = int(self.headers.get("Content-Length") or 0)
         form = parse_qs(self.rfile.read(length).decode("utf-8"))

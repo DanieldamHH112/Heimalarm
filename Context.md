@@ -142,7 +142,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | Teil | Braucht | Wird gebraucht von |
 |---|---|---|
 | **ESP32** | WLAN, Mosquitto (1883), `secrets.yaml` | Quelle „Melder“ |
-| **Mosquitto** | Docker auf dem Pi | ESP32, Dienst, Zigbee2MQTT, Matterbridge, App (9001) |
+| **Mosquitto** | Docker auf dem Pi, `zentrale/.env` mit `MQTT_PASSWORD` (Pflicht, sonst startet der Container nicht; `allow_anonymous false`) | ESP32, Dienst, Zigbee2MQTT, Matterbridge, App (9001) |
 | **Zentralen-Dienst** | Mosquitto, `network_mode: host` (Wake-on-LAN, Matter-mDNS), Volume `dienst/data` | Routinen, Webhook, Matter-Sensoren, Selbsttest, „Wieder da“ |
 | **Zigbee2MQTT** | Zigbee-USB-Stick, Mosquitto, Profil `zigbee` | Seite Geräte (Zigbee), Routinen mit Zigbee-Geräten, Matterbridge |
 | **Matterbridge** | Zigbee2MQTT, Profil `matter`, Port 8283 | Zigbee-Licht in Alexa/Google |
@@ -243,6 +243,9 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **HTTP aus der App** geht nur zu Adressen im Scope von `capabilities/default.json`. Neue externe API → Scope ergänzen, sonst schlägt `fetch` still fehl.
 - **Benachrichtigungen mitlesen** (`AlarmListener.kt`): Titel (groß), Kurztext, Langtext (`EXTRA_BIG_TEXT`), Zeilen (`EXTRA_TEXT_LINES`), Unter-/Zusatztext – zusammengefügt als `text`. Einsatzdetails kommen nur aus Alarm-Apps (Divera-API am meisten, aPager/SYBOS über die Benachrichtigung), ESP32/Tuya liefern nur „Kontakt zu“.
 - **Alarm-Infos:** Alles, was eine Quelle mehr liefert, kommt als `details` (nur einfache Werte, ≤ 1500 Zeichen) ins Alarm-JSON – Divera (`pickDetails` in `divera.js`), Webhook (alle weiteren Parameter, `webhook.js`). Neue Felder mit eigener Bedeutung in `FIELDS` von `stats.js` aufnehmen.
+- **Sicherheit Zentrale:** Mosquitto nur mit Passwort (`zentrale/.env`, Vorlage `.env.example`); Dienst, Tuya-Brücke, Zigbee2MQTT bekommen es per Umgebungsvariable. Tuya-Weboberfläche mit Basic-Auth (`TUYA_WEB_PASSWORD`, sonst MQTT-Passwort).
+- **Sicherheit PC-Empfänger:** nach 10 falschen Codes ist eine IP 5 min gesperrt (429); `POST /pair` nur, solange am PC „Koppeln erlauben“ läuft (Rust `direct_pairing`, 5 min, schließt nach einer Kopplung).
+- **Backup** enthält Schlüssel/Passwörter/Codes nur mit Schalter „mitsichern“; beim Wiederherstellen bleiben vorhandene Schlüssel erhalten. **Protokoll** schwärzt `accesskey=`, `authToken=`, `token=` usw. (`core/log.js`).
 - **Abgleich ohne Zentrale:** Neue Einstellung, die abgeglichen werden soll → in einen Bereich von `core/sync.js` einordnen; was je Gerät bleiben muss, in `PC_LOCAL` bzw. aus `bundle()` heraushalten. `direct.rs` und `direct.js` gehören zusammen (Endpunkte, Events `direct-alarm|config|pair|seen`).
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.
 - **Android-Plugin:** Kotlin-Name `heimalarm`, Event `notification` `{app, title, text}` – wird in `core/android.js` abgehört.

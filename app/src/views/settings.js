@@ -5,7 +5,7 @@ import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
 import { has } from "../core/features.js";
-import { direct, startReceiver, renewCode, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
+import { direct, startReceiver, renewCode, openPairing, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
 import { shared, updateShared, sha256, newId } from "../core/shared.js";
 import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
@@ -33,7 +33,7 @@ function peerDialog(rerender, peer) {
   const name = h("input.input", { placeholder: "z. B. PC Arbeitszimmer", value: peer?.nameSet ? peer.name : "" });
   const close = dialog(peer ? `„${peer.name}“ bearbeiten` : "PC koppeln",
     field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb."),
-    field("Kopplungscode", code, peer ? "Leer lassen, außer der PC wurde entkoppelt." : "Steht am PC daneben. Danach bekommt dieses Handy einen eigenen Code."),
+    field("Kopplungscode", code, peer ? "Leer lassen, außer der PC wurde entkoppelt." : "Steht am PC daneben. Vorher am PC „Koppeln erlauben“ drücken. Danach bekommt dieses Handy einen eigenen Code."),
     field("Name", name, "Leer = Name des PCs übernehmen."),
     field("Port", port),
     h("div.row", {}, h("button.btn.primary", { onclick: async () => {
@@ -67,12 +67,18 @@ function betrieb(rerender) {
     const phones = d.phones || [];
     return h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Handy koppeln"), direct.error ? h("span.chip.bad", {}, "Fehler") : direct.ip ? h("span.chip.ok", {}, "bereit") : h("span.chip", {}, "startet …")),
-      h("p.meta", {}, "Am Handy unter Einstellungen → Betrieb → „PC koppeln“ eintragen:"),
+      h("p.meta", {}, "„Koppeln erlauben“ drücken, dann am Handy unter Einstellungen → Betrieb → „PC koppeln“ eintragen:"),
       h("div.pair-big", {},
         h("div", {}, h("small", {}, "Adresse"), h("code", {}, direct.ip ? `${direct.ip}` : "–")),
         h("div", {}, h("small", {}, "Kopplungscode"), h("code", {}, (d.code || "–").replace(/(\d{4})(\d{4})/u, "$1 $2")))),
       direct.error && h("p.meta.err", {}, direct.error),
-      h("div.row", {}, h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Kopplungscode erzeugen? Bereits gekoppelte Handys bleiben gekoppelt.")) { await renewCode(); rerender(); } } }, "Neuer Kopplungscode")),
+      h("div.row", {},
+        direct.pairUntil > Date.now()
+          ? [h("span.chip.ok", {}, `Koppeln erlaubt bis ${new Date(direct.pairUntil).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`),
+             h("button.btn.small.ghost", { onclick: async () => { await openPairing(0); rerender(); } }, "Beenden")]
+          : h("button.btn.small.primary", { onclick: async () => { await openPairing(5); rerender(); } }, "Koppeln erlauben (5 Minuten)"),
+        h("button.btn.small.ghost", { onclick: async () => { if (confirm("Neuen Kopplungscode erzeugen? Bereits gekoppelte Handys bleiben gekoppelt.")) { await renewCode(); rerender(); } } }, "Neuer Kopplungscode")),
+      h("small.meta", {}, "Neue Handys werden nur angenommen, solange „Koppeln erlauben“ läuft. Nach 10 falschen Codes ist ein Gerät 5 Minuten gesperrt."),
       h("div.item-head", { style: "margin-top:var(--s4)" }, h("b", {}, "Gekoppelte Handys")),
       phones.length === 0 ? h("p.meta", {}, "Noch keins.")
         : h("ul.rows.compact", {}, phones.map((p) => h("li", {}, h("div.row-main", {},
@@ -119,8 +125,8 @@ function verbindung(rerender) {
     h("div.fields", {},
       field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "IP oder Name im Heimnetz"),
       field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "WebSocket, Standard 9001"),
-      field("Benutzer", text("broker.user", { autocomplete: "off" }), "Leer lassen, wenn nicht nötig"),
-      field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }))),
+      field("Benutzer", text("broker.user", { autocomplete: "off" }), "Aus zentrale/.env (MQTT_USER, Standard: heimalarm)"),
+      field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }), "MQTT_PASSWORD aus zentrale/.env – ohne Passwort lässt die Zentrale niemanden rein.")),
     toggle("broker.tls", "Verschlüsselt (TLS)", "Nur aktivieren, wenn die Zentrale ein Zertifikat hat (H1)."),
     host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Für unterwegs besser ein VPN (z. B. WireGuard) nutzen, statt die Zentrale ins Internet zu stellen (H3).")),
     h("div.row", {}, h("button.btn.primary", { onclick: () => { connect(); toast("Verbinde mit der Zentrale …"); setTimeout(rerender, 1500); } }, "Speichern & verbinden")),
@@ -493,20 +499,57 @@ function bioToggle(rerender) {
   return toggle("lock.biometric", `Mit ${bioLabel} entsperren`, "Die PIN bleibt als Rückfall, falls es nicht klappt.");
 }
 
-const exportAll = () => JSON.stringify({ heimalarm: "backup", version: 1, app: APP_VERSION, ts: Date.now(), settings: settings(), shared: shared() }, null, 2);
+/** Backup. Ohne Häkchen bleiben Schlüssel, Passwörter und Codes draußen (Zwischenablage ist nicht geheim). */
+const SECRET_SETTINGS = [["divera", "key"], ["apager", "key"], ["broker", "pass"], ["direct", "code"], ["direct", "hookKey"], ["lock", "pinHash"]];
+function exportAll(withSecrets) {
+  const s = structuredClone(settings());
+  const sh = structuredClone(shared());
+  if (!withSecrets) {
+    for (const [a, b] of SECRET_SETTINGS) if (s[a]) s[a][b] = "";
+    s.direct.peers = (s.direct.peers || []).map((p) => ({ ...p, code: "", paired: false }));
+    s.direct.phones = [];
+    sh.webhookSecret = ""; sh.adminPinHash = "";
+    sh.voicemonkey = { ...sh.voicemonkey, token: "" };
+    sh.wifi = (sh.wifi || []).map((d) => ({ ...d, user: "" }));
+  }
+  return JSON.stringify({ heimalarm: "backup", version: 1, app: APP_VERSION, ts: Date.now(), secrets: Boolean(withSecrets), settings: s, shared: sh }, null, 2);
+}
 
+/** Beim Wiederherstellen leere Geheimnisse nicht über vorhandene schreiben. */
+function keepSecrets(k, v) {
+  const cur = settings()[k];
+  if (!cur || !v || typeof v !== "object") return v;
+  const out = { ...v };
+  for (const [a, b] of SECRET_SETTINGS) if (a === k && !out[b] && cur[b]) out[b] = cur[b];
+  if (k === "direct") {
+    if (!(out.phones || []).length) out.phones = cur.phones;
+    out.peers = (out.peers || []).map((p) => { const old = (cur.peers || []).find((x) => x.host === p.host); return !p.code && old ? { ...p, code: old.code, paired: old.paired } : p; });
+  }
+  return out;
+}
+
+let backupSecrets = false;
 function backup(rerender) {
   return section("backup", "Backup", "Einstellungen sichern oder auf ein anderes Gerät übertragen.",
+    switchRow("Schlüssel und Passwörter mitsichern", "Divera-/aPager-Schlüssel, Zentrale-Passwort, PINs und Kopplungscodes. Nur einschalten, wenn du das Backup sicher aufbewahrst – am Handy landet es in der Zwischenablage.",
+      backupSecrets, (v) => { backupSecrets = v; rerender(); }),
     h("div.row", {},
-      h("button.btn", { onclick: async () => { const t = exportAll(); if (await copyText(t)) toast("Backup in die Zwischenablage kopiert"); if (!isAndroid) download("heimalarm-backup.json", t); } }, "Backup erstellen"),
+      h("button.btn", { onclick: async () => { const t = exportAll(backupSecrets); if (await copyText(t)) toast(backupSecrets ? "Backup mit Schlüsseln kopiert" : "Backup (ohne Schlüssel) kopiert"); if (!isAndroid) download("heimalarm-backup.json", t); } }, "Backup erstellen"),
       h("button.btn", { onclick: () => {
         const ta = h("textarea.input", { placeholder: "Backup-Text einfügen" });
         const close = dialog("Backup wiederherstellen", ta, h("p.meta", {}, "Überschreibt die Einstellungen dieses Geräts. Gemeinsame Daten nur mit Admin-Rechten."),
           h("div.row", {}, h("button.btn.primary", { onclick: async () => {
             try {
               const b = JSON.parse(ta.value);
-              for (const [k, v] of Object.entries(b.settings || {})) if (k !== "device") replace(k, v);
-              if (b.shared && (await requireAdmin())) updateShared(b.shared);
+              for (const [k, v] of Object.entries(b.settings || {})) if (k !== "device") replace(k, keepSecrets(k, v));
+              if (b.shared && (await requireAdmin())) {
+                const sh = { ...b.shared };
+                if (!sh.webhookSecret) sh.webhookSecret = shared().webhookSecret;
+                if (!sh.adminPinHash) sh.adminPinHash = shared().adminPinHash;
+                if (!sh.voicemonkey?.token) sh.voicemonkey = shared().voicemonkey;
+                sh.wifi = (sh.wifi || []).map((d) => (d.user ? d : { ...d, user: (shared().wifi || []).find((x) => x.id === d.id)?.user || "" }));
+                updateShared(sh);
+              }
               close(); applyTheme(); connect(); rerender(); toast("Backup wiederhergestellt");
             } catch { toast("Kein gültiges Backup"); }
           } }, "Wiederherstellen")));

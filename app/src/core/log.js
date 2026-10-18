@@ -8,8 +8,11 @@ const MAX = 500;
 let entries = [];
 try { entries = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
 
+/** Schlüssel aus Fehlermeldungen entfernen (Adressen enthalten z. B. ?accesskey=… oder ?authToken=…). */
+const redact = (v) => String(v ?? "").replace(/((?:accesskey|authtoken|token|key|password|pass)=)[^&\s)"'<>]+/giu, "$1***");
+
 export function log(kind, text, detail = "") {
-  const entry = { ts: Date.now(), kind, text, detail };
+  const entry = { ts: Date.now(), kind, text: redact(text), detail: redact(detail) };
   entries.unshift(entry);
   entries.length = Math.min(entries.length, MAX);
   try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch {}

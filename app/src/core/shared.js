@@ -10,7 +10,7 @@ const TOPIC = "heimalarm/config/shared";
 export const sharedDefaults = {
   persons: [{ id: "ich", name: "Ich" }],          // G1
   routines: [],                                   // B
-  location: { lat: 53.55, lon: 9.99 },            // F6 – für Sonnenauf-/-untergang
+  location: { lat: 51.16, lon: 10.45 },           // F6 – für Sonnenauf-/-untergang (Standard: Mitte Deutschlands, unter Zentrale anpassen)
   vacation: false,                                // B9
   lockoutSec: 60,                                 // A4 (Zentrale)
   webhookSecret: "",                              // H2

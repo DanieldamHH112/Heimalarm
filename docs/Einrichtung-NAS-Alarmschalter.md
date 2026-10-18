@@ -31,7 +31,8 @@ Die IP (z. B. `192.168.178.43`) notieren – sie wird gleich mehrfach gebraucht.
 1. Am PC: GitHub → **Code → Download ZIP**, entpacken.
 2. NAS: App **Docker** installieren (App Center).
 3. App **Dateien** → **Freigegebener Ordner → docker** → neuen Ordner **`heimalarm`** anlegen.
-4. Den **Inhalt** des Ordners `zentrale` hineinladen: `docker-compose.yml` und die Ordner `dienst`, `mosquitto`, `tuya-bruecke`.
+4. Den **Inhalt** des Ordners `zentrale` hineinladen: `docker-compose.yml`, `.env.example` und die Ordner `dienst`, `mosquitto`, `tuya-bruecke`.
+5. `.env.example` mit **TextEdit** öffnen, bei `MQTT_PASSWORD=` ein langes eigenes Passwort eintragen und als **`.env`** speichern. **Pflicht** – ohne Passwort startet die Zentrale nicht. Dieses Passwort später in der App (*Einstellungen → Verbindung*, Benutzer `heimalarm`), im ESP32 (`mqtt_pw`) und für die Tuya-Weboberfläche (Port 8082) verwenden.
 
 ## 3 · Tuya-Brücke ein- oder ausschalten
 

@@ -5,10 +5,12 @@
 //!   aPager-Webhook (Schlüssel im Pfad): GET|POST /apager/<schlüssel>?keyword=&unit=[&event=]
 //! Ein Handy entkoppeln = seinen Code aus der Liste nehmen (direct_server erneut aufrufen).
 use std::collections::hash_map::RandomState;
+use std::collections::HashMap;
 use std::hash::{BuildHasher, Hasher};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{IpAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 #[derive(Default)]
@@ -55,8 +57,49 @@ fn reply(stream: &mut TcpStream, code: &str, body: &str) {
     );
 }
 
+// ── Schutz gegen Durchprobieren ───────────────────────────────────────────
+// Nach MAX_FAILS falschen Codes von einer Adresse ist sie für LOCK gesperrt.
+// Koppeln (POST /pair) geht nur, solange am PC „Koppeln erlauben“ läuft.
+const MAX_FAILS: u32 = 10;
+const LOCK: Duration = Duration::from_secs(300);
+static FAILS: OnceLock<Mutex<HashMap<IpAddr, (u32, Instant)>>> = OnceLock::new();
+static PAIR_UNTIL: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
+
+fn fails() -> &'static Mutex<HashMap<IpAddr, (u32, Instant)>> {
+    FAILS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+fn locked(ip: IpAddr) -> bool {
+    let mut f = match fails().lock() {
+        Ok(f) => f,
+        Err(_) => return true,
+    };
+    let (n, since) = match f.get(&ip) {
+        Some(&entry) => entry,
+        None => return false,
+    };
+    if since.elapsed() > LOCK {
+        f.remove(&ip);
+        return false;
+    }
+    n >= MAX_FAILS
+}
+fn record_fail(ip: IpAddr) {
+    if let Ok(mut f) = fails().lock() {
+        let e = f.entry(ip).or_insert((0, Instant::now()));
+        e.0 += 1;
+        e.1 = Instant::now();
+    }
+}
+fn pairing_open() -> bool {
+    PAIR_UNTIL.get_or_init(|| Mutex::new(None)).lock().map(|u| u.map_or(false, |t| Instant::now() < t)).unwrap_or(false)
+}
+
 fn handle(app: &AppHandle, mut stream: TcpStream) {
     let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+    let ip = match stream.peer_addr() { Ok(a) => a.ip(), Err(_) => return };
+    if locked(ip) {
+        return reply(&mut stream, "429 Too Many Requests", r#"{"ok":false,"error":"Zu viele falsche Versuche – 5 Minuten warten"}"#);
+    }
     let mut reader = BufReader::new(match stream.try_clone() {
         Ok(s) => s,
         Err(_) => return,
@@ -90,6 +133,7 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
         let (key, query) = rest.split_once('?').unwrap_or((rest, ""));
         let hook = keys().lock().map(|k| k.hook.clone()).unwrap_or_default();
         if hook.is_empty() || key != hook {
+            record_fail(ip);
             return reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Schlüssel falsch"}"#);
         }
         let _ = app.emit("direct-webhook", format!("{query}\n{body}"));
@@ -106,6 +150,7 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
         (pairing, phone, k.name.clone(), k.config.clone())
     };
     if !pairing && !phone {
+        record_fail(ip);
         return reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Code falsch"}"#);
     }
     if phone {
@@ -117,6 +162,9 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
             "200 OK",
             &format!(r#"{{"ok":true,"app":"heimalarm","name":"{}","paired":{}}}"#, esc(&name), phone),
         ),
+        ("POST", "/pair") if !pairing_open() => {
+            reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Koppeln am PC erlauben"}"#)
+        }
         ("POST", "/pair") => {
             let code = new_code();
             if let Ok(mut k) = keys().lock() {
@@ -161,6 +209,14 @@ pub fn direct_server(app: AppHandle, port: u16, code: String, phones: Option<Vec
         });
     }
     Ok(local_ip())
+}
+
+/// Koppeln für `minutes` Minuten erlauben (0 = sofort beenden).
+#[tauri::command]
+pub fn direct_pairing(minutes: u64) -> Result<(), String> {
+    let mut u = PAIR_UNTIL.get_or_init(|| Mutex::new(None)).lock().map_err(|e| e.to_string())?;
+    *u = if minutes == 0 { None } else { Some(Instant::now() + Duration::from_secs(minutes * 60)) };
+    Ok(())
 }
 
 /// Aktuellen Stand der Einstellungen hinterlegen, den Handys mit GET /config abholen.

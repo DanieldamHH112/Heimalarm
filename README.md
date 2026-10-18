@@ -114,11 +114,12 @@ Unter *Geräte → WLAN-Geräte* Lampen und Steckdosen hinzufügen, unter *Einst
 Auf einer NAS mit Docker-Oberfläche (z. B. UGREEN, Synology) den Ordner `zentrale` hochladen und als Projekt starten – Schritt für Schritt in [docs/Einrichtung-NAS-Alarmschalter.md](docs/Einrichtung-NAS-Alarmschalter.md). Mit Kommandozeile:
 ```bash
 cd zentrale
+cp .env.example .env                                     # MQTT_PASSWORD setzen – Pflicht
 docker compose up -d                                     # Grundausstattung
 docker compose --profile zigbee up -d                    # mit Zigbee-USB-Stick
 docker compose --profile zigbee --profile matter up -d   # dazu Licht für Alexa / Google
 ```
-Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einstellungen → Verbindung* eintragen (Port `9001`).
+Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einstellungen → Verbindung* eintragen (Port `9001`, Benutzer und Passwort aus `.env`). Ohne Passwort startet die Zentrale nicht – sonst könnte jeder im WLAN Fehlalarme senden.
 
 **6 · ESP32 (optional)**
 1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren, WLAN-Daten und als `mqtt_host` die IP der Zentrale eintragen. In der YAML-Datei die `kennung` setzen – dieselbe wie in der App.

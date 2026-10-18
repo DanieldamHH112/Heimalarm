@@ -54,6 +54,7 @@ export async function startReceiver() {
           const phones = (settings().direct.phones || []).filter((p) => !(info.id && p.id === info.id));
           set("direct.phones", [...phones, { id: info.id || Math.random().toString(36).slice(2, 8), name: info.name || "Handy", code, pairedAt: Date.now(), lastSeen: Date.now() }]);
           log("ok", `Handy „${info.name || "Handy"}“ gekoppelt`);
+          openPairing(0);   // ein Handy pro Freigabe
           startReceiver();
         } catch { log("warn", "Kopplung nicht lesbar"); }
       });
@@ -104,6 +105,16 @@ async function publishConfig() {
   try { await invoke("direct_set_config", { json: JSON.stringify(syncEnabled() ? bundle() : {}) }); } catch { /* nicht verfügbar */ }
 }
 
+/** PC: Koppeln für 5 Minuten erlauben (sonst lehnt der PC neue Handys ab). */
+export async function openPairing(minutes = 5) {
+  if (!hasPcFeatures || !isTauri) return;
+  await invoke("direct_pairing", { minutes });
+  direct.pairUntil = minutes ? Date.now() + minutes * 60e3 : 0;
+  emit("direct", direct);
+  clearTimeout(openPairing.t);
+  if (minutes) openPairing.t = setTimeout(() => { direct.pairUntil = 0; emit("direct", direct); }, minutes * 60e3);
+}
+
 /** PC: neuen Kopplungscode erzeugen. Bereits gekoppelte Handys bleiben gekoppelt. */
 export async function renewCode() { set("direct.code", newCode()); await startReceiver(); }
 
@@ -126,7 +137,13 @@ async function call(peer, path, body) {
     body: body ? JSON.stringify(body) : undefined,
     connectTimeout: 4000,
   });
-  if (r.status === 403) throw new Error(peer.paired ? "Vom PC entkoppelt – neu koppeln" : "Code falsch");
+  if (r.status === 429) throw new Error("Zu viele falsche Versuche – 5 Minuten warten");
+  if (r.status === 403) {
+    const msg = (await r.json().catch(() => ({}))).error || "";
+    if (/Koppeln am PC/u.test(msg)) throw new Error("Am PC „Koppeln erlauben“ drücken, dann erneut");
+    if (peer.paired && peer.id) updatePeer(peer.id, { paired: false });   // Code gilt nicht mehr – nicht weiter durchprobieren
+    throw new Error(peer.paired ? "Vom PC entkoppelt – neu koppeln" : "Code falsch");
+  }
   if (!r.ok) throw new Error(`Fehler ${r.status}`);
   return r.json();
 }
@@ -152,7 +169,7 @@ export async function pingPeer(peer) {
     return true;
   } catch (e) {
     const msg = String(e?.message || e);
-    direct.peers[peer.id] = { ok: false, error: /koppeln|Code|zu alt/u.test(msg) ? msg : "nicht erreichbar", at: Date.now() };
+    direct.peers[peer.id] = { ok: false, error: /koppeln|code|zu alt|versuche/iu.test(msg) ? msg : "nicht erreichbar", at: Date.now() };
     return false;
   } finally { emit("direct", direct); }
 }

@@ -343,7 +343,8 @@ pub fn run() {
             install_update,
             windows_hello,
             direct::direct_server,
-            direct::direct_set_config
+            direct::direct_set_config,
+            direct::direct_pairing
         ])
         .run(tauri::generate_context!())
         .expect("Heimalarm konnte nicht starten");

@@ -4,6 +4,10 @@
 # Licht für Alexa / Google Home zusätzlich:  docker compose --profile zigbee --profile matter up -d
 # Tuya-Brücke (Melder über Smart Life, ohne ESP32):  docker compose --profile tuya up -d
 #   Ohne Kommandozeile (z. B. UGOS-Docker-App): Datei .env neben dieser Datei mit COMPOSE_PROFILES=tuya
+#
+# Vorher: .env.example nach .env kopieren und MQTT_PASSWORD setzen. Ohne Passwort startet die Zentrale nicht
+# (sonst könnte jeder im WLAN Fehlalarme senden und mitlesen). Dasselbe Passwort in der App unter
+# Einstellungen → Verbindung und im ESP32 (secrets.yaml → mqtt_pw) eintragen.
 
 services:
   mosquitto:
@@ -15,6 +19,19 @@ services:
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/data:/mosquitto/data
+    environment:
+      MQTT_USER: ${MQTT_USER:-heimalarm}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+    # Passwortdatei aus .env erzeugen, dann Mosquitto starten
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$$MQTT_PASSWORD" ]; then echo "Heimalarm: MQTT_PASSWORD fehlt in zentrale/.env – siehe .env.example" >&2; exit 1; fi
+        mosquitto_passwd -c -b /mosquitto/data/passwd "$$MQTT_USER" "$$MQTT_PASSWORD"
+        chown mosquitto:mosquitto /mosquitto/data/passwd
+        chmod 0700 /mosquitto/data/passwd
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
 
   dienst:
     build: ./dienst
@@ -22,6 +39,8 @@ services:
     network_mode: host   # für Wake-on-LAN und Matter (mDNS im Heimnetz)
     environment:
       MQTT_URL: mqtt://127.0.0.1:1883
+      MQTT_USER: ${MQTT_USER:-heimalarm}
+      MQTT_PASS: ${MQTT_PASSWORD:-}
       WEBHOOK_PORT: "8080"
       MATTER_PORT: "5541"               # Alarm-Sensoren für Alexa / Google Home
       MATTER_STORAGE: /app/data/matter  # Kopplungen bleiben bei Updates erhalten
@@ -44,6 +63,9 @@ services:
     environment:
       TZ: Europe/Berlin
       MQTT_HOST: mosquitto
+      MQTT_USER: ${MQTT_USER:-heimalarm}
+      MQTT_PW: ${MQTT_PASSWORD:-}
+      WEB_PASSWORD: ${TUYA_WEB_PASSWORD:-}   # Schutz der Weboberfläche (leer = MQTT_PASSWORD)
       KENNUNG: ich            # gleiche Kennung wie in der App („Meine Kennung“)
       ALARM_BEI: geschlossen  # Zustand des Kontakts bei Alarm (geschlossen | offen)
       GERAET: ""              # leer = erster Kontaktsensor, sonst Name oder ID aus Smart Life
@@ -62,12 +84,15 @@ services:
     environment:
       TZ: Europe/Berlin
       ZIGBEE2MQTT_CONFIG_MQTT_SERVER: mqtt://mosquitto:1883
+      ZIGBEE2MQTT_CONFIG_MQTT_USER: ${MQTT_USER:-heimalarm}
+      ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       ZIGBEE2MQTT_CONFIG_SERIAL_PORT: /dev/ttyACM0
       ZIGBEE2MQTT_CONFIG_FRONTEND_ENABLED: "true"
       ZIGBEE2MQTT_CONFIG_HOMEASSISTANT_ENABLED: "false"
 
   # Gibt Zigbee-Lichter und -Gruppen per Matter an Alexa / Google Home weiter (lokal).
   # Koppeln: Weboberfläche http://<zentrale>:8283 → QR-Code in der Alexa- bzw. Google-Home-App scannen.
+  # Im Zigbee2MQTT-Plugin der Matterbridge Benutzer und Passwort der Zentrale (.env) eintragen.
   matterbridge:
     image: luligu/matterbridge:latest
     profiles: ["matter"]
