@@ -3,6 +3,7 @@
 # Start mit Zigbee:   docker compose --profile zigbee up -d   (USB-Stick unten eintragen)
 # Licht für Alexa / Google Home zusätzlich:  docker compose --profile zigbee --profile matter up -d
 # Tuya-Brücke (Melder über Smart Life, ohne ESP32):  docker compose --profile tuya up -d
+# ESP32-Firmware bauen (nur zum Einrichten, danach stoppen):  docker compose --profile esphome up -d  → http://<zentrale>:6052
 #   Ohne Kommandozeile (z. B. UGOS-Docker-App): Datei .env neben dieser Datei mit COMPOSE_PROFILES=tuya
 #
 # Vorher: .env.example nach .env kopieren und MQTT_PASSWORD setzen. Ohne Passwort startet die Zentrale nicht
@@ -105,3 +106,19 @@ services:
       - ./matterbridge/cert:/root/.mattercert
     environment:
       TZ: Europe/Berlin
+
+  # Nur zum Einrichten des ESP32: übersetzt esp32/*.yaml zu einer Firmware-Datei (.bin).
+  # Ordner esp32 (mit secrets.yaml) neben diese Datei legen. Oberfläche: http://<zentrale>:6052
+  # Anmeldung mit MQTT_USER / MQTT_PASSWORD aus .env. Nach dem Flashen wieder stoppen.
+  esphome:
+    image: ghcr.io/esphome/esphome:stable
+    profiles: ["esphome"]
+    restart: "no"
+    ports:
+      - "6052:6052"
+    volumes:
+      - ./esp32:/config
+    environment:
+      TZ: Europe/Berlin
+      ESPHOME_USERNAME: ${MQTT_USER:-heimalarm}
+      ESPHOME_PASSWORD: ${MQTT_PASSWORD:-}
