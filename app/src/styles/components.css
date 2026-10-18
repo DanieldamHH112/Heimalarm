@@ -396,3 +396,14 @@ details[open].flow-details > summary, details[open].flow-wrap > summary { margin
 /* Prozent-Regler (Lautstärke): Wert steht neben der Beschriftung und ändert sich beim Ziehen */
 .slider { width: 100%; min-height: 32px; accent-color: var(--signal); cursor: pointer; }
 .field output { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+
+/* Protokoll → Einsätze: eine Liste wie „Alle“, Tippen öffnet die Details */
+.einsatz-list { display: grid; gap: 2px; }
+.einsatz-grp { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); padding: var(--s3) 0 var(--s1); }
+.einsatz-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: var(--s3); align-items: center; width: 100%; padding: 10px 8px; border: 0; border-top: 1px solid var(--line-2); background: none; color: var(--text); text-align: left; cursor: pointer; border-radius: 0; }
+.einsatz-row:hover { background: var(--surface-2); }
+.einsatz-row .einsatz-main { display: grid; min-width: 0; }
+.einsatz-row small { color: var(--text-2); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.einsatz-row time { color: var(--text-2); font-size: var(--fs-xs); }
+.dialog .facts-row { margin: 0; }
+@media (max-width: 760px) { .einsatz-row { grid-template-columns: auto minmax(0, 1fr) auto; } .einsatz-row > .chip { display: none; } }

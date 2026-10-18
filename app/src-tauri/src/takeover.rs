@@ -7,6 +7,11 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg(desktop)]
 const MIRROR_PREFIX: &str = "takeover-";
 
+/// Gleiche WebView2-Argumente wie das Hauptfenster (tauri.conf.json → additionalBrowserArgs).
+/// Unterschiedliche Argumente im selben Programm lässt WebView2 nicht zu.
+#[cfg(desktop)]
+const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows";
+
 #[tauri::command]
 pub async fn takeover_open(app: tauri::AppHandle, on: bool) -> Result<(), String> {
     #[cfg(desktop)]
@@ -58,6 +63,7 @@ fn open(app: tauri::AppHandle, on: bool) -> Result<(), String> {
             .resizable(false)
             .focused(false)
             .background_color(tauri::window::Color(14, 16, 19, 255))
+            .additional_browser_args(BROWSER_ARGS)
             .build()
             .map_err(|e| e.to_string())?;
         let _ = w.set_fullscreen(true);

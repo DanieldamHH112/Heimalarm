@@ -1,6 +1,8 @@
 // Divera 24/7 – alles mit dem persönlichen Accesskey (API-Doku: api.divera247.com).
 //   GET  /api/v2/pull/all                     Einheit, Status-Listen, eigener Status
-//   GET  /api/v2/alarms                       offene Alarme { items, sorting }
+//   GET  /api/v2/alarms                       offene Alarme { items, sorting } – nur Rückfall: manche Schlüssel
+//                                             (API-Schlüssel statt persönlichem Accesskey) dürfen das nicht,
+//                                             pull/all liefert dieselben Alarme unter data.alarm.
 //   POST /api/v2/statusgeber/set-status       eigenen Status setzen { Status: { id, note, reset_date, reset_to } }
 //   POST /api/v2/alarms/confirm/{id}          Rückmeldung zu einem Einsatz { Status: { id, note } }
 // In der App läuft der Abruf über das Tauri-HTTP-Plugin (kein CORS-Problem).
@@ -25,16 +27,29 @@ async function http(url, opts = {}) {
   return f(url, { ...opts, headers: { Accept: "application/json", ...(opts.body ? { "Content-Type": "application/json" } : {}) } });
 }
 
+/** Fehler mit Endpunkt, HTTP-Code, Meldung von Divera und Hinweis – fürs Protokoll. */
+class DiveraError extends Error {
+  constructor(text, { path, status, server, hint } = {}) {
+    super(text);
+    this.detail = [`${path}${status ? ` → HTTP ${status}` : ""}`, server && `Divera: „${server}“`, hint].filter(Boolean).join(" · ");
+  }
+}
+
 async function api(path, body) {
   const key = settings().divera.key;
-  if (!key) throw new Error("Kein Accesskey eingetragen");
+  if (!key) throw new DiveraError("Kein Accesskey eingetragen", { path, hint: "Unter Einstellungen → Alarm & Quellen → Divera eintragen." });
   const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}accesskey=${encodeURIComponent(key)}`;
-  const r = await http(url, body ? { method: "POST", body: JSON.stringify(body) } : { method: "GET" });
-  if (r.status === 403 || r.status === 401) throw new Error("Accesskey ungültig");
-  if (r.status === 404) throw new Error("Nicht gefunden oder keine Berechtigung");
-  if (!r.ok) throw new Error(`Divera-Fehler ${r.status}`);
+  let r;
+  try { r = await http(url, body ? { method: "POST", body: JSON.stringify(body) } : { method: "GET" }); }
+  catch (e) { throw new DiveraError("Divera nicht erreichbar", { path, server: String(e?.message || e), hint: "Internet am Gerät prüfen." }); }
   const j = await r.json().catch(() => ({}));
-  if (j.success === false) throw new Error(j.message || "Divera meldet einen Fehler");
+  const server = j?.message || (Array.isArray(j?.errors) ? j.errors.join(", ") : typeof j?.errors === "object" && j?.errors ? Object.values(j.errors).flat().join(", ") : "");
+  if (r.status === 401) throw new DiveraError("Accesskey ungültig", { path, status: 401, server, hint: "Schlüssel neu kopieren – ohne Leerzeichen. Nach einem Passwortwechsel ändert Divera den persönlichen Accesskey." });
+  if (r.status === 403) throw new DiveraError("Keine Berechtigung", { path, status: 403, server, hint: "Der Schlüssel ist gültig, darf diese Abfrage aber nicht. Bei einem eigenen API-Schlüssel in Divera die Rechte prüfen oder den persönlichen Accesskey nehmen." });
+  if (r.status === 404) throw new DiveraError("Nicht gefunden oder keine Berechtigung", { path, status: 404, server });
+  if (r.status === 429) throw new DiveraError("Zu viele Abfragen", { path, status: 429, server, hint: "Abfrage-Abstand unter Divera vergrößern." });
+  if (!r.ok) throw new DiveraError(`Divera-Fehler ${r.status}`, { path, status: r.status, server });
+  if (j.success === false) throw new DiveraError(server || "Divera meldet einen Fehler", { path, status: r.status, server });
   return j.data ?? j;
 }
 
@@ -64,9 +79,23 @@ export async function loadDivera() {
 }
 
 /** Neue Alarme seit der letzten Abfrage. Beim ersten Abruf wird nur gemerkt, nichts ausgelöst. */
+let alarmsEndpoint = "pull";   // "pull" = /api/v2/pull/all, sonst /api/v2/alarms
+
+/** Offene Alarme { items, sorting }: aus pull/all (geht mit jedem gültigen Schlüssel), sonst /alarms. */
+async function fetchAlarms() {
+  if (alarmsEndpoint === "pull") {
+    const d = await api("/api/v2/pull/all");
+    if (d.status?.status_id != null) divera.current = String(d.status.status_id);
+    if (d.alarm && typeof d.alarm === "object") return d.alarm;
+    alarmsEndpoint = "alarms";
+    log("info", "Divera: pull/all ohne Alarmliste – nutze /api/v2/alarms");
+  }
+  return api("/api/v2/alarms");
+}
+
 export async function pollDivera() {
   try {
-    const d = await api("/api/v2/alarms");
+    const d = await fetchAlarms();
     const items = d.items || {};
     const ids = (d.sorting || Object.keys(items)).map(String);
     const fresh = [];
@@ -79,6 +108,7 @@ export async function pollDivera() {
     }
     primed = true;
     saveSeen();
+    if (divera.ok === false) log("ok", "Divera-Abfrage klappt wieder");
     divera.ok = true; divera.error = ""; divera.lastPoll = Date.now();
     for (const a of fresh) {
       emit("divera-alarm", {
@@ -88,7 +118,7 @@ export async function pollDivera() {
       });
     }
   } catch (e) {
-    if (divera.error !== e.message) log("warn", "Divera-Abfrage fehlgeschlagen", e.message);
+    if (divera.error !== e.message) log("warn", `Divera-Abfrage fehlgeschlagen: ${e.message}`, e.detail || "");
     divera.ok = false; divera.error = e.message;
   }
   emit("divera", divera);
@@ -109,7 +139,7 @@ export async function setDiveraStatus(id) {
     log("action", `Divera-Status: ${nameOf(d.statuses, id)}`);
     emit("divera", divera);
     return true;
-  } catch (e) { log("warn", "Divera-Status nicht gesetzt", e.message); return false; }
+  } catch (e) { log("warn", `Divera-Status nicht gesetzt: ${e.message}`, e.detail || ""); return false; }
 }
 
 /** Rückmeldung zu einem Divera-Einsatz. */
@@ -120,7 +150,7 @@ export async function confirmDiveraAlarm(alarmId, statusId) {
     await api(`/api/v2/alarms/confirm/${encodeURIComponent(alarmId)}`, { Status: { id: Number(statusId), ...(d.note ? { note: d.note } : {}) } });
     log("action", `Divera-Rückmeldung: ${nameOf(d.answers, statusId)}`);
     return true;
-  } catch (e) { log("warn", "Divera-Rückmeldung fehlgeschlagen", e.message); return false; }
+  } catch (e) { log("warn", `Divera-Rückmeldung fehlgeschlagen: ${e.message}`, e.detail || ""); return false; }
 }
 
 /** Antwort auf „Fährst du?“ an Divera: Rückmeldung zum Einsatz (falls von Divera) und/oder Status. */

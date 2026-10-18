@@ -20,7 +20,7 @@ import { on } from "../core/events.js";
 import { updateShared } from "../core/shared.js";
 import { testAlarm } from "../core/engine.js";
 import { statsEntries } from "../core/stats.js";
-import { checkup, runCheckup, statusKind, connectionFailed } from "../core/checkup.js";
+import { checkup, runCheckup, statusKind, connectionFailed, failedNow, reconnectAll } from "../core/checkup.js";
 import { doSet as wifiToggle } from "./wifi.js";
 import { icon } from "../ui/icons.js";
 
@@ -173,11 +173,12 @@ let stopStatus = null;
  *  verschiebt nie Knöpfe oder Kennzahlen. */
 function statusPill() {
   const kind = checkup.running ? "wait" : connectionFailed() ? "bad" : "ok";
+  const failed = failedNow();
   const text = checkup.running ? checkup.line || "verbinde …"
-    : connectionFailed() ? "Verbindung fehlgeschlagen" : "Verbunden";
+    : failed.length ? `Fehlgeschlagen: ${failed.join(", ")}` : "Verbunden";
   const pill = h("button.stpill." + kind, {
-    type: "button", title: connectionFailed() ? `Nicht erreichbar: ${checkup.failed.join(", ") || "Zentrale"} · tippen zum erneuten Prüfen` : "Tippen zum erneuten Prüfen",
-    onclick: () => { if (!checkup.running) runCheckup(); },
+    type: "button", title: failed.length ? `Nicht erreichbar: ${failed.join(", ")} – Grund steht im Protokoll · tippen zum erneuten Prüfen` : "Tippen zum erneuten Prüfen",
+    onclick: () => { if (!checkup.running) runCheckup({ reason: "Pille angetippt" }); },
   }, h("i", { "aria-hidden": "true" }),
   h("span" + (checkup.running && checkup.lineOk === null ? ".cur" : ""), {},
     checkup.running && checkup.lineOk !== null
@@ -196,11 +197,16 @@ function statusCard() {
     title: kind === "off" ? "Alarme lösen wieder Abfrage, Routinen und Ton aus" : "Urlaubsmodus: alles bleibt verbunden, bei Alarm passiert nichts",
     onclick: () => { updateShared({ vacation: !vacation }); toast(vacation ? "Aktiv – Alarme lösen wieder alles aus" : "Inaktiv – bei Alarm passiert nichts"); },
   }, kind === "off" ? "Aktivieren" : "Inaktiv schalten");
+  const reconnect = h("button.btn", {
+    type: "button", disabled: kind === "wait", title: "Alle Verbindungen neu aufbauen und prüfen – Ergebnis im Protokoll",
+    onclick: () => reconnectAll(),
+  }, "Neu verbinden");
   const card = h("section.status-card", { "data-st": kind },
     h("div.st-pulse", { "aria-hidden": "true" }, icon(ST_ICON[kind])),
     h("div.st-text", {}, title, slot),
     h("div.st-actions", {},
       h("button.btn", { type: "button", onclick: testAlarm }, "Testalarm"),
+      reconnect,
       toggle));
   // Nur Pille und Zustand aktualisieren, nicht die ganze Seite (kein Springen während des Checks)
   stopStatus?.();
@@ -212,6 +218,7 @@ function statusCard() {
     card.querySelector(".st-pulse").replaceChildren(icon(ST_ICON[k]));
     slot.replaceChildren(statusPill());
     toggle.disabled = k === "wait";
+    reconnect.disabled = k === "wait";
   });
   return card;
 }

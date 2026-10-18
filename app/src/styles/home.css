@@ -24,7 +24,7 @@
 @keyframes st-pulse { from { transform: scale(.85); opacity: 1; } to { transform: scale(1.25); opacity: 0; } }
 .st-title { font-size: 1.6rem; font-weight: 750; font-variation-settings: "wdth" 90; }
 .st-actions { display: flex; gap: var(--s3); }
-.st-actions .btn { width: 150px; flex: none; }
+.st-actions .btn { width: 140px; flex: none; }
 
 /* Pille: fester Platzhalter, Pille liegt darin – ihr Text verschiebt nichts */
 .stslot { position: relative; height: 28px; margin-top: 6px; min-width: 0; }
@@ -102,7 +102,7 @@ button.dev { cursor: pointer; }
   .st-title { font-size: 1.3rem; }
   .stpill.wait { width: 100%; }
   .st-actions { grid-column: 1 / -1; }
-  .st-actions .btn { width: auto; flex: 1 1 0; min-width: 0; }
+  .st-actions .btn { width: auto; flex: 1 1 0; min-width: 0; padding: 0 8px; white-space: normal; line-height: 1.15; }
   .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
   .kpi-n { font-size: 1.5rem; }
   .devs { grid-template-columns: 1fr 1fr; }

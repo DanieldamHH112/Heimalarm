@@ -66,11 +66,8 @@ function trayStatus() {
 
 function renderConn() {
   trayStatus();
-  const el = document.getElementById("conn-badge");
-  if (!has.pi()) return el.replaceChildren(themeToggle());
-  el.replaceChildren(themeToggle(), state.connected
-    ? h("span.chip.ok", {}, h("span.chip-label", {}, "Verbunden"))
-    : h("span.chip" + (settings().broker.host ? ".bad" : ""), {}, h("span.chip-label", {}, settings().broker.host ? "Getrennt" : "Nicht eingerichtet")));
+  // Unten in der Seitenleiste nur der Hell/Dunkel-Knopf – den Verbindungsstatus zeigt Start
+  document.getElementById("conn-badge").replaceChildren(themeToggle());
 }
 
 // Neu zeichnen, ohne Eingaben, Dialoge oder Regler zu stören

@@ -165,10 +165,14 @@ export async function pingPeer(peer) {
     const p = peer.paired ? peer : await pair(peer);
     const r = await call(p, "/ping");
     if (!r.paired) throw new Error("Vom PC entkoppelt – neu koppeln");
+    if (direct.peers[p.id]?.ok === false) log("ok", `PC „${p.name || p.host}“ wieder erreichbar`, `${p.host}:${p.port}`);
     direct.peers[p.id] = { ok: true, at: Date.now() };
     return true;
   } catch (e) {
     const msg = String(e?.message || e);
+    if (direct.peers[peer.id]?.ok !== false || direct.peers[peer.id]?.error !== msg) {
+      log("warn", `PC „${peer.name || peer.host}“ nicht erreichbar`, `${peer.host}:${peer.port} · ${msg} · PC an, Heimalarm offen, gleiches WLAN, Firewall „Private Netzwerke“ erlaubt?`);
+    }
     direct.peers[peer.id] = { ok: false, error: /koppeln|code|zu alt|versuche/iu.test(msg) ? msg : "nicht erreichbar", at: Date.now() };
     return false;
   } finally { emit("direct", direct); }

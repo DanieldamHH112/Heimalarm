@@ -37,17 +37,34 @@ const presence = (online) => JSON.stringify({
   online, ts: Date.now(), mac: settings().pc.wolMac || undefined,
 });
 
+/** Fehlertext der Zentrale in verständliche Sprache mit Hinweis übersetzen. */
+export function explainMqttError(msg = "") {
+  const m = String(msg);
+  if (/not authori[sz]ed|bad user ?name or password|code 4|code 5/i.test(m)) return ["Benutzer oder Passwort falsch", "Unter Einstellungen → Betrieb & Verbindung Benutzer „heimalarm“ und das MQTT_PASSWORD der Zentrale prüfen."];
+  if (/timeout|timed out/i.test(m)) return ["Zentrale antwortet nicht", "Ist die Zentrale an und im selben WLAN? IP-Adresse und Port 9001 prüfen."];
+  if (/refused|ECONNREFUSED|1006|websocket/i.test(m)) return ["Verbindung abgelehnt", "Läuft der Container mosquitto? Stimmt der Port (9001 = WebSocket)?"];
+  if (/ENOTFOUND|getaddrinfo|resolve/i.test(m)) return ["Adresse nicht gefunden", "Die Adresse der Zentrale ist falsch geschrieben oder nicht erreichbar."];
+  return [m || "unbekannter Fehler", "Unter Test & Diagnose den Verbindungstest starten."];
+}
+
+let lastError = "";
+let attempts = 0;
+
 export function connect() {
   disconnect();
   const b = settings().broker;
   if (!b.host || !isConfigured()) return;
   const url = `${b.tls ? "wss" : "ws"}://${b.host}:${b.port}`;
+  lastError = ""; attempts = 0;
+  log("info", "Verbinde mit der Zentrale …", `${url} · Benutzer ${b.user || "(keiner)"}`);
   client = mqtt.connect(url, {
     username: b.user || undefined,
     password: b.pass || undefined,
     clientId: `heimalarm-${settings().device.id}-${Math.random().toString(16).slice(2, 6)}`,
     reconnectPeriod: 3000,
     connectTimeout: 8000,
+    // Großzügiger Takt: Windows bremst Timer versteckter Fenster; die Zentrale trennt erst nach 1,5 × keepalive.
+    keepalive: 120,
     will: { topic: clientTopic(), payload: presence(false), retain: true, qos: 1 },
   });
   bindPublisher((t, m, o) => client?.publish(t, m, o));
@@ -56,20 +73,41 @@ export function connect() {
     state.connected = true;
     client.subscribe(["alarm/#", "heimalarm/#", "zigbee2mqtt/#"], { qos: 1 });
     client.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
-    log("ok", "Mit Zentrale verbunden", url);
+    log("ok", "Mit Zentrale verbunden", attempts > 0 ? `${url} · nach ${attempts} Versuch${attempts === 1 ? "" : "en"}` : url);
+    lastError = ""; attempts = 0;
     emit("conn", state);
   });
+  client.on("reconnect", () => {
+    attempts++;
+    // Nicht jeden Versuch protokollieren: erster, dann jeder zehnte
+    if (attempts === 1 || attempts % 10 === 0) log("info", `Neuer Verbindungsversuch zur Zentrale (${attempts})`, url);
+  });
+  client.on("offline", () => { if (state.connected) log("warn", "Zentrale nicht mehr erreichbar", "Netzwerk weg oder Zentrale aus – verbinde neu, sobald sie wieder da ist."); });
   client.on("close", () => {
-    if (state.connected) log("warn", "Verbindung zur Zentrale getrennt");
+    if (state.connected) {
+      const [why, hint] = lastError ? explainMqttError(lastError) : ["Verbindung beendet", "Kurze Trennung, Heimalarm verbindet automatisch neu. Häufig? Unter Test & Diagnose prüfen."];
+      log("warn", "Verbindung zur Zentrale getrennt", `${why} · ${hint}`);
+    }
     state.connected = false;
     emit("conn", state);
   });
-  client.on("error", (err) => emit("conn-error", err.message));
+  client.on("error", (err) => {
+    const msg = err?.message || String(err);
+    if (msg !== lastError) {
+      const [why, hint] = explainMqttError(msg);
+      log("warn", `Zentrale: ${why}`, `${hint} (${msg})`);
+    }
+    lastError = msg;
+    emit("conn-error", msg);
+  });
   client.on("message", (topic, payload, packet) => {
     try { handle(topic, payload.toString().trim(), packet.retain); }
     catch (e) { console.warn("MQTT", topic, e); }
   });
 }
+
+/** Letzter Fehler der Zentrale-Verbindung (für Status und Check). */
+export const mqttLastError = () => lastError;
 
 const device = (who) => (state.devices[who] ||= { online: null, since: Date.now() });
 

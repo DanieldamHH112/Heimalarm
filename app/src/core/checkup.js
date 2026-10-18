@@ -3,7 +3,10 @@
 // Läuft beim Start, nach jedem Verbindungsabbruch und auf Knopfdruck.
 import { emit, on } from "./events.js";
 import { settings } from "./settings.js";
-import { state } from "./mqtt.js";
+import { state, mqttLastError, explainMqttError, connect } from "./mqtt.js";
+import { log } from "./log.js";
+import { restartDivera } from "./divera.js";
+import { startReceiver } from "./direct.js";
 import { has } from "./features.js";
 import { direct, pingPeer } from "./direct.js";
 import { divera, loadDivera } from "./divera.js";
@@ -29,19 +32,27 @@ async function until(test, ms) {
 function steps() {
   const s = settings();
   const list = [];
-  if (has.pi()) list.push({ name: `Zentrale ${s.broker.host}:${s.broker.port}`, run: () => until(() => state.connected, 8000) });
-  if (has.esp() && !has.tuya()) list.push({ name: `Melder alarm/${s.alarm.me}`, run: () => until(() => state.devices[s.alarm.me]?.online, 4000) });
-  if (has.esp() && has.tuya()) list.push({ name: "Funk-Alarmschalter", run: () => until(() => state.tuya?.online && state.tuya?.angemeldet, 4000) });
-  if (has.direct() && hasPcFeatures) list.push({ name: "Empfang vom Handy", run: () => until(() => direct.ip && !direct.error, 4000) });
-  if (has.direct() && !hasPcFeatures) for (const p of s.direct.peers || []) list.push({ name: p.name || p.host, run: () => pingPeer(p) });
-  if (has.diveraApi()) list.push({ name: "Divera", run: async () => { await loadDivera().catch(() => {}); return divera.ok !== false; } });
+  // why(): Grund und Hinweis, wenn der Schritt fehlschlägt (landet im Protokoll)
+  if (has.pi()) list.push({ name: `Zentrale ${s.broker.host}:${s.broker.port}`, run: () => until(() => state.connected, 8000),
+    why: () => (mqttLastError() ? explainMqttError(mqttLastError()).join(" · ") : "Keine Antwort in 8 s · Ist die Zentrale an, IP und Port 9001 richtig, PC und Zentrale im selben Netz?") });
+  if (has.esp() && !has.tuya()) list.push({ name: `Melder alarm/${s.alarm.me}`, run: () => until(() => state.devices[s.alarm.me]?.online, 4000),
+    why: () => (!state.connected ? "Ohne Zentrale kein Melder" : state.devices[s.alarm.me] ? "ESP32 meldet sich offline · Strom und WLAN (2,4 GHz) prüfen" : `Kein ESP32 mit Kennung „${s.alarm.me}“ gemeldet · Kennung im ESP32 und hier gleich?`) });
+  if (has.esp() && has.tuya()) list.push({ name: "Funk-Alarmschalter", run: () => until(() => state.tuya?.online && state.tuya?.angemeldet, 4000),
+    why: () => (!state.tuya?.online ? "Tuya-Brücke läuft nicht · Container tuya-bruecke auf der Zentrale prüfen" : "Brücke nicht bei Smart Life angemeldet · Port 8082 öffnen und anmelden") });
+  if (has.direct() && hasPcFeatures) list.push({ name: "Empfang vom Handy", run: () => until(() => direct.ip && !direct.error, 4000),
+    why: () => direct.error || "Empfänger nicht gestartet · Port 8765 frei? Firewall „Private Netzwerke“ erlaubt?" });
+  if (has.direct() && !hasPcFeatures) for (const p of s.direct.peers || []) list.push({ name: p.name || p.host, run: () => pingPeer(p),
+    why: () => `${direct.peers[p.id]?.error || "nicht erreichbar"} · PC an, Heimalarm offen, gleiches WLAN, Adresse ${p.host}:${p.port}?` });
+  if (has.diveraApi()) list.push({ name: "Divera", run: async () => { await loadDivera().catch((e) => { divera.ok = false; divera.error = e.message; divera.detail = e.detail; }); return divera.ok !== false; },
+    why: () => [divera.error, divera.detail].filter(Boolean).join(" · ") || "Abfrage fehlgeschlagen" });
   return list;
 }
 
 let runId = 0;
-export async function runCheckup() {
+export async function runCheckup({ reason = "" } = {}) {
   const id = ++runId;
   const list = steps();
+  log("info", `Verbindungen werden geprüft${reason ? ` (${reason})` : ""}`, list.map((x) => x.name).join(" · ") || "Nichts eingerichtet, was geprüft werden kann");
   Object.assign(checkup, { running: true, failed: [], line: "", lineOk: null });
   const show = (line, ok = null) => { if (id !== runId) return; checkup.line = line; checkup.lineOk = ok; emit("checkup", checkup); };
   for (const st of list) {
@@ -50,28 +61,48 @@ export async function runCheckup() {
     try { ok = Boolean(await st.run()); } catch { ok = false; }
     if (id !== runId) return;
     show(`${st.name} ${ok ? "ok" : "fehlgeschlagen"}`, ok);
-    if (!ok) checkup.failed.push(st.name);
+    if (!ok) { checkup.failed.push(st.name); log("warn", `Prüfung fehlgeschlagen: ${st.name}`, st.why?.() || ""); }
     await sleep(ok ? 350 : 900);
   }
   if (id !== runId) return;
   if (list.length && !checkup.failed.length) { show("Alle Verbindungen ok", true); await sleep(900); }
   if (id !== runId) return;
+  if (list.length) log(checkup.failed.length ? "warn" : "ok", checkup.failed.length ? `Prüfung beendet: ${checkup.failed.length} von ${list.length} fehlgeschlagen` : `Prüfung beendet: alle ${list.length} Verbindungen ok`, checkup.failed.join(" · "));
   Object.assign(checkup, { running: false, done: true });
   emit("checkup", checkup);
 }
 
 /** Beim Start und bei Verbindungsabbruch automatisch prüfen. */
 export function initCheckup() {
-  runCheckup();
+  runCheckup({ reason: "Start" });
   let was = state.connected;
   on("conn", () => {
-    if (was && !state.connected && !checkup.running) runCheckup();
-    if (!was && state.connected && checkup.failed.length && !checkup.running) runCheckup();
+    if (was && !state.connected && !checkup.running) runCheckup({ reason: "Verbindung getrennt" });
+    if (!was && state.connected && checkup.failed.length && !checkup.running) runCheckup({ reason: "wieder verbunden" });
     was = state.connected;
   });
+  // Divera fällt später aus oder kommt wieder → Status sofort anpassen
+  on("divera", () => emit("checkup", checkup));
+}
+
+/** Knopf „Neu verbinden“: alle Verbindungen neu aufbauen und dann prüfen. */
+export async function reconnectAll() {
+  log("action", "Neu verbinden", "Zentrale, Empfang, Divera werden neu aufgebaut");
+  if (has.pi()) connect();
+  if (has.direct() && hasPcFeatures) await startReceiver().catch(() => {});
+  if (has.diveraApi()) restartDivera();
+  await new Promise((r) => setTimeout(r, 300));
+  return runCheckup({ reason: "Neu verbinden" });
 }
 
 /** Für die Status-Karte: "wait" (Verbindet), "off" (Inaktiv) oder "ok" (Aktiv). */
 export const statusKind = (vacation) => (checkup.running ? "wait" : vacation ? "off" : "ok");
-/** Ist gerade etwas nicht erreichbar (nach dem letzten Check oder Zentrale getrennt)? */
-export const connectionFailed = () => checkup.failed.length > 0 || (has.pi() && checkup.done && !state.connected);
+/** Ist gerade etwas nicht erreichbar? Letzter Check – oder jetzt live: Zentrale getrennt, Divera-Abfrage scheitert.
+ *  „Verbunden“ zeigt die Pille nur, wenn wirklich alles steht. */
+export function failedNow() {
+  const live = [];
+  if (has.pi() && checkup.done && !state.connected) live.push("Zentrale");
+  if (has.diveraApi() && divera.ok === false) live.push("Divera");
+  return [...new Set([...checkup.failed.map((n) => n.split(" ")[0]), ...live])];
+}
+export const connectionFailed = () => failedNow().length > 0;
