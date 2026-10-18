@@ -73,6 +73,9 @@
 /* Hinweis-Leiste */
 .banner { display: flex; gap: var(--s3); align-items: start; padding: var(--s4); border-radius: var(--radius); background: var(--info-soft); color: var(--text); }
 .banner.warn { background: var(--warn-soft); }
+.banner.update { justify-content: space-between; flex-wrap: wrap; background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.banner.update > div:first-child { min-width: min(100%, 260px); flex: 1; color: var(--text-2); font-size: var(--fs-sm); }
+.banner.update b { color: var(--text); font-size: var(--fs-md); }
 .banner b { display: block; }
 
 /* Toast */

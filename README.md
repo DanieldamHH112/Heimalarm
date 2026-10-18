@@ -131,6 +131,9 @@ Ein vorhandener Tuya-Alarmschalter (z. B. von Funkhandel) lässt sich über die 
 **7 · Testen**
 *Einstellungen → Test & Diagnose → Testalarm.* Es passiert nichts Echtes, du siehst nur die Abfrage.
 
+**Updates**
+Heimalarm sucht beim Start auf GitHub nach einer neuen Version (*Einstellungen → Updates*, abschaltbar). Mit **Installieren** lädt die App die Datei, prüft die Prüfsumme und installiert – am PC still mit Neustart, am Handy über den normalen Android-Installationsdialog (beim ersten Mal „Apps aus dieser Quelle zulassen“). Einstellungen bleiben erhalten. Funktioniert, sobald das Repository öffentlich ist.
+
 Ausführlich mit Bildern: [Konzept (PDF)](docs/Konzept.pdf)
 
 ---

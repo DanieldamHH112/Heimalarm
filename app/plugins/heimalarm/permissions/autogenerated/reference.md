@@ -10,6 +10,7 @@ Alle Heimalarm-Android-Befehle erlauben
 - `allow-set-service`
 - `allow-registerListener`
 - `allow-remove-listener`
+- `allow-install-apk`
 
 ## Permission Table
 
@@ -19,6 +20,32 @@ Alle Heimalarm-Android-Befehle erlauben
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`heimalarm:allow-install-apk`
+
+</td>
+<td>
+
+Enables the install_apk command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`heimalarm:deny-install-apk`
+
+</td>
+<td>
+
+Denies the install_apk command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>

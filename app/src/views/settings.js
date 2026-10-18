@@ -1,5 +1,6 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
 import { modeChoice, setupFlow } from "../ui/setup.js";
+import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
 import { h, toast } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
@@ -423,7 +424,7 @@ function sicherheit(rerender) {
 const exportAll = () => JSON.stringify({ heimalarm: "backup", version: 1, app: APP_VERSION, ts: Date.now(), settings: settings(), shared: shared() }, null, 2);
 
 function backup(rerender) {
-  return section("backup", "Backup & Updates", null,
+  return section("backup", "Backup", "Einstellungen sichern oder auf ein anderes Gerät übertragen.",
     h("div.row", {},
       h("button.btn", { onclick: async () => { const t = exportAll(); if (await copyText(t)) toast("Backup in die Zwischenablage kopiert"); if (!isAndroid) download("heimalarm-backup.json", t); } }, "Backup erstellen"),
       h("button.btn", { onclick: () => {
@@ -438,19 +439,25 @@ function backup(rerender) {
             } catch { toast("Kein gültiges Backup"); }
           } }, "Wiederherstellen")));
       } }, "Wiederherstellen")),
-    h("p.meta", {}, `App-Version ${APP_VERSION}${state.dienst?.version ? " · Dienst " + state.dienst.version : ""}`),
-    h("div.row", {}, h("button.btn.small", { onclick: async (e) => {
-      e.target.disabled = true;
-      try {
-        const r = await fetch("https://api.github.com/repos/DanieldamHH112/Heimalarm/releases/latest");
-        if (!r.ok) throw new Error(r.status === 404 ? "Keine Version gefunden (Repo privat?)" : `Fehler ${r.status}`);
-        const j = await r.json();
-        const latest = String(j.tag_name).replace(/^v/u, "");
-        toast(latest === APP_VERSION ? "Heimalarm ist aktuell" : `Neue Version ${latest} verfügbar`);
-        if (latest !== APP_VERSION) window.open(j.html_url, "_blank");
-      } catch (err) { toast(String(err.message || err)); }
-      e.target.disabled = false;
-    } }, "Nach Updates suchen")),
+  );
+}
+
+function updates(rerender) {
+  const u = update;
+  const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
+  return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert – ohne zusätzliche Programme.",
+    h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Dienst " + state.dienst.version : ""}`),
+    toggle("update.auto", "Beim Start nach Updates suchen", "Nur eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
+    u.available
+      ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || (u.available.notes ? u.available.notes.split("\n")[0] : "")),
+          h("div.row", {},
+            h("button.btn.primary.small", { onclick: () => installUpdate().then(rerender), disabled: u.installing }, u.installing ? "Lädt …" : "Installieren"),
+            h("a.btn.small", { href: u.available.page, target: "_blank", rel: "noopener" }, "Änderungen")))
+      : h("p.meta", {}, (u.message || "Noch nicht geprüft.") + when),
+    h("div.row", {},
+      h("button.btn.small", { onclick: () => checkUpdate().then(rerender), disabled: u.checking }, u.checking ? "Suche …" : "Jetzt prüfen"),
+      h("a.btn.small.ghost", { href: RELEASES_URL, target: "_blank", rel: "noopener" }, "Alle Versionen")),
+    isAndroid && h("small.meta", {}, "Beim ersten Update fragt Android, ob Heimalarm Apps installieren darf – einmal erlauben."),
   );
 }
 
@@ -475,6 +482,7 @@ export function settingsView(rerender) {
     z && ["zentrale", "Zentrale", zentrale(rerender)],
     ["sicherheit", "Sicherheit", sicherheit(rerender)],
     ["backup", "Backup", backup(rerender)],
+    isTauri && ["updates", "Updates", updates(rerender)],
     ["darstellung", "Darstellung", darstellung()],
   ].filter(Boolean);
   const index = h("nav.section-index", { "aria-label": "Abschnitte" },
@@ -515,7 +523,8 @@ const KEYWORDS = {
   sprache: "alexa google matter voice monkey ansage sprachassistent",
   zentrale: "selbsttest webhook dienst",
   sicherheit: "pin sperre admin passwort",
-  backup: "update version sichern wiederherstellen export import",
+  backup: "sichern wiederherstellen export import",
+  updates: "update version aktualisieren neue github installieren",
   darstellung: "dunkel hell theme farbe design",
 };
 const SEARCH_ICON = () => {

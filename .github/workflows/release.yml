@@ -34,10 +34,19 @@ jobs:
         with: { workspaces: app/src-tauri, cache-on-failure: true }
       - run: npm ci --no-audit --no-fund
       - run: npx tauri build --bundles nsis
+      # Prüfsumme für das Update in der App (<datei>.sha256)
+      - name: Prüfsumme
+        shell: pwsh
+        run: |
+          Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | ForEach-Object {
+            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" | Set-Content -NoNewline "$($_.FullName).sha256"
+          }
       - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: app/src-tauri/target/release/bundle/nsis/*.exe
+          path: |
+            app/src-tauri/target/release/bundle/nsis/*.exe
+            app/src-tauri/target/release/bundle/nsis/*.exe.sha256
 
   android:
     runs-on: ubuntu-24.04
@@ -67,14 +76,25 @@ jobs:
           npx tauri android init --ci
           # Eigene Launcher-Symbole (Logo, adaptiv) statt automatisch erzeugter
           cp -r src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
+      # Fester Signierschlüssel aus dem Secret – sonst lehnt Android Updates ab (neuer Zufallsschlüssel je Build)
+      - name: Signierschlüssel
+        env: { KEYSTORE: "${{ secrets.ANDROID_DEBUG_KEYSTORE }}" }
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            mkdir -p ~/.android && echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "::warning::Secret ANDROID_DEBUG_KEYSTORE fehlt – APK bekommt einen Zufallsschlüssel, Updates gehen nicht drüber."
+          fi
       - name: APK bauen (nur arm64, Debug-signiert)
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
           npx tauri android build --apk --debug --target aarch64
-      - run: find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${VERSION}.apk" \; -quit
+      - run: |
+          find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${VERSION}.apk" \; -quit
+          sha256sum "Heimalarm-${VERSION}.apk" > "Heimalarm-${VERSION}.apk.sha256"
         env: { VERSION: "${{ inputs.version || github.ref_name }}" }
       - uses: actions/upload-artifact@v7
-        with: { name: android, path: "app/Heimalarm-*.apk" }
+        with: { name: android, path: "app/Heimalarm-*.apk*" }
 
   release:
     needs: [windows, android]

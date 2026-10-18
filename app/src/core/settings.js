@@ -80,6 +80,8 @@ export const defaults = {
   lock: { pinHash: "" },
   // Android: Hintergrund-Dienst für zuverlässigen Empfang
   android: { service: true, batteryAsked: false },
+  // Beim Start auf GitHub nach einer neueren Version suchen
+  update: { auto: true },
   // Synchronisation der allgemeinen Einstellungen über die Zentrale
   sync: { enabled: true },
 };

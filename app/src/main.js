@@ -1,4 +1,5 @@
 // Einstieg: Einstellungen laden, Verbindung aufbauen, Ansichten rendern.
+import { initUpdates } from "./core/update.js";
 import { on } from "./core/events.js";
 import { connect, state } from "./core/mqtt.js";
 import { init as initEngine } from "./core/engine.js";
@@ -78,6 +79,7 @@ on("log", live);
 on("shared", live);
 on("divera", live);
 on("direct", live);
+on("update", live);
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
@@ -104,6 +106,7 @@ connect();
 restartDivera();
 startReceiver();
 initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", String(e)));
+initUpdates();
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
 if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);
 render();

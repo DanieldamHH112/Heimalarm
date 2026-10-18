@@ -19,6 +19,12 @@ import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 
 @InvokeArg
+class UpdateArgs {
+    var url: String = ""
+    var shaUrl: String = ""
+}
+
+@InvokeArg
 class ServiceArgs {
     var enabled: Boolean = false
 }
@@ -100,6 +106,75 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
             activity.stopService(intent)
         }
         invoke.resolve(JSObject())
+    }
+
+    /**
+     * Update: APK aus dem GitHub-Release laden, SHA256 mit <datei>.sha256 vergleichen und den
+     * Android-Installationsdialog öffnen. Fehlt die Erlaubnis „Apps aus dieser Quelle“, öffnet
+     * sich zuerst diese Einstellung ({ needsPermission: true }).
+     */
+    @Command
+    fun installApk(invoke: Invoke) {
+        val args = invoke.parseArgs(UpdateArgs::class.java)
+        val prefix = "https://github.com/DanieldamHH112/Heimalarm/releases/download/"
+        if (!args.url.startsWith(prefix) || !args.shaUrl.startsWith(prefix)) {
+            invoke.reject("Update nur aus den Heimalarm-Releases auf GitHub (mit Prüfsumme)")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.packageManager.canRequestPackageInstalls()) {
+            val i = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.packageName))
+            activity.startActivity(i)
+            val ret = JSObject(); ret.put("needsPermission", true); invoke.resolve(ret)
+            return
+        }
+        Thread {
+            try {
+                val dir = java.io.File(activity.cacheDir, "update").apply { mkdirs() }
+                val apk = java.io.File(dir, "Heimalarm-update.apk")
+                download(args.url, apk)
+                val expected = String(fetchBytes(args.shaUrl)).trim().split(Regex("\\s+"))[0]
+                val actual = sha256(apk)
+                if (!actual.equals(expected, ignoreCase = true)) {
+                    apk.delete()
+                    invoke.reject("Prüfsumme stimmt nicht – Download verworfen")
+                    return@Thread
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(activity, activity.packageName + ".heimalarm.update", apk)
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                activity.runOnUiThread { activity.startActivity(intent) }
+                val ret = JSObject(); ret.put("needsPermission", false); invoke.resolve(ret)
+            } catch (e: Exception) {
+                invoke.reject("Download fehlgeschlagen: " + (e.message ?: e.javaClass.simpleName))
+            }
+        }.start()
+    }
+
+    private fun open(url: String): java.net.HttpURLConnection {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.instanceFollowRedirects = true
+        c.connectTimeout = 15000
+        c.readTimeout = 60000
+        c.setRequestProperty("User-Agent", "Heimalarm-Updater")
+        if (c.responseCode !in 200..299) throw java.io.IOException("HTTP " + c.responseCode)
+        return c
+    }
+
+    private fun fetchBytes(url: String): ByteArray = open(url).inputStream.use { it.readBytes() }
+
+    private fun download(url: String, target: java.io.File) {
+        open(url).inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
+    }
+
+    private fun sha256(file: java.io.File): String {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(64 * 1024)
+            while (true) { val n = input.read(buf); if (n <= 0) break; md.update(buf, 0, n) }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
     }
 
     fun emitNotification(app: String, title: String, text: String) {

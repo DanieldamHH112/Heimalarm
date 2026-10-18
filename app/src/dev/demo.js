@@ -4,6 +4,7 @@ import { log } from "../core/log.js";
 export function fillDemo(state) {
   const now = Date.now();
   state.connected = true;
+  import("../core/update.js").then(({ update }) => { update.available = { version: "0.2.0", page: "#", url: "#", notes: "Updates direkt in der App" }; });
   import("../core/divera.js").then(({ divera }) => { divera.ok = true; divera.current = "1"; divera.loading = true; });
   state.voice = { enabled: true, running: true, commissioned: false, qr: "MT:Y.K90SO527NHQL71V00", manual: "36360023599", fabrics: [], sensors: ["Heimalarm Einsatz", "Einsatz Daniel", "Einsatz Kollege"] };
   state.devices = {

@@ -4,6 +4,7 @@ import { state, publish } from "../core/mqtt.js";
 import { shared } from "../core/shared.js";
 import { settings, isConfigured, mode } from "../core/settings.js";
 import { setupFlow, setupSteps, setupDone } from "../ui/setup.js";
+import { update, installUpdate } from "../core/update.js";
 import { getLog } from "../core/log.js";
 import { ACTIONS, wakeOnLan } from "../core/pc.js";
 import { has, activeSources } from "../core/features.js";
@@ -41,6 +42,17 @@ function setupCard() {
   );
 }
 const needsSetup = () => !setupDone();
+
+/** Hinweis auf eine neue Version – Installieren direkt aus der Übersicht. */
+function updateBanner() {
+  const u = update.available;
+  return h("div.banner.update", { role: "status" },
+    h("div", {}, h("b", {}, `Heimalarm ${u.version} ist verfügbar`),
+      update.progress || (isTauri ? "Wird geladen, geprüft und installiert – deine Einstellungen bleiben erhalten." : "Neue Version auf GitHub.")),
+    h("div.row", {},
+      h("button.btn.primary.small", { onclick: installUpdate, disabled: update.installing }, update.installing ? "Lädt …" : "Installieren"),
+      h("a.btn.small", { href: "#/einstellungen/updates" }, "Details")));
+}
 
 const tile = (label, value, status) => h("div.tile", {}, h("span.tile-label", {}, label), h("b", {}, value), status);
 
@@ -196,6 +208,7 @@ export function overview() {
       h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, s.device.name || platformName, has.pi() && " · Kennung ", has.pi() && h("code", {}, s.alarm.me))),
       h("div.row", {}, themeToggle("only-mobile")),
     ),
+    update.available && updateBanner(),
     needsSetup() && setupCard(),
     answerCard(),
     tiles(),

@@ -40,6 +40,9 @@
         },
         {
           "url": "https://api-v3.voicemonkey.io/*"
+        },
+        {
+          "url": "https://api.github.com/repos/DanieldamHH112/Heimalarm/*"
         }
       ]
     }

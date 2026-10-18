@@ -136,6 +136,78 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 
 mod direct;
 
+/// Nur Dateien aus den eigenen GitHub-Releases werden geladen.
+const RELEASE_PREFIX: &str = "https://github.com/DanieldamHH112/Heimalarm/releases/download/";
+
+/// Update (Windows): Setup aus dem GitHub-Release laden, SHA256 mit `<datei>.sha256` vergleichen,
+/// Setup still (`/P`, nur Fortschrittsbalken) ausführen und danach Heimalarm neu starten.
+/// Die App beendet sich selbst, damit das Setup die Dateien ersetzen kann.
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> Result<(), String> {
+    if !url.starts_with(RELEASE_PREFIX) || !sha_url.starts_with(RELEASE_PREFIX) {
+        return Err("Update nur aus den Heimalarm-Releases auf GitHub (mit Prüfsumme)".into());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+        const NO_WINDOW: u32 = 0x0800_0000;
+        const DETACHED: u32 = 0x0000_0008;
+
+        let dir = std::env::temp_dir().join("Heimalarm-Update");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let setup = dir.join("Heimalarm-setup.exe");
+        let sha = dir.join("Heimalarm-setup.exe.sha256");
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+
+        // Laden und prüfen mit Bordmitteln (PowerShell). Werte nur über Umgebungsvariablen, nie im Skripttext.
+        let script = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; \
+            [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; \
+            Invoke-WebRequest -UseBasicParsing -Uri $env:HA_URL -OutFile $env:HA_SETUP; \
+            Invoke-WebRequest -UseBasicParsing -Uri $env:HA_SHA_URL -OutFile $env:HA_SHA; \
+            $exp=((Get-Content -Raw $env:HA_SHA).Trim() -split '\\s+')[0]; \
+            $act=(Get-FileHash -Algorithm SHA256 $env:HA_SETUP).Hash; \
+            if ($act -ne $exp) { Remove-Item $env:HA_SETUP -Force; exit 3 }";
+        let out = tauri::async_runtime::spawn_blocking({
+            let (setup, sha) = (setup.clone(), sha.clone());
+            move || {
+                Command::new("powershell")
+                    .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
+                    .env("HA_URL", &url).env("HA_SHA_URL", &sha_url)
+                    .env("HA_SETUP", &setup).env("HA_SHA", &sha)
+                    .creation_flags(NO_WINDOW)
+                    .output()
+            }
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+        if !out.status.success() {
+            return Err(if out.status.code() == Some(3) {
+                "Prüfsumme stimmt nicht – Download verworfen".into()
+            } else {
+                format!("Download fehlgeschlagen: {}", String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("unbekannt"))
+            });
+        }
+
+        // Kurz warten, bis Heimalarm beendet ist, dann Setup still ausführen und neu starten.
+        let chain = "Start-Sleep -Seconds 2; Start-Process -FilePath $env:HA_SETUP -ArgumentList '/P' -Wait; Start-Process -FilePath $env:HA_EXE";
+        Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", chain])
+            .env("HA_SETUP", &setup).env("HA_EXE", &exe)
+            .creation_flags(NO_WINDOW | DETACHED)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        app.exit(0);
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Err("Nur unter Windows – Android aktualisiert über das Plugin".into())
+    }
+}
+
 /// Startargument des Autostarts: Fenster bleibt verborgen, nur das Symbol im Infobereich erscheint.
 #[cfg(desktop)]
 const HIDDEN_ARG: &str = "--im-hintergrund";
@@ -227,6 +299,7 @@ pub fn run() {
             enable_hibernate,
             mac_address,
             wake_on_lan,
+            install_update,
             direct::direct_server
         ])
         .run(tauri::generate_context!())
