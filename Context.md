@@ -96,7 +96,8 @@ Heimalarm/
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
 ├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
-└─ docs/                   Konzept.pdf, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/
+└─ docs/                   Konzept.pdf, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/,
+                           anleitungen/*.pdf (gebaut aus anleitungen/quelle/*.html mit build.py)
 ```
 
 ### App-Struktur (`app/src/`)
@@ -278,6 +279,10 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Android-Symbole** liegen fertig in `src-tauri/icons/android` (adaptiv: weißes Haus auf `#C42D21`) und werden im Release-Workflow kopiert – nicht mit `tauri icon` überschreiben.
 - **Version** steht nur in `app/package.json` (Tauri liest sie von dort); Dienst-Version in `zentrale/dienst/src/index.js` (`VERSION`) und `package.json`.
 - **CI** (`release.yml`): Android nutzt das vorinstallierte SDK/NDK des Runners (kein setup-android). Keine Test-/Lint-Schritte hinzufügen (Regel oben).
+
+## Anleitungen (PDF)
+
+Quelle: `docs/anleitungen/quelle/` – `uebersicht.html`, `funkschalter.html`, `esp32.html`, gemeinsames `stil.css` (gleiche Farben/Ecken wie die App), gemeinsame Seiten in `teile/` (PC, Handy, Testen – `{{inc:name|schlüssel=wert}}`), Symbole `{{i:name}}`. Bauen: `python3 docs/anleitungen/quelle/build.py` (Playwright + Chromium). Jede `<section class="page">` ist eine A4-Seite mit fester Höhe – nach Änderungen die PDFs ansehen, ob nichts abgeschnitten ist. Screenshots in `docs/screenshots` kommen aus `npm run dev` mit `?demo`. **Bei Änderungen an Menünamen oder Abläufen in der App die Anleitungen mitziehen.**
 
 ## Design-System
 

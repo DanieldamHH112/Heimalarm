@@ -32,7 +32,7 @@ Die IP (z. B. `192.168.178.43`) notieren – sie wird gleich mehrfach gebraucht.
 2. NAS: App **Docker** installieren (App Center).
 3. App **Dateien** → **Freigegebener Ordner → docker** → neuen Ordner **`heimalarm`** anlegen.
 4. Den **Inhalt** des Ordners `zentrale` hineinladen: `docker-compose.yml`, `.env.example` und die Ordner `dienst`, `mosquitto`, `tuya-bruecke`.
-5. `.env.example` mit **TextEdit** öffnen, bei `MQTT_PASSWORD=` ein langes eigenes Passwort eintragen und als **`.env`** speichern. **Pflicht** – ohne Passwort startet die Zentrale nicht. Dieses Passwort später in der App (*Einstellungen → Verbindung*, Benutzer `heimalarm`), im ESP32 (`mqtt_pw`) und für die Tuya-Weboberfläche (Port 8082) verwenden.
+5. `.env.example` mit **TextEdit** öffnen, bei `MQTT_PASSWORD=` ein langes eigenes Passwort eintragen und als **`.env`** speichern. **Pflicht** – ohne Passwort startet die Zentrale nicht. Dieses Passwort später in der App (*Einstellungen → Betrieb & Verbindung*, Benutzer `heimalarm`), im ESP32 (`mqtt_pw`) und für die Tuya-Weboberfläche (Port 8082) verwenden.
 
 ## 3 · Tuya-Brücke ein- oder ausschalten
 
@@ -73,18 +73,18 @@ Die Brücke meldet sich wie ein ESP32 mit der Kennung aus `docker-compose.yml` (
 
 Auf **jedem** Gerät, das reagieren soll – beliebig viele PCs und Laptops:
 
-1. *Einstellungen → Betrieb* → **Mit Zentrale**.
-2. *Verbindung* → Adresse = **IP der NAS**, Port `9001` → **Speichern & verbinden**.
-3. *Alarmquellen* → **Melder** an. Am Handy nach Wunsch SYBOS, aPager, Divera dazu.
+1. *Einstellungen → Betrieb & Verbindung* → **Mit Zentrale**.
+2. Darunter Adresse = **IP der NAS**, Port `9001` → **Speichern & verbinden**.
+3. *Alarm & Quellen* → **Melder** an. Am Handy nach Wunsch SYBOS, aPager, Divera dazu.
 4. *Alarm* → **Meine Kennung** = Kennung des Melders (z. B. `ich`).
 5. Nur Handy: *Einstellungen → Android* → Benachrichtigungen mitlesen erlauben, Akku-Optimierung aus.
 
 Damit gilt:
 - **Melder löst aus** → alle PCs mit dieser Kennung zeigen „Fährst du?“.
 - **SYBOS/aPager/Divera am Handy** → das Handy meldet an die Zentrale → ebenfalls alle PCs.
-- Ein **gemeinsamer PC**, der bei mehreren Personen ausgehen soll: *Einstellungen → PC bei Alarm → „Abfrage auch bei Alarm von“* weitere Kennungen eintragen.
+- Ein **gemeinsamer PC**, der bei mehreren Personen ausgehen soll: *Einstellungen → Dieser PC → „Abfrage auch bei Alarm von“* weitere Kennungen eintragen.
 
-Die Übersicht der App zeigt den Aufbau als Schaubild und hakt erledigte Schritte ab.
+Start in der App zeigt den Aufbau als Schaubild und hakt erledigte Schritte ab. Oben steht „Aktiv“ mit grüner Pille „Verbunden“, sobald alles läuft.
 
 ## 7 · Testen
 

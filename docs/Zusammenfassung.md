@@ -19,7 +19,7 @@ Zwei Einsatzkräfte mit Motorola TPG2200 in der Ladeschale. Alarm kommt über de
 | **App für Windows und Android** | Tauri 2, Oberfläche in HTML/CSS/JS. Dunkel als Standard, hell wählbar, responsiv, kurze Texte, Ecken minimal gerundet. |
 | **„Fährst du?“ am PC** | Vollbild mit Countdown und Ton. Danach Ruhezustand, Sperren, Herunterfahren oder nichts. Ausnahmen, Ruhezeiten, Medien stoppen, Wake-on-LAN, Autostart. |
 | **Alarmquellen** | Melder (ESP32), SYBOS, aPager PRO, Divera 24/7 – mehrere gleichzeitig, Sperrzeit fasst sie zu einem Einsatz zusammen. |
-| **Divera** | Persönlicher Accesskey: Alarme abfragen, Rückmeldung zum Einsatz, eigenen Status setzen (auch mit Rücksetzen), Status-Karte in der Übersicht. |
+| **Divera** | Persönlicher Accesskey: Alarme abfragen, Rückmeldung zum Einsatz, eigenen Status setzen (auch mit Rücksetzen), Status-Karte auf Start. |
 | **aPager PRO** | Mitlesen, Webhook an die Zentrale, Zu-/Absage über die Alamos-API (Smart-Home-Abo nötig). |
 | **SYBOS** | Mitlesen der Benachrichtigung. Recherche: keine offene Schnittstelle für Mitglieder. |
 | **Zentrale** (Docker) | Mosquitto, Heimalarm-Dienst (Routinen, Webhook, Protokoll, Selbsttest), optional Zigbee2MQTT und Matterbridge. |
@@ -28,7 +28,7 @@ Zwei Einsatzkräfte mit Motorola TPG2200 in der Ladeschale. Alarm kommt über de
 | **Routinen** | Auslöser Alarm/Uhrzeit/Gerät/Knopf, Bedingungen (Nacht, dunkel, Wochentag, Stichwort …), pro Person, „Wieder da“, Urlaubsmodus. |
 | **Alexa & Google** | Lokal über Matter (Kontaktsensor „Heimalarm Einsatz“ + Matterbridge) oder Alexa über Voice Monkey. |
 | **Ohne Zentrale** | Handy und PC koppeln sich mit Code im WLAN; Handy meldet Alarme an den PC und führt Routinen aus. |
-| **Bedienung** | Übersicht zeigt nur, was eingerichtet ist. Testalarm liegt in den Einstellungen. Einstellungen gleichen sich zwischen Geräten ab. |
+| **Bedienung** | Start zeigt Aktiv/Verbindet/Inaktiv und nur, was eingerichtet ist. Einstellungen, Geräte, Routinen und Protokoll in zwei Spalten, Bereichsfarben. Testalarm auf Start und unter Test & Diagnose. Einstellungen gleichen sich zwischen Geräten ab. |
 | **Test & Diagnose** | Testalarm, Kontakt simulieren, Komplettprobe, Verbindungstest, wöchentlicher Selbsttest. |
 | **Sicherheit** | App-PIN, Admin-PIN, API-Schlüssel bleiben auf dem Gerät, keine Geheimnisse im Repo. |
 | **Doku** | README für Nutzer (Grafiken mit/ohne Zentrale, Geräteliste, Einrichtung), `Context.md` für Entwicklung (Ordner, Abhängigkeiten, Schnittstellen, Vorsicht bei Änderungen). |
