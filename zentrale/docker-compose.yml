@@ -43,7 +43,7 @@ services:
       MQTT_USER: ${MQTT_USER:-heimalarm}
       MQTT_PASS: ${MQTT_PASSWORD:-}
       WEBHOOK_PORT: "8080"
-      MATTER_PORT: "5541"               # Alarm-Sensoren für Alexa / Google Home
+      MATTER_PORT: "5540"               # Alarm-Sensoren für Alexa / Google Home – Alexa koppelt nur über 5540
       MATTER_STORAGE: /app/data/matter  # Kopplungen bleiben bei Updates erhalten
       TZ: Europe/Berlin
     volumes:
@@ -99,6 +99,8 @@ services:
     profiles: ["matter"]
     restart: unless-stopped
     network_mode: host   # Matter braucht mDNS im Heimnetz
+    # Achtung: Matterbridge belegt ebenfalls Port 5540 (wie die Alarm-Sensoren im Dienst). Alexa koppelt nur über 5540,
+    # beide zusammen gehen auf einer Zentrale also nicht mit Alexa.
     stop_grace_period: 60s
     volumes:
       - ./matterbridge/plugins:/root/Matterbridge

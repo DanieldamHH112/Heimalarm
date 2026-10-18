@@ -12,7 +12,7 @@ import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator";
 import { ContactSensorDevice } from "@matter/main/devices/contact-sensor";
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information";
 
-const PORT = Number(process.env.MATTER_PORT || 5541);   // 5540 belegt ggf. Matterbridge
+const PORT = Number(process.env.MATTER_PORT || 5540);   // Alexa findet Matter-Geräte nur auf Port 5540
 const STORAGE = process.env.MATTER_STORAGE || "./data/matter";
 const Sensor = ContactSensorDevice.with(BridgedDeviceBasicInformationServer);
 

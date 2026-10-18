@@ -91,7 +91,7 @@ Heimalarm/
 │     ├─ src/rules.js      Routinen: Auslöser, Bedingungen, Aktionen, „Wieder da“, Wake-on-LAN
 │     ├─ src/webhook.js    aPager-Webhook (Port 8080, mit Schlüssel)
 │     ├─ src/selftest.js   wöchentlicher Selbsttest
-│     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5541
+│     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5540 (Alexa koppelt nur über 5540)
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
@@ -194,8 +194,8 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | 9001 | Pi | MQTT über WebSocket (App) |
 | 8080 | Pi | aPager-Webhook `/alarm/<schlüssel>?who=<kennung>&keyword=&unit=[&event=recall\|clear]` |
 | 8081 | Pi | Zigbee2MQTT-Oberfläche |
-| 5541 | Pi | Matter-Sensoren (Dienst) |
-| 5540, 8283 | Pi | Matterbridge (Matter, Oberfläche) |
+| 5540 | Pi | Matter-Sensoren (Dienst) – Alexa koppelt nur über 5540 |
+| 5540, 8283 | Pi | Matterbridge (Matter, Oberfläche) – belegt dann 5540, nicht zusammen mit den Sensoren für Alexa |
 | 8765 | PC | Empfänger: Handy-Kopplung, Abgleich, Alarme vom Handy; `/apager/<schlüssel>` = aPager-Webhook direkt an den PC |
 
 ### Direktverbindung (ohne Zentrale)
