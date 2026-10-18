@@ -99,6 +99,8 @@ Installer (`.exe`) bzw. APK aus den [Releases](../../releases) laden und install
 **2 · Betrieb wählen**
 *Einstellungen → Betrieb:* „Mit Zentrale“ oder „Ohne Zentrale“. Ohne Zentrale am PC Adresse und Code ablesen und am Handy unter „PC hinzufügen“ eintragen. Windows fragt einmal nach der Firewall – „Private Netzwerke“ erlauben.
 
+**Mehrere PCs und Laptops:** Mit Zentrale auf jedem Gerät Heimalarm installieren, mit der Zentrale verbinden und **dieselbe Kennung** eintragen – alle zeigen bei Alarm „Fährst du?“, egal ob der Melder oder SYBOS/aPager/Divera am Handy auslöst. Ohne Zentrale jeden PC am Handy unter „PC hinzufügen“ eintragen. Für einen gemeinsamen PC mehrerer Personen: *Einstellungen → PC bei Alarm → „Abfrage auch bei Alarm von“*.
+
 **3 · Alarmquellen wählen**
 In der App unter *Einstellungen → Alarmquellen* einschalten, was du nutzt:
 - **SYBOS / aPager / Divera:** Am Handy „Benachrichtigungen mitlesen“ erlauben. Für Divera bzw. aPager optional den persönlichen API-Schlüssel eintragen – dann klappt auch die Rückmeldung.
@@ -119,8 +121,8 @@ docker compose --profile zigbee --profile matter up -d   # dazu Licht für Alexa
 Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einstellungen → Verbindung* eintragen (Port `9001`).
 
 **6 · ESP32 (optional)**
-1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren und WLAN-Daten eintragen.
-2. Kontakt der Ladeschale messen, dann Pol A an `GPIO27`, Pol B an `GND`.
+1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren, WLAN-Daten und als `mqtt_host` die IP der Zentrale eintragen. In der YAML-Datei die `kennung` setzen – dieselbe wie in der App.
+2. Kontakt der Ladeschale messen (keine Spannung, bei Alarm Durchgang), dann einen Pol an `GPIO27`, den anderen an `GND`.
 3. `esp32/alarm-ich.yaml` über [web.esphome.io](https://web.esphome.io) flashen. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` (Pol A an `GPIO4`), für einen **Wemos D1 mini (ESP8266)** `esp32/alarm-ich-d1mini.yaml` (Pol A an `D5`).
 
 **Ohne ESP32: Funk-Alarmschalter (Tuya) als Übergang**

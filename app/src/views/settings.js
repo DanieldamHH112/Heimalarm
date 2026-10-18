@@ -93,7 +93,7 @@ function alarm() {
   const me = settings().alarm.me;
   return section("alarm", "Alarm", "Wie die App mit Alarmen umgeht – egal aus welcher Quelle.",
     h("div.fields", {},
-      field("Meine Kennung", text("alarm.me", { autocomplete: "off" }), "Gleich wie im ESP32: alarm/<kennung>. Andere Kennungen werden nur gemeldet."),
+      field("Meine Kennung", text("alarm.me", { autocomplete: "off" }), "Gleich wie beim Melder: alarm/<kennung>. Auf jedem eigenen Gerät dieselbe – dann reagieren alle PCs und Laptops gemeinsam."),
       field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Meldungen derselben Person kurz danach zählen als derselbe Einsatz – auch aus verschiedenen Quellen.")),
     toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – keine PC-Aktion (A11)."),
     h("div.row", {}, h("button.btn", { onclick: testAlarm }, "Testalarm"), h("a.btn.ghost", { href: "#/diagnose" }, "Weitere Tests")),
@@ -315,7 +315,8 @@ function esp32() {
 function pc(rerender) {
   const p = settings().pc;
   if (hibernateOn === null) hibernateEnabled().then((v) => { hibernateOn = v; rerender(); }).catch(() => (hibernateOn = false));
-  return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert.",
+  return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert. Jeder PC mit Heimalarm fragt selbst – mehrere PCs und Laptops gehen also gleichzeitig.",
+    field("Abfrage auch bei Alarm von", text("pc.alsoFor", { autocomplete: "off", placeholder: "z. B. kollege" }), "Weitere Kennungen mit Komma – für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
     h("div.field", {}, h("span", {}, "Aktion"),
       select(Object.entries(ACTIONS).map(([k, v]) => [k, v.label]), p.action, (v) => { set("pc.action", v); rerender(); }),
       h("small", {}, ACTIONS[p.action]?.hint)),

@@ -44,7 +44,7 @@ export function setupFlow() {
       column("Zentrale",
         node("NAS oder Raspberry Pi", s.broker.host ? `${s.broker.host} · läuft immer` : "Adresse unter „Verbindung“ eintragen", s.broker.host ? state.connected : false)),
       column("Das passiert",
-        node("PC", "„Fährst du?“, danach Ruhezustand"),
+        node("Alle PCs & Laptops", "mit deiner Kennung: „Fährst du?“, danach Ruhezustand"),
         node("Handy", "Meldung und Rückmeldung"),
         node("Licht & Alexa", "Routinen der Zentrale")));
   }
@@ -54,9 +54,9 @@ export function setupFlow() {
     column("Alarm kommt an",
       node("Alarm-App auf dem Handy", "SYBOS, aPager oder Divera – Heimalarm liest mit", (has.sybos() || has.apager() || has.divera()) || null)),
     column("Handy gibt weiter",
-      node("Handy", "per WLAN an gekoppelte PCs", paired || null)),
+      node("Handy", "per WLAN an alle gekoppelten PCs", paired || null)),
     column("Das passiert",
-      node("PC", "„Fährst du?“, danach Ruhezustand", paired || null),
+      node("Alle gekoppelten PCs", "„Fährst du?“, danach Ruhezustand", paired || null),
       node("Licht & Alexa", "WLAN-Geräte und Voice Monkey vom Handy")));
 }
 
@@ -68,10 +68,10 @@ export function setupSteps() {
   const steps = z ? [
     ["Zentrale verbinden", s.broker.host ? (state.connected ? `Verbunden mit ${s.broker.host}` : `${s.broker.host} – nicht erreichbar`) : "IP der NAS bzw. des Raspberry Pi eintragen, Port 9001.", state.connected, "#/einstellungen/verbindung"],
     ["Alarmquelle einschalten", src ? activeSources().join(" · ") : "„Melder“ für die Ladeschale, dazu nach Wunsch SYBOS, aPager oder Divera.", src, "#/einstellungen/quellen"],
-    ["Kennung prüfen", `Gleich wie beim Melder: ${s.alarm.me || "–"}`, Boolean(s.alarm.me), "#/einstellungen/alarm"],
+    ["Kennung prüfen", `Auf Melder, Handy und jedem PC dieselbe: ${s.alarm.me || "–"}`, Boolean(s.alarm.me), "#/einstellungen/alarm"],
     ["Testen", "Test & Diagnose → Testalarm. Zeigt die Abfrage, ohne dass etwas passiert.", null, "#/diagnose"],
   ] : [
-    [hasPcFeatures ? "Handy koppeln" : "PC koppeln", hasPcFeatures ? "Adresse und Code dieses PCs am Handy eintragen." : "Am PC stehen Adresse und Code unter Einstellungen → Betrieb.", hasPcFeatures ? null : (s.direct.peers || []).length > 0, "#/einstellungen/betrieb"],
+    [hasPcFeatures ? "Handy koppeln" : "PC koppeln", hasPcFeatures ? "Adresse und Code dieses PCs am Handy eintragen." : "Jeden PC einzeln hinzufügen – Adresse und Code stehen am PC unter Einstellungen → Betrieb.", hasPcFeatures ? null : (s.direct.peers || []).length > 0, "#/einstellungen/betrieb"],
     ["Alarm-App wählen", src ? activeSources().join(" · ") : "SYBOS, aPager oder Divera einschalten (am Handy).", src, "#/einstellungen/quellen"],
     ["Testen", "Test & Diagnose → Testalarm. Zeigt die Abfrage, ohne dass etwas passiert.", null, "#/diagnose"],
   ];

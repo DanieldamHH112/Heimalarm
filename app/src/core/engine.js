@@ -61,13 +61,16 @@ function handleAlarm(a) {
   if (!test && !probe) lastByWho.set(a.who, a.ts);
 
   const own = a.who === s.me;
+  // Ein PC kann zusätzlich für weitere Personen gelten (gemeinsamer PC)
+  const also = String(settings().pc?.alsoFor || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const forThisPc = own || (hasPcFeatures && also.includes(a.who));
   engine.last = { ...a, own, test: test || probe, probe };
   const extra = [a.keyword, a.unit].filter(Boolean).join(" · ");
   log("alarm", probe ? "Komplettprobe" : test ? "Testalarm" : own ? "Alarm" : `Alarm von „${a.who}“`,
     `${a.source} · alarm/${a.who}${extra ? " · " + extra : ""}`);
   emit("alarm", engine.last);
 
-  if (own && hasPcFeatures) {
+  if (forThisPc && hasPcFeatures) {
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
     emit("takeover", engine.last);
   } else if (!test) {

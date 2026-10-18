@@ -1,91 +1,99 @@
-# Einrichtung: UGREEN-NAS + Alarmschalter mit Heimalarm
+# Einrichtung mit NAS als Zentrale
 
-Für: UGREEN NASync DXP2800 als Zentrale, ESP32-S3 am Kontakt der Ladeschale, Funkhandel-Alarmschalter als zweiter Weg.
+Am Beispiel einer **UGREEN NASync DXP2800** (UGOS Pro). Andere NAS mit Docker-Oberfläche (z. B. Synology Container Manager) funktionieren genauso – nur die Menüs heißen anders.
 
 ```
-Ladeschale (TPG2200) ──Y-Verteiler──┬──► Funkhandel-Alarmschalter ──► Tuya-App / Alexa   (zweiter Weg, bleibt wie er ist)
-                                    └──► ESP32-S3 ──WLAN──► UGREEN-NAS ──► Heimalarm (PC + Handy), Licht, Alexa
+Ladeschale (TPG2200) ──► Melder-Anschluss ──WLAN──► NAS (Zentrale) ──► Heimalarm auf allen PCs + Handy, Licht, Alexa
+                          ESP32  oder
+                          Funk-Alarmschalter (Tuya) über die Tuya-Brücke
 ```
 
-## Was du brauchst
+**Welcher Melder-Anschluss?**
 
-- UGREEN DXP2800 (läuft immer) mit Docker
-- ESP32-S3 DevKitC-1, 2 Jumper-Kabel, USB-C-Kabel, altes USB-Netzteil
-- Y-Verteiler bzw. Adapter passend zum Anschluss der Ladeschale (wie beim Alarmschalter)
-- Heimalarm auf PC und Handy
+| | ESP32 (empfohlen) | Funk-Alarmschalter (Tuya, z. B. Funkhandel) |
+|---|---|---|
+| Kosten | ca. 10 € + Kabel | schon vorhanden |
+| Tempo | unter 1 Sekunde | 2–4 Sekunden (Sensor wacht erst auf) |
+| Läuft über | nur Heimnetz | Tuya-Cloud (Smart Life) |
+| Strom | USB-Netzteil | Batterie |
+
+Beides kann auch gleichzeitig laufen – der zweite Weg ist dann Reserve.
+
+---
 
 ## 1 · Feste IP für die NAS
 
-Im Router (z. B. FRITZ!Box: *Heimnetz → Netzwerk → NAS → „Immer dieselbe IPv4-Adresse“*) der NAS eine feste IP geben, z. B. `192.168.178.20`. Diese IP brauchst du gleich mehrfach.
+FRITZ!Box: *Heimnetz → Netzwerk → Netzwerkverbindungen* → bei der NAS auf den **Stift** → Reiter **Heimnetz** → unter der IPv4-Adresse **„Diesem Netzwerkgerät immer die gleiche IPv4-Adresse zuweisen“** → **Übernehmen**.
+Die IP (z. B. `192.168.178.43`) notieren – sie wird gleich mehrfach gebraucht.
 
-## 2 · Zentrale auf der NAS starten
+## 2 · Dateien auf die NAS
 
-1. Repo herunterladen und den Ordner `zentrale/` auf die NAS kopieren, z. B. nach `/volume1/docker/heimalarm`.
-2. In UGOS Pro die **Docker-App** öffnen → **Projekt** anlegen → als Ordner `heimalarm` wählen und die vorhandene `docker-compose.yml` verwenden.
-3. Starten. Für den Anfang reicht die Grundausstattung (Mosquitto + Heimalarm-Dienst). Zigbee (`--profile zigbee`) und Matter (`--profile matter`) erst später.
-4. Prüfen: Im Projekt laufen die Container `mosquitto` und `dienst`.
+1. Am PC: GitHub → **Code → Download ZIP**, entpacken.
+2. NAS: App **Docker** installieren (App Center).
+3. App **Dateien** → **Freigegebener Ordner → docker** → neuen Ordner **`heimalarm`** anlegen.
+4. Den **Inhalt** des Ordners `zentrale` hineinladen: `docker-compose.yml` und die Ordner `dienst`, `mosquitto`, `tuya-bruecke`.
 
-**Falls etwas klemmt:**
-- *Port belegt* (1883, 9001, 8080, 8081, 5541): in `docker-compose.yml` links den Port ändern und die neue Zahl später in App/ESP32 eintragen.
-- *Dienst wird nicht gebaut*: melden – dann stellen wir ein fertiges Image bereit.
+## 3 · Tuya-Brücke ein- oder ausschalten
 
-## 3 · ESP32-S3 vorbereiten
+- **Mit Funk-Alarmschalter:** `docker-compose.yml` mit **TextEdit** öffnen und beim Abschnitt `tuya-bruecke:` die Zeile `profiles: ["tuya"]` **löschen**, speichern.
+- **Nur ESP32:** Datei unverändert lassen – die Brücke startet dann nicht.
 
-1. Im Ordner `esp32/` die Datei `secrets.example.yaml` nach `secrets.yaml` kopieren und ausfüllen:
-   - `wifi_ssid`, `wifi_pw` – dein WLAN (2,4 GHz)
-   - `mqtt_host` – **IP der NAS**
-   - `ota_pw` – ein eigenes Passwort
-2. In `alarm-ich-s3.yaml` ggf. `kennung: ich` ändern (jede Person eine eigene Kennung, z. B. `daniel`).
-3. ESP32 per USB an den PC, in Chrome/Edge [web.esphome.io](https://web.esphome.io) öffnen und `alarm-ich-s3.yaml` flashen (alternativ im ESPHome-Dashboard).
+## 4 · Projekt starten
 
-## 4 · Mit der Ladeschale verbinden
+1. **Docker → Projekt → Erstellen**.
+2. Name `heimalarm`, Speicherpfad **docker/heimalarm** – die vorhandene `docker-compose.yml` wird erkannt.
+3. Haken **„Nach der Erstellung sofort ausführen“** → **Bereitstellen**. Der erste Start dauert 3–5 Minuten.
+4. Unter **Container** laufen jetzt `mosquitto`, `dienst` und (falls eingeschaltet) `tuya-bruecke`.
 
-1. **Erst messen:** Mit dem Multimeter prüfen, ob der Alarmkontakt der Ladeschale potentialfrei ist (bei Alarm geschlossen, keine Spannung drauf). Sonst nicht direkt anschließen – Optokoppler nötig.
-2. Am Y-Verteiler: ein Ausgang wie bisher zum **Funkhandel-Alarmschalter**, der andere zum **ESP32**.
-3. Kontakt-Pol A → **GPIO4**, Pol B → **GND** (Jumper-Kabel). Kein Widerstand nötig.
-4. ESP32 mit USB-Netzteil dauerhaft versorgen.
+**Später Dateien geändert?** *Projekt → heimalarm → Compose-Konfiguration → Neu bereitstellen*. Baut Docker dabei nichts neu (leeres Protokoll), unter **Container** den betroffenen Container und danach unter **Image** sein Image löschen, dann erneut bereitstellen.
 
-Der Alarmschalter bleibt dabei unverändert – App und Alexa-Routinen funktionieren weiter.
+**Port belegt?** In `docker-compose.yml` links vom Doppelpunkt eine andere Zahl eintragen (1883, 9001, 8082) und diese dann in App bzw. ESP32 verwenden.
 
-## 5 · Heimalarm verbinden
+## 5a · Melder: ESP32
 
-Auf **PC und Handy**:
+**Einkauf:** ESP32-S3 DevKitC-1 N16R8 mit **verlöteten** Stiftleisten, USB-C-**Daten**kabel, Jumper-Kabel (Buchse–Buchse), altes USB-Netzteil.
+
+1. `esp32/secrets.example.yaml` → `secrets.yaml` kopieren und ausfüllen: WLAN (2,4 GHz), `mqtt_host` = **IP der NAS**, eigenes `ota_pw`. `mqtt_user`/`mqtt_pw` stehen lassen.
+2. In `alarm-ich-s3.yaml` die `kennung` setzen (z. B. `ich`) – dieselbe kommt später in jede App.
+3. ESP32 per USB an den PC (Buchse **COM**), in Chrome/Edge [web.esphome.io](https://web.esphome.io) öffnen und flashen.
+4. **Ladeschale:** Hinten sitzen zwei Kontaktstifte. Erst mit dem Multimeter prüfen: keine Spannung, bei Probealarm Durchgang. Dann je ein Jumper-Kabel von einem Stift an **GPIO4**, vom anderen an **GND** (Reihenfolge egal).
+5. ESP32 dauerhaft ans USB-Netzteil.
+
+## 5b · Melder: Funk-Alarmschalter über die Tuya-Brücke
+
+1. Schalter in der App **Smart Life** koppeln (nicht in ELESION o. Ä. – nur Smart Life/Tuya Smart funktionieren). In der App **automatische Aktualisierung aus**.
+2. Im Browser `http://<IP der NAS>:8082` öffnen.
+3. **User Code** eintragen (Smart Life: *Ich → Zahnrad → Konto und Sicherheit*), QR-Code mit Smart Life scannen (*+ → Scannen*), bestätigen.
+4. Die Seite zeigt den überwachten Kontakt. Probealarm → unter „Letzte Meldungen“ erscheint `doorcontact_state: false` und „Letzter Alarm“.
+
+Die Brücke meldet sich wie ein ESP32 mit der Kennung aus `docker-compose.yml` (`KENNUNG: ich`).
+
+## 6 · Heimalarm auf jedem PC und Handy
+
+Auf **jedem** Gerät, das reagieren soll – beliebig viele PCs und Laptops:
 
 1. *Einstellungen → Betrieb* → **Mit Zentrale**.
-2. *Verbindung* → Adresse = **IP der NAS**, Port `9001` → „Speichern & verbinden“.
-3. *Alarmquellen* → **Melder (ESP32)** an; nach Wunsch SYBOS, aPager, Divera.
-4. *Alarm* → **Meine Kennung** = Kennung aus dem ESP32 (z. B. `ich`).
-5. Am Handy: Benachrichtigungen mitlesen erlauben und Akku-Optimierung für Heimalarm ausschalten (*Einstellungen → Android*).
+2. *Verbindung* → Adresse = **IP der NAS**, Port `9001` → **Speichern & verbinden**.
+3. *Alarmquellen* → **Melder** an. Am Handy nach Wunsch SYBOS, aPager, Divera dazu.
+4. *Alarm* → **Meine Kennung** = Kennung des Melders (z. B. `ich`).
+5. Nur Handy: *Einstellungen → Android* → Benachrichtigungen mitlesen erlauben, Akku-Optimierung aus.
 
-## 6 · Testen
+Damit gilt:
+- **Melder löst aus** → alle PCs mit dieser Kennung zeigen „Fährst du?“.
+- **SYBOS/aPager/Divera am Handy** → das Handy meldet an die Zentrale → ebenfalls alle PCs.
+- Ein **gemeinsamer PC**, der bei mehreren Personen ausgehen soll: *Einstellungen → PC bei Alarm → „Abfrage auch bei Alarm von“* weitere Kennungen eintragen.
 
-1. *Einstellungen → Alarm → Testalarm* – zeigt nur die Abfrage, es passiert nichts.
-2. *Test & Diagnose → Verbindungstest* – Zentrale, Dienst und ESP32 müssen grün sein.
-3. *Kontakt simulieren* – wie ein echter Alarm über die NAS an alle Geräte.
-4. Echter Test: Melder mit Probealarm in der Ladeschale auslösen → PC fragt „Fährst du?“, Handy meldet, **und** der Funkhandel-Schalter löst wie gewohnt aus.
+Die Übersicht der App zeigt den Aufbau als Schaubild und hakt erledigte Schritte ab.
 
-## Übergang ohne ESP32: Tuya-Brücke
+## 7 · Testen
 
-Solange kein ESP32 da ist, liest die NAS den Funkhandel-Alarmschalter über **Smart Life** mit und meldet ihn wie den ESP32 (`ALARM` auf `alarm/ich`).
-
-1. Alarmschalter (NX-4900) in der **Smart-Life-App** koppeln (nicht ELESION).
-2. Im NAS-Ordner `heimalarm` eine Datei `.env` anlegen mit dem Inhalt `COMPOSE_PROFILES=tuya` und das Projekt neu starten. Falls die Docker-App die `.env` nicht beachtet: in `docker-compose.yml` beim Dienst `tuya-bruecke` die Zeile `profiles: ["tuya"]` löschen.
-3. Im Browser `http://<IP der NAS>:8082` öffnen → **User Code** eingeben (Smart Life: *Ich → Zahnrad → Konto und Sicherheit*) → QR-Code mit Smart Life scannen (*+ → Scannen*) und bestätigen.
-4. Die Seite zeigt den überwachten Kontakt. Probealarm auslösen → Heimalarm reagiert wie beim Melder (*Alarmquellen → Melder (ESP32)* muss an sein).
-
-Hinweise: läuft über die Tuya-Cloud, daher einige Sekunden Verzögerung. Der *Verbindungstest* zeigt den ESP32 weiterhin rot – das ist normal. Kommt der ESP32, Profil `tuya` wieder entfernen.
+1. *Test & Diagnose → Testalarm* – nur die Abfrage, nichts passiert.
+2. *Test & Diagnose → Verbindungstest* – Zentrale und Dienst grün. Der ESP32 ist nur grün, wenn er angeschlossen ist (bei reiner Tuya-Brücke bleibt er rot – normal).
+3. *Kontakt simulieren* – wie ein echter Melder-Alarm, geht an alle Geräte.
+4. Echter Probealarm in der Ladeschale → alle PCs fragen „Fährst du?“, das Handy meldet.
 
 ## Später (optional)
 
-- **Licht:** WLAN-Geräte unter *Geräte → WLAN-Geräte* oder Zigbee (USB-Stick bzw. SLZB-06, Profil `zigbee`).
+- **Licht:** *Geräte → WLAN-Geräte* oder Zigbee (USB-Stick bzw. SLZB-06, Profil `zigbee`).
 - **Alexa:** Voice-Monkey-Token unter *Einstellungen → Alexa & Google*, in Routinen „+ Alexa“. Lokal über Matter: Profil `matter` – auf der NAS noch ungetestet.
-- **Kollege:** zweiter ESP32 mit eigener Kennung, Person unter *Einstellungen → Personen* anlegen.
-
-## Alarmschalter umflashen (in Prüfung)
-
-Statt ESP32 könnte der Funkhandel-Schalter selbst an die NAS melden. Dann entfallen aber Tuya-App und Alexa über den Schalter (kein zweiter Weg mehr).
-
-Bis zur Entscheidung:
-- In der App **Automatische Aktualisierung ausschalten**.
-- Gerät öffnen, **Platine beidseitig fotografieren** (Aufdruck des WLAN-Moduls lesbar) und zur Prüfung schicken.
-- **Nichts flashen oder zurücksetzen.**
+- **Kollege:** eigener Melder mit eigener Kennung, Person unter *Einstellungen → Personen* anlegen.

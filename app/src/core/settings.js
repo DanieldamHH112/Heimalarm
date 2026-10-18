@@ -42,6 +42,7 @@ export const defaults = {
     countdownSec: 30,       // D2
     onTimeout: "run",       // D3 – run | cancel
     autostart: true,        // D9
+    alsoFor: "",            // Abfrage auch bei Alarmen dieser Kennungen (Komma), z. B. gemeinsamer PC
     title: "Fährst du?",    // D4 – Texte im Fenster
     goText: "Ich fahre",
     stayText: "Ich fahre nicht",

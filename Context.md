@@ -222,6 +222,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Sperrzeit** prüft `engine.js` (App) und `rules.js` (Dienst) getrennt; `routines-local.js` verlässt sich auf `engine.js`.
 - **Sichtbarkeit:** Neue Karten/Seiten über `has.*` in `features.js` freischalten, sonst erscheinen sie auch bei Nutzern ohne diese Ausstattung.
 - **Betriebsart:** `isConfigured()` ist nur im Zentrale-Betrieb wahr. Code, der „ist eine Zentrale da?“ fragt, nutzt `has.pi()` bzw. `isConfigured()`, nicht nur `broker.host`.
+- **Mehrere PCs:** Jeder PC entscheidet selbst – `own` (eigene Kennung) oder `pc.alsoFor` (weitere Kennungen, lokal, nicht synchronisiert) → „Fährst du?“. Ohne Zentrale schickt das Handy an alle `direct.peers`.
 - **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
 - **Im Hintergrund:** Windows schließt per X nur das Fenster (Symbol im Infobereich, `lib.rs` → `setup_tray`); Autostart startet mit `--im-hintergrund` verborgen; zweiter Start holt das Fenster per Single-Instance nach vorn. Android: Vordergrund-Dienst + einmalige Abfrage der Akku-Ausnahme (`android.batteryAsked`). Nach einem Neustart des Handys muss die App einmal geöffnet werden.
