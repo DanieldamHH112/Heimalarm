@@ -13,7 +13,7 @@
   background: conic-gradient(var(--signal) calc(var(--p) * 360deg), rgb(255 255 255 / 12%) 0); }
 .ring span { width: 112px; height: 112px; border-radius: 50%; background: #12151a; display: grid; place-items: center; font-size: 2.6rem; font-weight: 760; font-variant-numeric: tabular-nums; }
 .takeover .actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); width: 100%; }
-.takeover .btn { min-height: 64px; font-size: 1.15rem; border-radius: 12px; }
+.takeover .btn { min-height: 64px; font-size: 1.15rem; border-radius: var(--radius-sm); }
 .takeover .btn.primary { background: #e5432f; border-color: #e5432f; }
 .takeover .btn.secondary { background: transparent; color: #fff; border: 2px solid rgb(255 255 255 / 55%); }
 .takeover .btn.secondary:hover { background: rgb(255 255 255 / 8%); }

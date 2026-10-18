@@ -35,8 +35,8 @@
 
   /* Raum & Form */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --radius: 12px;
-  --radius-sm: 8px;
+  --radius: 4px;
+  --radius-sm: 3px;
   --nav-w: 240px;
   --content-max: 1200px;
   color-scheme: dark;

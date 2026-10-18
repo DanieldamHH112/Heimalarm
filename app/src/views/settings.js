@@ -12,7 +12,7 @@ import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
 import { requireAdmin, isAdmin } from "../core/admin.js";
 import { androidStatus, openBatterySettings, openNotificationAccess, setBackgroundService } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
-import { recentApps } from "../core/engine.js";
+import { recentApps, testAlarm } from "../core/engine.js";
 import { divera, loadDivera, restartDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
 import qrcode from "qrcode-generator";
@@ -95,6 +95,7 @@ function alarm() {
       field("Meine Kennung", text("alarm.me", { autocomplete: "off" }), "Gleich wie im ESP32: alarm/<kennung>. Andere Kennungen werden nur gemeldet."),
       field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Meldungen derselben Person kurz danach zählen als derselbe Einsatz – auch aus verschiedenen Quellen.")),
     toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – keine PC-Aktion (A11)."),
+    h("div.row", {}, h("button.btn", { onclick: testAlarm }, "Testalarm"), h("a.btn.ghost", { href: "#/diagnose" }, "Weitere Tests")),
     h("p.meta", {}, "Aktuelle Kennung: ", h("code", {}, `alarm/${me}`)),
   );
 }

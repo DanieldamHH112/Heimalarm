@@ -5,7 +5,7 @@
 .card.alarm { border-color: var(--signal); background: linear-gradient(var(--signal-soft), var(--surface) 70%); }
 
 /* Status-Chips */
-.chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 8px; border-radius: 99px; font-size: var(--fs-xs); font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 8px; border-radius: var(--radius-sm); font-size: var(--fs-xs); font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); white-space: nowrap; }
 .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 .chip.ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
 .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
@@ -29,7 +29,7 @@
 /* Einrichtungs-Schritte */
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); counter-reset: s; }
 .steps li { display: grid; grid-template-columns: 28px 1fr; gap: var(--s3); align-items: start; }
-.steps li::before { counter-increment: s; content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-xs); font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+.steps li::before { counter-increment: s; content: counter(s); width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center; font-size: var(--fs-xs); font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
 .steps li.done::before { content: "✓"; background: var(--ok); color: #fff; border-color: var(--ok); }
 .steps li small { display: block; color: var(--text-2); font-size: var(--fs-sm); }
 
@@ -45,12 +45,12 @@
 .switch { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s3) 0; border-top: 1px solid var(--line); }
 .switch:first-of-type { border-top: 0; }
 .switch div small { display: block; color: var(--text-2); font-size: var(--fs-sm); }
-.switch input { appearance: none; width: 46px; height: 28px; border-radius: 99px; background: var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
-.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / 25%); }
+.switch input { appearance: none; width: 46px; height: 28px; border-radius: var(--radius-sm); background: var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 2px; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / 25%); }
 .switch input:checked { background: var(--ok); }
 .switch input:checked::after { transform: translateX(18px); }
 .segmented { display: inline-flex; justify-self: start; max-width: 100%; padding: 3px; gap: 3px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
-.segmented button { border: 0; background: transparent; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 580; color: var(--text-2); }
+.segmented button { border: 0; background: transparent; padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 580; color: var(--text-2); }
 .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); outline: 1px solid var(--line); }
 
 /* Protokoll */
@@ -70,7 +70,7 @@
 .banner b { display: block; }
 
 /* Toast */
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 10px; font-weight: 560; transition: .2s; z-index: 50; max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: var(--radius-sm); font-weight: 560; transition: .2s; z-index: 50; max-width: calc(100% - 32px); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 760px) { .toast { bottom: calc(88px + env(safe-area-inset-bottom)); } }
 
@@ -92,7 +92,7 @@
 .rows.compact > li { padding: 8px 0; }
 .row-main { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
 .row-main b { display: inline-flex; align-items: center; gap: 8px; }
-.badge { font-size: var(--fs-xs); font-weight: 650; padding: 1px 8px; border-radius: 99px; background: var(--info-soft); color: var(--info); }
+.badge { font-size: var(--fs-xs); font-weight: 650; padding: 1px 8px; border-radius: var(--radius-sm); background: var(--info-soft); color: var(--info); }
 .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); margin: 0; }
 .facts div { min-width: 0; }
 .facts dt { font-size: var(--fs-xs); color: var(--text-2); }
@@ -129,7 +129,7 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
 
 /* ── Abschnitts-Navigation (Einstellungen) ───── */
 .toc-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
-.toc-chips a { text-decoration: none; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: var(--fs-sm); font-weight: 580; }
+.toc-chips a { text-decoration: none; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface); color: var(--text-2); font-size: var(--fs-sm); font-weight: 580; }
 .toc-chips a:hover { color: var(--text); }
 .section { scroll-margin-top: 16px; }
 
@@ -141,12 +141,12 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
 .cards { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
 .range { display: grid; grid-template-columns: 96px 1fr 48px; align-items: center; gap: var(--s3); font-size: var(--fs-sm); color: var(--text-2); }
 .range input { width: 100%; accent-color: var(--signal); }
-.color-input { width: 48px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: none; padding: 2px; }
+.color-input { width: 48px; height: 36px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: none; padding: 2px; }
 .check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .check-list li { display: flex; align-items: center; gap: var(--s3); }
 .check-list .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
 .check-list .ok .dot { background: var(--ok); } .check-list .bad .dot { background: var(--signal); }
-.kbd { font-family: var(--mono); font-size: var(--fs-xs); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface-2); }
+.kbd { font-family: var(--mono); font-size: var(--fs-xs); padding: 2px 6px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); }
 
 /* ── App-Sperre ──────────────────────────────── */
 .lock { position: fixed; inset: 0; z-index: 90; background: var(--bg); display: grid; place-items: center; padding: var(--s5); }
@@ -155,8 +155,8 @@ textarea.input { min-height: 140px; padding: 10px 12px; font-family: var(--mono)
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .table th { text-align: left; color: var(--text-2); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--line); }
 .table td { padding: 8px; border-bottom: 1px solid var(--line); }
-input.mini-switch { appearance: none; width: 46px; height: 28px; border-radius: 99px; background: var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
-input.mini-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / 25%); }
+input.mini-switch { appearance: none; width: 46px; height: 28px; border-radius: var(--radius-sm); background: var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+input.mini-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 2px; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgb(0 0 0 / 25%); }
 input.mini-switch:checked { background: var(--ok); }
 input.mini-switch:checked::after { transform: translateX(18px); }
 .quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s3); }
@@ -215,7 +215,7 @@ details.more > .field { margin-top: var(--s3); }
 
 /* Divera-Status in der Übersicht */
 .status-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.status-pill { --c: var(--text-2); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 8px 14px; border-radius: 99px; cursor: pointer;
+.status-pill { --c: var(--text-2); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer;
   border: 1px solid var(--line); background: var(--surface-2); color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
 .status-pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .status-pill[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, var(--surface)); }
@@ -227,7 +227,7 @@ details.more > .field { margin-top: var(--s3); }
 .group-cont { margin-top: 0; }
 .nav-item[hidden] { display: none !important; }
 .tile .chip.wrap { white-space: normal; line-height: 1.35; }
-.tile .chip.wrap { border-radius: 10px; }
+.tile .chip.wrap { border-radius: var(--radius-sm); }
 @media (max-width: 560px) { .tiles > .tile:first-child { grid-column: 1 / -1; } }
 
 /* Koppeln ohne Zentrale: Adresse und Code groß zum Abtippen */

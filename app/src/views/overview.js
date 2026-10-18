@@ -8,7 +8,7 @@ import { ACTIONS, wakeOnLan } from "../core/pc.js";
 import { has, activeSources } from "../core/features.js";
 import { direct } from "../core/direct.js";
 import { fireLocal } from "../core/routines-local.js";
-import { testAlarm, simulateContact, engine, answerApps } from "../core/engine.js";
+import { engine, answerApps } from "../core/engine.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { themeToggle } from "../ui/theme.js";
@@ -35,7 +35,7 @@ function setupCard() {
     h("ol.steps", {},
       h("li", {}, h("div", {}, "Alarmquellen wählen", h("small", {}, "Melder (ESP32 + Zentrale), SYBOS, aPager oder Divera – auch mehrere."))),
       h("li", {}, h("div", {}, "Zentrale eintragen, falls vorhanden", h("small", {}, "IP des Raspberry Pi unter Einstellungen → Verbindung."))),
-      h("li", {}, h("div", {}, "Testalarm auslösen", h("small", {}, "Zeigt die Abfrage, ohne dass etwas passiert."))),
+      h("li", {}, h("div", {}, "Testalarm auslösen", h("small", {}, "Einstellungen → Test & Diagnose. Zeigt die Abfrage, ohne dass etwas passiert."))),
     ),
     h("div.row", {}, h("a.btn.primary", { href: "#/einstellungen/quellen" }, "Einrichten")),
   );
@@ -94,11 +94,10 @@ function wake(c) {
 /** Schnellaktionen (statt Startbildschirm-Widget): Testalarm, Wieder da, manuelle Routinen */
 function quickCard() {
   const manual = has.routines() ? (shared().routines || []).filter((r) => r.enabled && r.trigger?.type === "manual") : [];
+  if (!has.zigbee() && manual.length === 0) return null;   // Tests liegen unter Einstellungen → Test & Diagnose
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "Schnellaktionen")),
     h("div.quick", {},
-      h("button.btn", { onclick: testAlarm }, "Testalarm"),
-      has.esp() && h("button.btn", { onclick: () => simulateContact() && toast("Simulierter Alarm gesendet") }, "Kontakt simulieren"),
       has.zigbee() && h("button.btn", { onclick: () => publish("heimalarm/cmd/restore", {}) && toast("Vorheriger Zustand wird wiederhergestellt") }, "Wieder da"),
       ...manual.map((r) => h("button.btn", { onclick: () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); } }, r.name))),
   );
@@ -195,7 +194,7 @@ export function overview() {
   return h("div.page", {},
     h("header.page-head", {},
       h("div", {}, h("h1", {}, "Übersicht"), h("p", {}, s.device.name || platformName, has.pi() && " · Kennung ", has.pi() && h("code", {}, s.alarm.me))),
-      h("div.row", {}, themeToggle("only-mobile"), h("button.btn.primary", { onclick: testAlarm }, "Testalarm")),
+      h("div.row", {}, themeToggle("only-mobile")),
     ),
     needsSetup() && setupCard(),
     answerCard(),

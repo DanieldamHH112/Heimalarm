@@ -6,7 +6,7 @@
   padding: var(--s5) var(--s3); background: var(--surface); border-right: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s3) var(--s5); }
-.brand img { border-radius: 8px; }
+.brand img { border-radius: var(--radius-sm); }
 .brand-name { font-weight: 750; font-size: 1.15rem; font-variation-settings: "wdth" 92; }
 .nav-item {
   display: flex; align-items: center; gap: var(--s3);
