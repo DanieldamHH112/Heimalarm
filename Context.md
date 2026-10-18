@@ -45,6 +45,17 @@ Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkon
 - **UI-Arbeit** mit den Skills `/impeccable` und `/frontend-design`.
 - **Nicht raten:** Bei unklaren Anforderungen oder unbekannten Schnittstellen nachfragen bzw. Quelle prüfen (Doku, Spec).
 
+## Release erstellen (Kurzanleitung – immer so vorgehen)
+
+1. Version hochzählen: `app/package.json` → `"version"` **und** `app/src-tauri/Cargo.toml` → `version` (gleich halten, z. B. `0.1.6`). Dienst-Version nur, wenn sich `zentrale/dienst` geändert hat.
+2. Lokal prüfen: `cd app && npx -y oxlint@latest src` (0 Befunde) und `cd src-tauri && cargo check`.
+3. Committen und auf `main` pushen.
+4. Release starten: GitHub → *Actions → Release → Run workflow*, Feld **Version = `v0.1.6`** (mit `v`, gleich wie in `package.json`). Aus einer Claude-Session: `gh api -X POST repos/DanieldamHH112/Heimalarm/actions/workflows/release.yml/dispatches -f ref=main -f 'inputs[version]=v0.1.6'` (Tags pushen geht dort nicht). Leeres Feld = nur bauen, kein Release.
+5. Ergebnis prüfen: Release enthält `Heimalarm_<v>_x64-setup.exe`, `Heimalarm-v<v>.apk` **und** die beiden `.sha256` – ohne sie scheitert das Update in der App.
+6. Nutzer müssen nichts tun: PC und Handy zeigen beim nächsten Start „Heimalarm x ist verfügbar“ → **Installieren**.
+
+Nie ändern: Secret `ANDROID_DEBUG_KEYSTORE` (sonst gehen Android-Updates nicht mehr drüber, Nutzer müssten deinstallieren) und die Asset-Namen (`*-setup.exe`, `*.apk`, `<datei>.sha256`), nach denen `core/update.js` sucht.
+
 ## Ordner – was liegt wo
 
 ```
