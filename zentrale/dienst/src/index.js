@@ -9,7 +9,7 @@ import { startWebhook } from "./webhook.js";
 import { startSelftest } from "./selftest.js";
 import { startVoice } from "./voice.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 const URL = process.env.MQTT_URL || "mqtt://mosquitto:1883";
 
 const client = mqtt.connect(URL, {
