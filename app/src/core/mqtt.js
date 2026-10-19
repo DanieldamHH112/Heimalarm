@@ -24,6 +24,7 @@ export const state = {
   permitJoinUntil: 0,
   networkmap: null,
   dienst: null,    // Zentrale-Programm: { online, version }
+  diveraKeys: {},  // wer seinen Divera-Schlüssel auf der Zentrale hat: { kennung: { ok, error } } (ohne Schlüssel)
   report: null,    // I4 – letzter Selbsttest
   zlog: [],        // F5 – Protokoll der Zentrale
   pong: null,      // I3 – Antwort auf Verbindungstest
@@ -210,6 +211,7 @@ function handleHeimalarm(p, msg) {
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
+  else if (p[1] === "divera" && p[2] === "keys") { state.diveraKeys = json() || {}; emit("divera", null); }
   else if (p[1] === "pong") state.pong = { ...json(), at: Date.now() };
   else if (p[1] === "log" && p[2] === "recent") state.zlog = json() || [];
   else if (p[1] === "log" && !p[2]) { state.zlog.unshift(json()); state.zlog.length = Math.min(state.zlog.length, 200); }

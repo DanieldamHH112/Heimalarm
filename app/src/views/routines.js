@@ -11,6 +11,8 @@ import { emit } from "../core/events.js";
 import { templateField, SAMPLE } from "../ui/template.js";
 import { voiceMonkeyAnnounce } from "../core/wifi.js";
 import { isTauri } from "../core/platform.js";
+import { settings } from "../core/settings.js";
+import { MODES } from "../core/readiness.js";
 
 // Deutsche Stimmen von Amazon Polly (Voice Monkey „voice“); leer = Standardstimme des Echos
 const VOICES = [["", "Standard (wie Alexa)"], ["Vicki", "Vicki"], ["Marlene", "Marlene"], ["Daniel", "Daniel"], ["Hans", "Hans"]];
@@ -42,12 +44,17 @@ function announceRow(a, del) {
     h("div.row", {}, h("button.btn.small", { onclick: (e) => testAnnounce(a, e.currentTarget) }, "Mit Beispiel testen")));
 }
 
-const TRIGGERS = [["alarm", "Bei Alarm"], ["time", "Zu einer Uhrzeit"], ["device", "Wenn ein Gerät …"], ["manual", "Nur per Knopf"]];
+const TRIGGERS = [["alarm", "Bei Alarm"], ["time", "Zu einer Uhrzeit"], ["readiness", "Wenn die Bereitschaft wechselt"], ["device", "Wenn ein Gerät …"], ["manual", "Nur per Knopf"]];
 const CONDS = {
   time: "Uhrzeit von–bis", weekday: "Wochentage", sun: "Hell / dunkel", home: "Jemand zuhause (Handy im WLAN)",
-  keyword: "Stichwort enthält", unit: "Einheit enthält",
+  readiness: "Bereitschaft ist …", keyword: "Stichwort enthält", unit: "Einheit enthält",
 };
+const READY_IS = [["ready", "Verfügbar"], ["off", "Nicht verfügbar oder abwesend"], ["away", "Nicht verfügbar"], ["absent", "Abwesend"]];
+const READY_TO = [["any", "Bei jedem Wechsel"], ["ready", "Wieder verfügbar"], ["off", "Nicht verfügbar oder abwesend"], ["away", "Nicht verfügbar"], ["absent", "Abwesend"]];
 const DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+/** Wochentage als Häkchen (1 = Montag). */
+const dayPicker = (obj) => h("div.row", {}, DAYS.map((d, i) => h("label.row", { style: "gap:4px" },
+  h("input", { type: "checkbox", checked: (obj.days ||= [1, 2, 3, 4, 5, 6, 7]).includes(i + 1), onchange: (e) => { obj.days = e.target.checked ? [...obj.days, i + 1].toSorted((x, y) => x - y) : obj.days.filter((x) => x !== i + 1); } }), d)));
 
 const blank = () => ({
   id: newId(), name: "Neue Routine", enabled: true, who: [],
@@ -71,7 +78,9 @@ const template = () => ({
 
 function describe(r) {
   const t = r.trigger || {};
-  const trig = t.type === "alarm" ? "Bei Alarm" : t.type === "time" ? `Täglich ${t.at || "?"}` : t.type === "device" ? `Wenn ${t.device || "?"} ${t.property}=${t.value}` : "Per Knopf";
+  const days = t.days?.length && t.days.length < 7 ? t.days.map((d) => DAYS[d - 1]).join(", ") : "Täglich";
+  const trig = t.type === "alarm" ? "Bei Alarm" : t.type === "time" ? `${days} ${t.at || "?"}` : t.type === "readiness" ? `Bereitschaft: ${READY_TO.find(([k]) => k === (t.to || "any"))?.[1]}`
+    : t.type === "device" ? `Wenn ${t.device || "?"} ${t.property}=${t.value}` : "Per Knopf";
   const who = r.who?.length ? ` · ${r.who.join(", ")}` : "";
   const cond = r.conditions?.items?.length ? ` · ${r.conditions.items.length} Bedingung${r.conditions.items.length > 1 ? "en" : ""}` : "";
   return `${trig}${who}${cond} · ${r.actions?.length || 0} Aktion${r.actions?.length === 1 ? "" : "en"}`;
@@ -92,12 +101,34 @@ const condRow = (c, del) => h("div.item", {},
     c.type === "time" && h("div.fields", {},
       field("Von", h("input.input", { type: "time", value: c.from || "22:00", onchange: (e) => (c.from = e.target.value) })),
       field("Bis", h("input.input", { type: "time", value: c.to || "06:00", onchange: (e) => (c.to = e.target.value) }))),
-    c.type === "weekday" && h("div.row", {}, DAYS.map((d, i) => h("label.row", { style: "gap:4px" },
-      h("input", { type: "checkbox", checked: (c.days ||= [1, 2, 3, 4, 5, 6, 7]).includes(i + 1), onchange: (e) => { c.days = e.target.checked ? [...c.days, i + 1] : c.days.filter((x) => x !== i + 1); } }), d))),
+    c.type === "weekday" && dayPicker(c),
     c.type === "sun" && select([["dark", "Nur wenn es dunkel ist"], ["light", "Nur wenn es hell ist"]], (c.is ||= "dark"), (v) => (c.is = v)),
     c.type === "home" && select([["any", "Irgendein Handy"], ...Object.entries(state.clients).filter(([, x]) => x.platform === "Android").map(([id, x]) => [id, x.name])], (c.who ||= "any"), (v) => (c.who = v)),
+    c.type === "readiness" && select(READY_IS, (c.is ||= "off"), (v) => (c.is = v)),
     (c.type === "keyword" || c.type === "unit") && h("input.input", { value: c.contains || "", placeholder: c.type === "keyword" ? "z. B. B3 oder RD" : "z. B. LOHBR", onchange: (e) => (c.contains = e.target.value) }),
   );
+
+/** Aktion „Divera-Status setzen“. Mit Zentrale braucht die Person ihren Schlüssel dort (Einstellungen → Divera). */
+function diveraRow(a, del) {
+  const me = settings().alarm.me, list = settings().divera.statuses || [];
+  const opts = [["", "– Status wählen –"], ...list.map((x) => [x.id, x.name])];
+  const statusField = (key, label, hint) => list.length
+    ? field(label, select(opts, a[key] || "", (v) => { a[key] = v; if (key === "statusId") a.statusName = list.find((x) => x.id === v)?.name || ""; }), hint)
+    : field(label, h("input.input", { type: "number", value: a[key] || "", placeholder: "Status-ID", onchange: (e) => (a[key] = e.target.value) }), hint || "Liste erscheint, sobald dein Divera-Schlüssel eingetragen ist.");
+  const persons = [[me, `${me} (dieses Gerät)`], ...(shared().persons || []).filter((p) => p.id !== me).map((p) => [p.id, `${p.name} (${p.id})`])];
+  const keyInfo = has.pi() && state.diveraKeys?.[a.who];
+  const warn = has.pi() ? (!keyInfo ? "Für diese Person liegt kein Schlüssel auf der Zentrale – unter Einstellungen → Divera „Auf der Zentrale hinterlegen“." : keyInfo.ok === false ? `Schlüssel auf der Zentrale ungültig: ${keyInfo.error}` : "")
+    : a.who !== me ? "Ohne Zentrale nur für die eigene Kennung." : !settings().divera.key ? "Erst den Divera-Schlüssel eintragen." : "";
+  return h("div.item", {},
+    h("div.item-head", {}, h("b", {}, "Divera-Status setzen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+    h("div.fields", {},
+      field("Für", select(persons, (a.who ||= me), (v) => (a.who = v))),
+      statusField("statusId", "Status"),
+      field("Zurücksetzen nach (min)", h("input.input", { type: "number", min: 0, max: 1440, value: a.resetMin || 0, onchange: (e) => (a.resetMin = Number(e.target.value)) }), "0 = bleibt. Divera setzt selbst zurück, auch wenn Heimalarm aus ist."),
+      statusField("resetTo", "… auf", "Nur wenn oben mehr als 0 Minuten stehen."),
+      field("Notiz", h("input.input", { value: a.note || "", maxlength: 80, placeholder: "optional", onchange: (e) => (a.note = e.target.value) }))),
+    warn && h("p.meta.warn", {}, warn));
+}
 
 const actionRow = (a, del) => {
     if (a.type === "delay") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Warten"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
@@ -105,6 +136,16 @@ const actionRow = (a, del) => {
     if (a.type === "voicemonkey") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Alexa-Routine (Voice Monkey)"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
       field("Auslöser-ID", h("input.input", { value: a.device || "", placeholder: "z. B. heimalarm-einsatz", onchange: (e) => (a.device = e.target.value.trim()) }), "In Voice Monkey als „Routine Trigger“ angelegt."));
     if (a.type === "announce") return announceRow(a, del);
+    if (a.type === "divera") return diveraRow(a, del);
+    if (a.type === "readiness") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Bereitschaft setzen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+      h("div.fields", {},
+        field("Auf", select(Object.entries(MODES).map(([k, m]) => [k, m.label]), (a.mode ||= "away"), (v) => { a.mode = v; })),
+        field("Bis (Uhrzeit)", h("input.input", { type: "time", value: a.untilAt || "", onchange: (e) => (a.untilAt = e.target.value) }), "Nächstes Mal diese Uhrzeit, danach wieder verfügbar. Leer = bis du es änderst.")));
+    if (a.type === "webhook") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Webhook aufrufen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+      h("div.fields", {},
+        field("Adresse", h("input.input.mono", { value: a.url || "", placeholder: "http://192.168.178.10:8123/api/webhook/heimalarm", inputmode: "url", autocomplete: "off", spellcheck: "false", onchange: (e) => (a.url = e.target.value.trim()) }),
+          "Für Home Assistant, Node-RED, IFTTT … {stichwort} und {who} werden ersetzt."),
+        field("Art", select([["GET", "GET"], ["POST", "POST (JSON)"]], (a.method ||= "GET"), (v) => (a.method = v)))));
     if (a.type === "restore") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vorherigen Zustand wiederherstellen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")));
     a.payload ||= {};
     return h("div.item", {},
@@ -134,6 +175,8 @@ function editor(routine, rerender) {
     h("div.field", {}, h("span", {}, "Auslöser"),
       select(TRIGGERS, r.trigger.type, (v) => { r.trigger = { type: v }; paint(); })),
     r.trigger.type === "time" && field("Uhrzeit", h("input.input", { type: "time", value: r.trigger.at || "07:00", onchange: (e) => (r.trigger.at = e.target.value) })),
+    r.trigger.type === "time" && h("div.field", {}, h("span", {}, "An diesen Tagen"), dayPicker(r.trigger)),
+    r.trigger.type === "readiness" && field("Wenn sie wechselt auf", select(READY_TO, (r.trigger.to ||= "any"), (v) => (r.trigger.to = v)), "Läuft auch, wenn die eingestellte Zeit abläuft."),
     r.trigger.type === "device" && h("div.fields", {},
       field("Gerät", select(devNames(), r.trigger.device || "", (v) => (r.trigger.device = v))),
       field("Eigenschaft", h("input.input", { value: r.trigger.property || "action", onchange: (e) => (r.trigger.property = e.target.value) }), "z. B. action, contact, occupancy"),
@@ -161,6 +204,9 @@ function editor(routine, rerender) {
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "delay", sec: 5 }); paint(); } }, "+ Warten"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "announce", device: "", speech: "Einsatz. {stichwort}. {adresse}" }); paint(); } }, "+ Alexa sagt an"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "voicemonkey", device: "" }); paint(); } }, "+ Alexa-Routine"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "divera", who: settings().alarm.me, statusId: "" }); paint(); } }, "+ Divera-Status"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "readiness", mode: "away", untilAt: "" }); paint(); } }, "+ Bereitschaft"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "webhook", url: "", method: "GET" }); paint(); } }, "+ Webhook"),
         has.pi() && h("button.btn.small", { onclick: () => { r.actions.push({ type: "restore" }); paint(); } }, "+ Vorher-Zustand"))),
 
     // B8 – Rückkehr

@@ -9,8 +9,8 @@ import { settings } from "./settings.js";
 
 export const MODES = {
   ready: { label: "Verfügbar", hint: "Bei Alarm läuft alles: Abfrage, Ton, Routinen." },
-  away: { label: "Nicht verfügbar", hint: "Keine Abfrage, kein Ton, Routinen pausiert (außer „Nur per Knopf“)." },
-  absent: { label: "Abwesend", hint: "Keine Abfrage, kein Ton, Routinen pausiert (außer „Nur per Knopf“)." },
+  away: { label: "Nicht verfügbar", hint: "Keine Abfrage, kein Ton, Routinen bei Alarm pausiert." },
+  absent: { label: "Abwesend", hint: "Keine Abfrage, kein Ton, Routinen bei Alarm pausiert." },
 };
 
 /** Aktueller Zustand; abgelaufene Zeiten zählen schon als „verfügbar“. */

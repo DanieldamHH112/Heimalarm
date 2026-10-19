@@ -252,8 +252,23 @@ function diveraSource(rerender) {
           d.resetMin > 0 && field("… auf", statusSelect("divera.resetTo", d.statuses, "– wählen –"))),
         (d.answer || d.setStatus) && field("Notiz", text("divera.note", { placeholder: "z. B. per Heimalarm", maxlength: 80 }), "Optional, erscheint in Divera."),
         (d.answer || d.setStatus) && !d.statuses.length && h("p.meta", {}, "Tipp: „Verbinden“ lädt eure Status als Auswahl.")),
+      d.key && has.pi() && diveraOnZentrale(rerender),
     ],
   });
+}
+
+/** Schlüssel freiwillig der Zentrale geben – nur dann kann eine Routine deinen Status setzen, auch wenn das Handy aus ist. */
+function diveraOnZentrale(rerender) {
+  const me = settings().alarm.me, info = state.diveraKeys?.[me];
+  const send = (key) => { publish("heimalarm/cmd/divera/key", { who: me, key }); toast(key ? "Wird geprüft …" : "Schlüssel auf der Zentrale gelöscht"); setTimeout(rerender, 2500); };
+  return group("Divera-Status per Routine",
+    h("p.meta", {}, "Erlaubt der Zentrale, deinen Divera-Status per Routine zu setzen (z. B. ab 22 Uhr „Nicht verfügbar“) – auch wenn dein Handy aus ist. Der Schlüssel liegt dann zusätzlich auf der Zentrale und wird nur dort gespeichert, nicht an andere Geräte verteilt."),
+    info?.ok === false && h("p.meta.err", {}, `Nicht übernommen: ${info.error}`),
+    h("div.row", {},
+      info?.ok ? h("span.badge", {}, `Hinterlegt für „${me}“`) : null,
+      h("button.btn.small", { disabled: !state.dienst?.online, onclick: async () => { if (await requireAdmin()) send(settings().divera.key); } }, info?.ok ? "Neu übertragen" : "Auf der Zentrale hinterlegen"),
+      info && h("button.btn.small.ghost.danger", { onclick: async () => { if (await ask("Schlüssel auf der Zentrale löschen? Routinen können deinen Status dann nicht mehr setzen.")) send(""); } }, "Löschen")),
+    !state.dienst?.online && h("p.meta", {}, "Zentrale-Programm nicht erreichbar."));
 }
 
 function apagerSource(rerender) {

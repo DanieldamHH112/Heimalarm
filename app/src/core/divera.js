@@ -142,6 +142,19 @@ export async function setDiveraStatus(id) {
   } catch (e) { log("warn", `Divera-Status nicht gesetzt: ${e.message}`, e.detail || ""); return false; }
 }
 
+/** Routinen-Aktion ohne Zentrale: Status mit eigenem Schlüssel setzen { statusId, statusName, note, resetMin, resetTo }. */
+export async function setDiveraStatusRaw(a) {
+  const Status = { id: Number(a.statusId) };
+  if (a.note) Status.note = a.note;
+  if (Number(a.resetMin) > 0 && a.resetTo) { Status.reset_date = Math.floor(Date.now() / 1000) + Number(a.resetMin) * 60; Status.reset_to = Number(a.resetTo); }
+  try {
+    await api("/api/v2/statusgeber/set-status", { Status });
+    divera.current = String(a.statusId);
+    log("action", `Divera-Status: ${a.statusName || a.statusId}`, "Routine");
+    emit("divera", divera);
+  } catch (e) { log("warn", `Divera-Status nicht gesetzt: ${e.message}`, e.detail || ""); }
+}
+
 /** Rückmeldung zu einem Divera-Einsatz. */
 export async function confirmDiveraAlarm(alarmId, statusId) {
   const d = settings().divera;

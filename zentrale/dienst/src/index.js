@@ -9,8 +9,9 @@ import { startWebhook } from "./webhook.js";
 import { startSelftest } from "./selftest.js";
 import { startVoice } from "./voice.js";
 import { startHass } from "./hass.js";
+import { startDivera } from "./divera.js";
 
-export const VERSION = "0.2.5";
+export const VERSION = "0.2.6";
 const URL = process.env.MQTT_URL || "mqtt://mosquitto:1883";
 
 const client = mqtt.connect(URL, {
@@ -38,6 +39,13 @@ const log = createLog(client);
 const rules = createRules(ctx, log);
 const voice = startVoice(ctx, log);
 const hass = startHass(ctx, log);
+ctx.divera = startDivera(ctx, log);
+let rawShared = {};
+/** Routinen-Aktion „Bereitschaft setzen“: gemeinsame Daten ändern (wie die App, verschachtelte Felder komplett). */
+ctx.updateShared = (patch) => {
+  rawShared = { ...rawShared, ...patch };
+  client.publish("heimalarm/config/shared", JSON.stringify(rawShared), { retain: true, qos: 1 });
+};
 ctx.onAlarmAccepted = (e) => { voice.onAlarm(e).catch(() => {}); hass.onAlarm(e); };
 
 client.on("connect", () => {
@@ -55,7 +63,8 @@ client.on("message", (topic, buf, packet) => {
   const parts = topic.split("/");
   try {
     if (topic === "heimalarm/config/shared") {
-      ctx.config = { ...structuredClone(DEFAULTS), ...JSON.parse(msg || "{}") };
+      rawShared = JSON.parse(msg || "{}");
+      ctx.config = { ...structuredClone(DEFAULTS), ...rawShared };
       rules.reschedule();
       voice.onConfig();
       hass.sync();
@@ -67,6 +76,7 @@ client.on("message", (topic, buf, packet) => {
     } else if (parts[0] === "heimalarm" && parts[1] === "cmd") {
       const cmd = parts.slice(2).join("/"), data = msg ? JSON.parse(msg) : {};
       if (parts[2] === "voice") voice.command(parts.slice(3).join("/"), data);
+      else if (parts[2] === "divera") ctx.divera.command(parts.slice(3).join("/"), data);
       else rules.command(cmd, data);
       if (cmd === "restore") hass.onRestore();
     } else if (parts[0] === "alarm" && parts.length === 3 && parts[2] === "status") {

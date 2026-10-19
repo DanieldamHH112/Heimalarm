@@ -7,7 +7,8 @@ import { shared } from "./shared.js";
 import { log } from "./log.js";
 import { isTauri, hasPcFeatures } from "./platform.js";
 import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
-import { readiness } from "./readiness.js";
+import { readiness, setReadiness, MODES } from "./readiness.js";
+import { setDiveraStatusRaw } from "./divera.js";
 const offDuty = () => readiness().mode !== "ready";
 
 const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch)(...a);
@@ -29,6 +30,7 @@ function check(c, ev) {
     }
     case "keyword": return String(ev.keyword || "").toLowerCase().includes(String(c.contains || "").toLowerCase());
     case "unit": return String(ev.unit || "").toLowerCase().includes(String(c.contains || "").toLowerCase());
+    case "readiness": { const m = readiness().mode; return c.is === "off" ? m !== "ready" : m === (c.is || "ready"); }
     default: return true;   // „home“ gibt es nur mit Zentrale
   }
 }
@@ -57,6 +59,15 @@ function runActions(r, dry, ev = {}) {
         const token = shared().voicemonkey?.token;
         if (!token) return log("warn", "Alexa-Ansage: kein Voice-Monkey-Token eingetragen");
         voiceMonkeyAnnounce(token, a, ev, fetchFn).then((t) => log("action", "Alexa sagt an", t)).catch((e) => log("warn", "Alexa-Ansage", e.message));
+      } else if (a.type === "divera") {
+        // Ohne Zentrale nur mit dem eigenen Schlüssel dieses Geräts
+        if (a.who && a.who !== settings().alarm.me) return log("warn", "Divera-Status nicht gesetzt", `Ohne Zentrale nur für die eigene Kennung (${settings().alarm.me})`);
+        setDiveraStatusRaw(a);
+      } else if (a.type === "readiness") {
+        setReadiness(a.mode, a.mode === "ready" ? null : nextTime(a.untilAt));
+        log("action", "Bereitschaft gesetzt", MODES[a.mode]?.label || a.mode);
+      } else if (a.type === "webhook") {
+        webhook(a, ev);
       }
     };
     if (wait) setTimeout(go, wait); else go();
@@ -65,7 +76,7 @@ function runActions(r, dry, ev = {}) {
 
 export function fireLocal(r, ev = {}) {
   if (!r.enabled && !ev.manual) return;
-  if (offDuty() && r.trigger?.type !== "manual") return log("info", "Nicht verfügbar: Routine übersprungen", r.name);
+  if (offDuty() && r.trigger?.type === "alarm") return log("info", "Nicht verfügbar: Routine übersprungen", r.name);
   const items = r.conditions?.items || [];
   const okConds = ev.manual || !items.length || (r.conditions.mode === "or" ? items.some((c) => check(c, ev)) : items.every((c) => check(c, ev)));
   if (!okConds) return log("info", "Bedingungen nicht erfüllt", r.name);
@@ -84,7 +95,45 @@ export function initLocalRoutines() {
   });
   setInterval(() => {
     if (!runsHere()) return;
-    const hhmm = new Date().toTimeString().slice(0, 5);
-    for (const r of shared().routines || []) if (r.trigger?.type === "time" && r.trigger.at === hhmm) fireLocal(r, {});
+    const now = new Date(), hhmm = now.toTimeString().slice(0, 5), day = ((now.getDay() + 6) % 7) + 1;
+    for (const r of shared().routines || []) {
+      const t = r.trigger || {};
+      if (t.type === "time" && t.at === hhmm && (!t.days?.length || t.days.includes(day))) fireLocal(r, {});
+    }
+    checkReadiness();
   }, 60_000);
+  on("shared", () => runsHere() && checkReadiness());
+}
+
+// Auslöser „Bereitschaft wechselt“
+let lastMode = null;
+function checkReadiness() {
+  const m = readiness().mode;
+  if (lastMode === null || m === lastMode) { lastMode = m; return; }
+  const from = lastMode; lastMode = m;
+  for (const r of shared().routines || []) {
+    const t = r.trigger || {};
+    if (t.type !== "readiness") continue;
+    if (t.to === "off" ? m === "ready" : t.to && t.to !== "any" && t.to !== m) continue;
+    fireLocal(r, { readiness: m, from });
+  }
+}
+
+/** Nächstes Vorkommen von „HH:MM“ als ms; leer = ohne Ende. */
+export function nextTime(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":").map(Number), d = new Date();
+  d.setHours(h, m || 0, 0, 0);
+  if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+async function webhook(a, ev) {
+  if (!/^https?:\/\//u.test(a.url || "")) return log("warn", "Webhook: Adresse fehlt oder ungültig", a.url || "");
+  const url = a.url.replace(/\{(\w+)\}/gu, (_, k) => encodeURIComponent(ev?.[k] ?? ""));
+  try {
+    const r = await fetchFn(url, { method: a.method || "GET", ...(a.method === "POST" ? { headers: { "Content-Type": "application/json" }, body: a.body || JSON.stringify(ev || {}) } : {}) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    log("action", "Webhook gesendet", a.url.replace(/\?.*/u, ""));
+  } catch (e) { log("warn", "Webhook fehlgeschlagen", `${a.url.replace(/\?.*/u, "")}: ${e.message}`); }
 }

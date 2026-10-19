@@ -1,13 +1,16 @@
 // B – Routinen & Regeln.
 //
 // Routine = { id, name, enabled, who: [kennung] (leer = alle),
-//   trigger: { type: "alarm" | "time" | "device" | "manual", at, device, property, value },
+//   trigger: { type: "alarm" | "time" | "device" | "manual" | "readiness", at, device, property, value, to },
 //   conditions: { mode: "and" | "or", items: [ { type, ... } ] },
-//   actions: [ { type: "device" | "group" | "delay" | "restore" | "publish", ... } ],
+//   actions: [ { type: "device" | "group" | "delay" | "restore" | "publish" | "divera" | "readiness" | "webhook", ... } ],
 //   restoreAfterMin }  // B8: vorherigen Zustand nach X min wiederherstellen (0 = aus)
 //
 // Bedingungen: time {from,to} · weekday {days:[1..7]} · sun {is:"dark"|"light"} ·
-//              home {who:"any"|clientId} · keyword {contains} · unit {contains} · night {}
+//              home {who:"any"|clientId} · keyword {contains} · unit {contains} · readiness {is: ready|off|away|absent}
+//
+// „Nicht verfügbar“/„Abwesend“ pausiert nur Routinen mit Auslöser „Bei Alarm“ – Zeit-, Geräte- und
+// Bereitschafts-Routinen laufen weiter (sonst könnte z. B. „um 6 Uhr wieder verfügbar“ nie laufen).
 import SunCalc from "suncalc";
 import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
 
@@ -16,6 +19,14 @@ export function createRules(ctx, log) {
   const timers = new Set();      // laufende Verzögerungen / Ausschalt-Timer
   let snapshot = null;           // B8 – Zustand vor der letzten Routine
   let clock = null;
+  let lastMode = null;           // für den Auslöser „Bereitschaft wechselt“
+
+  /** Bereitschaft wie in der App: abgelaufene Zeit zählt schon als „verfügbar“. */
+  function readinessMode() {
+    const r = ctx.config.readiness;
+    if (r?.mode && r.mode !== "ready") return r.until && r.until <= Date.now() ? "ready" : r.mode;
+    return ctx.config.vacation ? "absent" : "ready";
+  }
 
   const pub = (topic, payload) => ctx.client.publish(topic, typeof payload === "string" ? payload : JSON.stringify(payload), { qos: 1 });
   const wifiDev = (name) => (ctx.config.wifi || []).find((d) => d.name === name);
@@ -54,6 +65,10 @@ export function createRules(ctx, log) {
       }
       case "keyword": return String(event?.keyword || "").toLowerCase().includes(String(cond.contains || "").toLowerCase());
       case "unit": return String(event?.unit || "").toLowerCase().includes(String(cond.contains || "").toLowerCase());
+      case "readiness": {
+        const m = readinessMode();
+        return cond.is === "off" ? m !== "ready" : m === (cond.is || "ready");
+      }
       default: return true;
     }
   }
@@ -100,6 +115,14 @@ export function createRules(ctx, log) {
           const token = ctx.config.voicemonkey?.token;
           if (!token) log.warn("Alexa-Ansage: kein Voice-Monkey-Token eingetragen");
           else voiceMonkeyAnnounce(token, a, event, fetch).then((t) => log.action("Alexa sagt an", t)).catch((e) => log.warn("Alexa-Ansage", e.message));
+        } else if (a.type === "divera") {
+          ctx.divera?.setStatus(a);
+        } else if (a.type === "readiness") {
+          const until = a.mode === "ready" ? null : nextTime(a.untilAt);
+          ctx.updateShared?.({ readiness: { mode: a.mode, until }, vacation: a.mode !== "ready" });
+          log.action("Bereitschaft gesetzt", `${READY[a.mode] || a.mode}${until ? " bis " + new Date(until).toLocaleString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : ""}`);
+        } else if (a.type === "webhook") {
+          webhook(a, event);
         } else if (a.type === "publish") {
           pub(a.topic, a.payload ?? "");
         } else if (a.type === "restore") {
@@ -115,12 +138,15 @@ export function createRules(ctx, log) {
     if (a.type === "group") return `Gruppe ${a.group}`;
     if (a.type === "voicemonkey") return `Alexa-Routine ${a.device}`;
     if (a.type === "announce") return `Alexa-Ansage auf ${a.device}`;
+    if (a.type === "divera") return `Divera-Status ${a.who}: ${a.statusName || a.statusId}`;
+    if (a.type === "readiness") return `Bereitschaft: ${READY[a.mode] || a.mode}`;
+    if (a.type === "webhook") return `Webhook ${a.method || "GET"} ${a.url}`;
     return a.type;
   }
 
   function fire(routine, event = {}) {
     if (!routine.enabled) return;
-    if (ctx.config.vacation && !(ctx.config.readiness?.until && ctx.config.readiness.until <= Date.now()) && routine.trigger?.type !== "manual") return log.info("Nicht verfügbar: Routine übersprungen", routine.name); // B9
+    if (routine.trigger?.type === "alarm" && readinessMode() !== "ready") return log.info("Nicht verfügbar: Routine übersprungen", routine.name); // B9
     // Per Knopf ausgeführt: Bedingungen gelten nicht
     if (!event.manual && !allowed(routine, event)) return log.info("Bedingungen nicht erfüllt", routine.name);
     const dry = Boolean(event.test);
@@ -174,16 +200,56 @@ export function createRules(ctx, log) {
     });
   }
 
-  // Zeit-Auslöser: jede Minute prüfen
+  /** Auslöser „Bereitschaft wechselt“ – nach jeder neuen Konfiguration und jede Minute (Ablauf der Zeit). */
+  function checkReadiness() {
+    const m = readinessMode();
+    if (lastMode === null) { lastMode = m; return; }   // Start: kein Wechsel
+    if (m === lastMode) return;
+    const from = lastMode; lastMode = m;
+    for (const r of ctx.config.routines || []) {
+      const t = r.trigger || {};
+      if (t.type !== "readiness") continue;
+      if (t.to === "off" ? m === "ready" : t.to && t.to !== "any" && t.to !== m) continue;
+      fire(r, { readiness: m, from });
+    }
+  }
+
+  // Zeit-Auslöser: jede Minute prüfen (Wochentage optional direkt am Auslöser)
   function reschedule() {
     clearInterval(clock);
+    checkReadiness();
     clock = setInterval(() => {
-      const hhmm = new Date().toTimeString().slice(0, 5);
-      for (const r of ctx.config.routines || []) if (r.trigger?.type === "time" && r.trigger.at === hhmm) fire(r, { time: hhmm });
+      const now = new Date(), hhmm = now.toTimeString().slice(0, 5), day = ((now.getDay() + 6) % 7) + 1;
+      for (const r of ctx.config.routines || []) {
+        const t = r.trigger || {};
+        if (t.type === "time" && t.at === hhmm && (!t.days?.length || t.days.includes(day))) fire(r, { time: hhmm });
+      }
+      checkReadiness();
     }, 60e3);
   }
 
+  async function webhook(a, event) {
+    if (!/^https?:\/\//u.test(a.url || "")) return log.warn("Webhook: Adresse fehlt oder ungültig", a.url || "");
+    const fill = (t) => String(t || "").replace(/\{(\w+)\}/gu, (_, k) => encodeURIComponent(event?.[k] ?? ""));
+    try {
+      const r = await fetch(fill(a.url), { method: a.method || "GET", ...(a.method === "POST" ? { headers: { "Content-Type": "application/json" }, body: a.body || JSON.stringify({ event: event?.readiness ? "readiness" : event?.who ? "alarm" : "routine", ...event }) } : {}), signal: AbortSignal.timeout(10e3) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      log.action("Webhook gesendet", a.url.replace(/\?.*/u, ""));
+    } catch (e) { log.warn("Webhook fehlgeschlagen", `${a.url.replace(/\?.*/u, "")}: ${e.message}`); }
+  }
+
   return { onAlarm, onDevice, command, reschedule };
+}
+
+const READY = { ready: "Verfügbar", away: "Nicht verfügbar", absent: "Abwesend" };
+
+/** Nächstes Vorkommen von „HH:MM“ als ms (heute oder morgen); leer = ohne Ende. */
+function nextTime(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":").map(Number), d = new Date();
+  d.setHours(h, m || 0, 0, 0);
+  if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+  return d.getTime();
 }
 
 function pick(o, keys) {

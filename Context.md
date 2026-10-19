@@ -41,7 +41,7 @@ Der Melder wird ausschließlich über einen **ESP32** an der Steckklemme der Lad
 - **Responsiv:** PC = schmale Symbolleiste links, Handy (≤ 760 px) = Leiste unten mit Pillen-Markierung. Einstellungen, Geräte und Routinen sind zwei Spalten (Liste links, eine Seite rechts); am Handy Liste → Unterseite mit „Zurück“.
 - **Dunkel ist Standard**, Hell die zweite Auswahl. **Weiche Ecken** (`--radius-sm` 8 px, `--radius` 12 px, `--radius-lg` 16 px), Flächen statt Rahmenlinien. **Bereichsfarben** (`--c-alarm`, `--c-net`, `--c-pc` …) – derselbe Bereich hat überall dieselbe Farbe.
 - **PC und Handy zeigen dieselben Teile** (Start: Status, Kennzahlen, Licht & Geräte, Schnellaktionen, Zuletzt) – nur die Anordnung unterscheidet sich.
-- **Keine Geheimnisse im Repo.** WLAN-, MQTT- und Signier-Daten nur lokal (`secrets.yaml`) oder als GitHub-Secret. API-Schlüssel der Nutzer (Divera, aPager) bleiben nur auf dem Gerät.
+- **Keine Geheimnisse im Repo.** WLAN-, MQTT- und Signier-Daten nur lokal (`secrets.yaml`) oder als GitHub-Secret. API-Schlüssel der Nutzer (Divera, aPager) bleiben nur auf dem Gerät. **Ausnahme (bewusst, freiwillig):** Wer „Divera-Status per Routine“ einschaltet, gibt seinen Divera-Accesskey der Zentrale – er liegt dann nur in `zentrale/dienst/data/divera.json`, nie in den gemeinsamen Daten.
 - **Repo bleibt privat** während der Entwicklung. **iOS-Build** vorerst nicht vorgesehen.
 - **UI-Arbeit** mit den Skills `/impeccable` und `/frontend-design`.
 - **Nicht raten:** Bei unklaren Anforderungen oder unbekannten Schnittstellen nachfragen bzw. Quelle prüfen (Doku, Spec).
@@ -92,6 +92,7 @@ Heimalarm/
 │     ├─ src/webhook.js    aPager-Webhook (Port 8080, mit Schlüssel)
 │     ├─ src/selftest.js   wöchentlicher Selbsttest
 │     ├─ src/hass.js       Home Assistant (MQTT-Discovery)
+│     ├─ src/divera.js     Divera-Status per Routine (Schlüssel in data/divera.json)
 │     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5540 (Alexa koppelt nur über 5540)
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
@@ -186,6 +187,8 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/einsaetze/<kennung>` | Einsatz-Logbuch (Liste, retained); jedes Gerät führt zusammen und schreibt zurück, wenn es mehr weiß | Apps ↔ Apps |
 | `heimalarm/cmd/test\|rename/<geräte-id>` | Testalarm an genau ein Gerät, Gerät umbenennen `{name}` | App → App |
 | `heimalarm/cmd/voice/test\|reset` | Matter-Sensor testen, Kopplungen löschen | App → Dienst |
+| `heimalarm/cmd/divera/key` | `{who, key}` Divera-Schlüssel hinterlegen (leer = löschen), nicht retained | App → Dienst |
+| `heimalarm/divera/keys` | `{<kennung>: {ok, error, ts}}` wer einen Schlüssel hinterlegt hat – ohne Schlüssel (retained) | Dienst |
 | `heimalarm/voice/status` | `{enabled, running, qr, manual, commissioned, fabrics, sensors, error}` (retained) | Dienst |
 | `heimalarm/log`, `heimalarm/log/recent` | Protokoll der Zentrale | Dienst |
 | `heimalarm/report` | Selbsttest-Bericht (retained) | Dienst |
@@ -243,7 +246,9 @@ Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`,
 | `localStorage heimalarm.sync.ts` | Zeitstempel der Abgleich-Bereiche (ohne Zentrale) | – |
 
 Routine (gleiches Format in App und Dienst; Aktion `announce` = Alexa-Ansage `{device, speech, voice, chime, show}`, Text mit Platzhaltern `{stichwort} {adresse} {einheit} {uhrzeit} {quelle} {person} {text}` → `fillTemplate` in `wifi.js`):
-`{ id, name, enabled, who:[kennung], trigger:{type: alarm|time|device|manual, at, device, property, value}, conditions:{mode: and|or, items:[{type: time|weekday|sun|home|keyword|unit, …}]}, actions:[{type: device|group|delay|restore|voicemonkey|publish, …}], restoreAfterMin }`
+`{ id, name, enabled, who:[kennung], trigger:{type: alarm|time|readiness|device|manual, at, days:[1..7], to, device, property, value}, conditions:{mode: and|or, items:[{type: time|weekday|sun|home|readiness|keyword|unit, …}]}, actions:[{type: device|group|delay|restore|voicemonkey|announce|divera|readiness|webhook|publish, …}], restoreAfterMin }`
+- `divera {who, statusId, statusName, note, resetMin, resetTo}` – mit Zentrale nur mit dort hinterlegtem Schlüssel, ohne Zentrale nur für die eigene Kennung. `readiness {mode, untilAt:"HH:MM"}` setzt `shared.readiness`. `webhook {url, method}`.
+- „Nicht verfügbar/Abwesend“ pausiert **nur Routinen „Bei Alarm“** – Zeit-, Bereitschafts- und Geräte-Routinen laufen weiter.
 Aktion `device` schaltet ein WLAN-Gerät, wenn ein Gerät mit diesem Namen in `shared.wifi` steht, sonst Zigbee.
 
 ## Vorsicht bei Änderungen
