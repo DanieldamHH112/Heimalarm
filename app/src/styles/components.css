@@ -566,3 +566,4 @@ pre.code-block { margin: 0; padding: var(--s3) var(--s4); background: var(--surf
 .upd-steps li.now::before { border-color: var(--ok); border-right-color: transparent; animation: upd-spin 1s linear infinite; }
 @keyframes upd-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .upd-bar i, .upd-steps li.now::before { animation: none; } }
+.log b.dev { font-weight: 650; color: var(--text-2); }

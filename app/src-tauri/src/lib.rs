@@ -374,6 +374,7 @@ pub fn run() {
             direct::direct_server,
             direct::direct_set_config,
             direct::direct_pairing,
+            direct::direct_push,
             sound::sound_play,
             sound::sound_stop,
             sound::sound_save,

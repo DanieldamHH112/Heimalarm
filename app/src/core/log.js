@@ -27,3 +27,34 @@ export function clearLog() {
   try { localStorage.removeItem(KEY); } catch {}
   emit("log", null);
 }
+
+// ── Protokoll der anderen Geräte (Handy ↔ PC, mit und ohne Zentrale) ───────
+// { <geräte-id>: { name, at, entries } } – nur zum Ansehen, wird nicht weiterverändert.
+const RKEY = "heimalarm.log.remote";
+let remote = {};
+try { remote = JSON.parse(localStorage.getItem(RKEY) || "{}") || {}; } catch {}
+
+/** Eigene letzte Einträge zum Verschicken. */
+export const ownLog = (n = 100) => entries.slice(0, n);
+export const remoteLogs = () => remote;
+
+/** Fremde Protokolle übernehmen, wo sie neuer sind. `selfId` wird nie übernommen. */
+export function mergeRemoteLogs(incoming, selfId) {
+  let changed = false;
+  for (const [id, v] of Object.entries(incoming || {})) {
+    if (id === selfId || !v || !Array.isArray(v.entries)) continue;
+    if ((remote[id]?.at || 0) >= (Number(v.at) || 0)) continue;
+    remote[id] = { name: String(v.name || "Gerät").slice(0, 60), at: Number(v.at) || Date.now(), entries: v.entries.slice(0, 100) };
+    changed = true;
+  }
+  if (changed) {
+    try { localStorage.setItem(RKEY, JSON.stringify(remote)); } catch {}
+    emit("log", null);
+  }
+  return changed;
+}
+
+/** Einträge aller anderen Geräte, neueste zuerst, mit Gerätename. */
+export const getRemoteLog = () => Object.values(remote)
+  .flatMap((d) => d.entries.map((e) => ({ ...e, dev: d.name })))
+  .toSorted((a, b) => b.ts - a.ts);

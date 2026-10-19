@@ -204,12 +204,13 @@ export async function answerApps(going) {
 }
 
 /** Ergebnis der Abfrage „Fährst du?“ */
-export async function decide(going, { test = false, timeout = false } = {}) {
+/** remote = am anderen Gerät beantwortet: nicht erneut an Divera/aPager melden. */
+export async function decide(going, { test = false, timeout = false, remote = false, from = "" } = {}) {
   const p = settings().pc;
   if (!test) recordAnswer(going, { timeout });
-  emit("answer", { going, test, timeout, alarm: engine.last });   // z. B. Discord-Status (core/discord.js)
+  emit("answer", { going, test, timeout, remote, from, alarm: engine.last });   // z. B. Discord-Status (core/discord.js)
   // Rückmeldung an Divera / aPager (nicht bei Tests, nicht ohne Antwort)
-  if (!test && !timeout) answerApps(going);
+  if (!test && !timeout && !remote) answerApps(going);
   if (!going) {
     log("info", timeout ? "Keine Antwort – keine Aktion (Einstellung „Abbrechen“)" : "„Ich fahre nicht“ – keine Aktion");
     return;

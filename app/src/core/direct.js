@@ -4,7 +4,7 @@
 //          so lässt sich jedes Handy einzeln entkoppeln.
 //   Handy: schickt jeden erkannten Alarm an alle gekoppelten PCs und gleicht die
 //          Einstellungen in beide Richtungen ab (holt ab, schickt zurück – core/sync.js).
-import { settings, set } from "./settings.js";
+import { settings, set, mode } from "./settings.js";
 import { log } from "./log.js";
 import { emit, on } from "./events.js";
 import { isTauri, hasPcFeatures, platformName } from "./platform.js";
@@ -37,6 +37,10 @@ export async function startReceiver() {
       await listen("direct-alarm", (e) => {
         try { emit("alarm-in", { who: settings().alarm.me, ts: Date.now(), ...JSON.parse(e.payload), viaPhone: true }); }
         catch { log("warn", "Alarm vom Handy nicht lesbar"); }
+      });
+      await listen("direct-event", (e) => {
+        try { emit("peer-event", { ...JSON.parse(e.payload), via: "phone" }); }
+        catch { log("warn", "Nachricht vom Handy nicht lesbar"); }
       });
       await listen("direct-config", (e) => {
         try { applyBundle(JSON.parse(e.payload)); }
@@ -99,10 +103,25 @@ function receiveWebhook(query, body) {
 export const webhookUrl = () => (direct.ip && settings().direct.hookKey ? `http://${direct.ip}:${settings().direct.port}/apager/${settings().direct.hookKey}` : "");
 export async function renewHookKey() { set("direct.hookKey", newCode() + newCode()); await startReceiver(); }
 
-/** PC: aktuellen Stand für GET /config hinterlegen. */
-async function publishConfig() {
+/** PC: aktuellen Stand für GET /config hinterlegen und wartende Handys sofort wecken. */
+async function publishConfig({ notify = true } = {}) {
   if (!hasPcFeatures || !isTauri) return;
-  try { await invoke("direct_set_config", { json: JSON.stringify(syncEnabled() ? bundle() : {}) }); } catch { /* nicht verfügbar */ }
+  try {
+    await invoke("direct_set_config", { json: JSON.stringify(syncEnabled() ? bundle() : {}) });
+    if (notify && syncEnabled()) await invoke("direct_push", { json: JSON.stringify({ type: "config", ts: Date.now() }) });
+  } catch { /* nicht verfügbar */ }
+}
+
+/** Live-Nachricht an die anderen Geräte ohne Zentrale (z. B. Antwort „Ich fahre“).
+ *  PC: an alle wartenden Handys. Handy: an alle gekoppelten PCs (außer `exceptId`). */
+export async function sendPeerEvent(ev, exceptId) {
+  if (hasPcFeatures) {
+    if (!isTauri) return;
+    try { await invoke("direct_push", { json: JSON.stringify(ev) }); } catch { /* Empfänger aus */ }
+    return;
+  }
+  const peers = (settings().direct.peers || []).filter((p) => p.paired && p.id !== exceptId);
+  await Promise.all(peers.map((p) => call(p, "/event", ev).catch(() => { /* PC aus */ })));
 }
 
 /** PC: Koppeln für 5 Minuten erlauben (sonst lehnt der PC neue Handys ab). */
@@ -231,15 +250,52 @@ export async function syncPeers() {
 
 let timer;
 on("sync-dirty", () => { clearTimeout(timer); timer = setTimeout(() => (hasPcFeatures ? publishConfig() : syncPeers()), 800); });
-on("sync-applied", () => { if (hasPcFeatures) publishConfig(); });
+// Vom Handy übernommen: Stand hinterlegen, aber nicht zurück an das Handy melden (sonst Ping-Pong)
+on("sync-applied", () => { if (hasPcFeatures) publishConfig({ notify: false }); });
 on("settings", ({ path }) => { if (hasPcFeatures && String(path).startsWith("device")) startReceiver(); });
 
 /** Handy: beim Start abgleichen, danach im eingestellten Abstand und beim Zurückkehren in die App. */
 let syncTimer;
 const intervalMs = () => Math.max(15, Number(settings().sync?.intervalSec) || 120) * 1000;
 function restartSyncTimer() { clearInterval(syncTimer); syncTimer = setInterval(syncPeers, intervalMs()); }
+// ── Live: Handy hält zu jedem PC eine lange Abfrage offen (GET /events) ─────
+const live = new Map();   // peerId -> { rev, stop }
+function watchPeer(peer) {
+  if (live.has(peer.id)) return;
+  const w = { rev: null, stop: false };
+  live.set(peer.id, w);
+  (async () => {
+    while (!w.stop) {
+      const p = findPeer(peer.id);
+      if (!p?.paired || mode() !== "direkt") break;
+      try {
+        const r = await call(p, `/events${w.rev == null ? "" : `?since=${w.rev}`}`);
+        const first = w.rev == null;
+        w.rev = Number(r.rev) || 0;
+        if (first) continue;
+        let cfg = false;
+        for (const ev of r.events || []) {
+          if (ev.type === "config") cfg = true;
+          else emit("peer-event", { ...ev, via: "pc", peerId: p.id });
+        }
+        if (cfg) syncPeers();
+      } catch {
+        await new Promise((res) => setTimeout(res, 5000));   // PC aus oder WLAN weg – gleich wieder versuchen
+      }
+    }
+    live.delete(peer.id);
+  })();
+}
+function watchPeers() {
+  const ids = new Set((settings().direct.peers || []).filter((p) => p.paired).map((p) => p.id));
+  for (const [id, w] of live) if (!ids.has(id)) w.stop = true;
+  for (const p of settings().direct.peers || []) if (p.paired) watchPeer(p);
+}
+
 export function startSync() {
   if (hasPcFeatures) return;
+  watchPeers();
+  on("settings", ({ path }) => { if (String(path).startsWith("direct.peers") || path === "mode") watchPeers(); });
   for (const p of settings().direct.peers || []) if (!p.paired) pingPeer(p);
   syncPeers();
   restartSyncTimer();

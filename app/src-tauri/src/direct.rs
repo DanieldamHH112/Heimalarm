@@ -1,7 +1,8 @@
 //! Direktverbindung ohne Zentrale: Der PC nimmt Alarme und Einstellungen vom Handy im Heimnetz an.
 //! Minimaler HTTP-Empfänger (nur Heimnetz), Kopfzeile X-Heimalarm-Key:
 //!   Kopplungscode (am PC angezeigt): GET /ping, POST /pair  → liefert einen eigenen Code für dieses Handy
-//!   Eigener Code des Handys:          GET /ping, POST /alarm, GET /config, POST /config
+//!   Eigener Code des Handys:          GET /ping, POST /alarm, GET /config, POST /config,
+//!                                     GET /events?since=N (wartet bis 25 s auf Neues vom PC), POST /event
 //!   aPager-Webhook (Schlüssel im Pfad): GET|POST /apager/<schlüssel>?keyword=&unit=[&event=]
 //! Ein Handy entkoppeln = seinen Code aus der Liste nehmen (direct_server erneut aufrufen).
 use std::collections::hash_map::RandomState;
@@ -9,7 +10,7 @@ use std::collections::HashMap;
 use std::hash::{BuildHasher, Hasher};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{IpAddr, TcpListener, TcpStream, UdpSocket};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
@@ -24,6 +25,43 @@ struct Keys {
 
 static KEYS: OnceLock<Mutex<Keys>> = OnceLock::new();
 static STARTED: OnceLock<u16> = OnceLock::new();
+
+// ── Live-Ereignisse PC → Handy (lange Abfrage) ─────────────────────────────
+// Das Handy fragt GET /events?since=<rev>. Gibt es nichts Neues, wartet der PC bis zu 25 s
+// und antwortet sofort, sobald etwas kommt (Einstellungen geändert, Antwort „Ich fahre“ …).
+struct Events { rev: u64, list: Vec<(u64, String)> }
+static EVENTS: OnceLock<(Mutex<Events>, Condvar)> = OnceLock::new();
+fn events() -> &'static (Mutex<Events>, Condvar) {
+    EVENTS.get_or_init(|| (Mutex::new(Events { rev: 0, list: Vec::new() }), Condvar::new()))
+}
+fn wait_events(since: Option<u64>) -> String {
+    let (lock, cv) = events();
+    let mut ev = match lock.lock() { Ok(e) => e, Err(_) => return r#"{"rev":0,"events":[]}"#.into() };
+    // Erster Aufruf oder PC neu gestartet: nur den Stand melden
+    let since = match since { Some(n) if n <= ev.rev => n, _ => return format!(r#"{{"rev":{},"events":[]}}"#, ev.rev) };
+    let until = Instant::now() + Duration::from_secs(25);
+    while ev.rev == since {
+        let left = until.saturating_duration_since(Instant::now());
+        if left.is_zero() { break; }
+        ev = match cv.wait_timeout(ev, left) { Ok((e, _)) => e, Err(_) => return r#"{"rev":0,"events":[]}"#.into() };
+    }
+    let items: Vec<&str> = ev.list.iter().filter(|(r, _)| *r > since).map(|(_, j)| j.as_str()).collect();
+    format!(r#"{{"rev":{},"events":[{}]}}"#, ev.rev, items.join(","))
+}
+
+/// Ereignis an alle wartenden Handys (JSON-Objekt). Die letzten 50 bleiben für kurze Lücken.
+#[tauri::command]
+pub fn direct_push(json: String) -> Result<(), String> {
+    if !json.trim_start().starts_with('{') { return Err("kein JSON-Objekt".into()); }
+    let (lock, cv) = events();
+    let mut ev = lock.lock().map_err(|e| e.to_string())?;
+    ev.rev += 1;
+    let rev = ev.rev;
+    ev.list.push((rev, json));
+    if ev.list.len() > 50 { ev.list.remove(0); }
+    cv.notify_all();
+    Ok(())
+}
 
 fn keys() -> &'static Mutex<Keys> {
     KEYS.get_or_init(|| Mutex::new(Keys::default()))
@@ -96,6 +134,7 @@ fn pairing_open() -> bool {
 
 fn handle(app: &AppHandle, mut stream: TcpStream) {
     let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+    let _ = stream.set_nodelay(true);
     let ip = match stream.peer_addr() { Ok(a) => a.ip(), Err(_) => return };
     if locked(ip) {
         return reply(&mut stream, "429 Too Many Requests", r#"{"ok":false,"error":"Zu viele falsche Versuche – 5 Minuten warten"}"#);
@@ -177,12 +216,21 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
             let _ = app.emit("direct-alarm", body);
             reply(&mut stream, "200 OK", r#"{"ok":true}"#);
         }
+        ("GET", p) if phone && p.starts_with("/events") => {
+            let since = p.split_once("since=").and_then(|(_, v)| v.split('&').next()).and_then(|v| v.parse::<u64>().ok());
+            let body = wait_events(since);
+            reply(&mut stream, "200 OK", &body);
+        }
+        ("POST", "/event") if phone => {
+            let _ = app.emit("direct-event", body);
+            reply(&mut stream, "200 OK", r#"{"ok":true}"#);
+        }
         ("GET", "/config") if phone => reply(&mut stream, "200 OK", if config.is_empty() { "{}" } else { &config }),
         ("POST", "/config") if phone => {
             let _ = app.emit("direct-config", body);
             reply(&mut stream, "200 OK", r#"{"ok":true}"#);
         }
-        (_, "/alarm" | "/config") => reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Nicht gekoppelt"}"#),
+        (_, "/alarm" | "/config" | "/event") => reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Nicht gekoppelt"}"#),
         _ => reply(&mut stream, "404 Not Found", r#"{"ok":false}"#),
     }
 }

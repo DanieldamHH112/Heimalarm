@@ -180,6 +180,8 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `alarm/<kennung>/ota` | `<url>|<md5>` Firmware-Update (A10) | App → ESP32 |
 | `heimalarm/clients/<id>` | `{name, platform, version, online, ts, mac}` (retained, Last Will); leer = aus der Liste entfernt | jede App |
 | `heimalarm/config/shared` | gemeinsame Daten (retained), siehe unten | Apps ↔ Dienst |
+| `heimalarm/answer/<kennung>` | `{type:"answer", who, going, test, from, id, at}` – Antwort live an alle Geräte (`core/livesync.js`) | App → App |
+| `heimalarm/devlog/<geräte-id>` | `{name, at, entries}` letzte 100 Protokolleinträge (retained) | App → App |
 | `heimalarm/cmd/run\|restore\|wol\|selftest` | Routine, „Wieder da“, Wake-on-LAN, Selbsttest | App → Dienst |
 | `heimalarm/einsaetze/<kennung>` | Einsatz-Logbuch (Liste, retained); jedes Gerät führt zusammen und schreibt zurück, wenn es mehr weiß | Apps ↔ Apps |
 | `heimalarm/cmd/test\|rename/<geräte-id>` | Testalarm an genau ein Gerät, Gerät umbenennen `{name}` | App → App |

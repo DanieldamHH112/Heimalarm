@@ -205,6 +205,8 @@ function handleHeimalarm(p, msg) {
   else if (p[1] === "config" && p[2] === "shared") return receiveShared(msg);
   else if (p[1] === "cmd" && p[3] && p[3] === settings().device.id) return deviceCommand(p[2], msg);
   else if (p[1] === "einsaetze" && p[2] === settings().alarm.me) return receiveEinsaetze(msg);
+  else if (p[1] === "answer" && p[2]) { try { emit("peer-event", { ...json(), via: "zentrale" }); } catch { /* unlesbar */ } return; }
+  else if (p[1] === "devlog" && p[2]) { try { emit("remote-log", { id: p[2], data: json() }); } catch { /* unlesbar */ } return; }
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();

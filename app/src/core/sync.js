@@ -15,6 +15,8 @@ import { settings, set, replace, mode, SYNC_KEYS } from "./settings.js";
 import { shared, replaceShared } from "./shared.js";
 import { hasPcFeatures } from "./platform.js";
 import { statsEntries, mergeEinsaetze } from "./stats.js";
+import { ownLog, remoteLogs, mergeRemoteLogs } from "./log.js";
+import { platformName } from "./platform.js";
 
 const TS_KEY = "heimalarm.sync.ts";
 const SECTIONS = ["betrieb", ...SYNC_KEYS, "pc", "shared"];
@@ -61,6 +63,8 @@ export function bundle() {
   for (const k of SYNC_KEYS) out[k] = s[k];
   if (mode() === "direkt") out.shared = strip(shared(), ["common"]);
   if (settings().features?.logbuch) out.einsaetze = statsEntries();   // Einsatz-Logbuch: wird zusammengeführt, nicht ersetzt
+  // Protokolle: eigenes + die schon bekannten anderer Geräte (das Handy reicht sie von PC zu PC weiter)
+  if (s.device?.id) out.devlogs = { ...remoteLogs(), [s.device.id]: { name: s.device.name || platformName, at: Date.now(), entries: ownLog() } };
   return out;
 }
 
@@ -89,6 +93,7 @@ export function applyBundle(b) {
     changed.push(sec);
   }
   if (Array.isArray(b.einsaetze) && mergeEinsaetze(b.einsaetze)) changed.push("einsaetze");
+  if (b.devlogs) mergeRemoteLogs(b.devlogs, settings().device?.id);
   if (changed.length) { saveTs(); emit("sync-applied", changed); }
   return changed;
 }

@@ -43,10 +43,11 @@ export function receive(msg) {
   saveLocal(data);
   // Allgemeine Einstellungen von anderen Geräten übernehmen
   if (settings().sync.enabled && data.common) {
-    for (const k of SYNC_KEYS) {
+    for (const k of [...SYNC_KEYS, "pc"]) {
       if (!data.common[k]) continue;
       // Die Kennung bleibt je Gerät (mehrere Personen können eine Zentrale teilen)
-      const incoming = k === "alarm" ? { ...data.common[k], me: settings().alarm.me } : data.common[k];
+      const incoming = k === "alarm" ? { ...data.common[k], me: settings().alarm.me }
+        : k === "pc" ? { ...data.common[k], alsoFor: settings().pc.alsoFor, wolMac: settings().pc.wolMac } : data.common[k];
       if (JSON.stringify(incoming) !== JSON.stringify(settings()[k])) replace(k, incoming);
     }
   }
@@ -72,9 +73,13 @@ export function replaceShared(next) {
 // Lokale Änderungen an allgemeinen Einstellungen weitergeben
 on("settings", ({ path, silent }) => {
   if (silent || !settings().sync.enabled || !loaded) return;
-  if (!SYNC_KEYS.includes(path.split(".")[0])) return;
+  const root = path.split(".")[0];
+  // PC-Einstellungen gelten für alle PCs gleich – außer „Auch für“ und MAC (je PC)
+  if (!SYNC_KEYS.includes(root) && !(root === "pc" && !/^pc\.(alsoFor|wolMac)/u.test(path))) return;
   const common = {};
   for (const k of SYNC_KEYS) common[k] = settings()[k];
+  const { alsoFor: _a, wolMac: _w, ...pc } = settings().pc || {};
+  common.pc = pc;
   updateShared({ common });
 });
 

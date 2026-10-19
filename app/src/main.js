@@ -24,6 +24,7 @@ import { appLock } from "./core/admin.js";
 import { restartDivera } from "./core/divera.js";
 import { has } from "./core/features.js";
 import { startReceiver, startSync } from "./core/direct.js";
+import "./core/livesync.js";
 import { initLocalRoutines } from "./core/routines-local.js";
 import { initDiscord } from "./core/discord.js";
 import { initReadiness } from "./core/readiness.js";

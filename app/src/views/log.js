@@ -1,7 +1,7 @@
 import { has } from "../core/features.js";
 import { h, fmtTime, fmtDate, toast } from "../ui/dom.js";
 import { field, dialog, copyText, download, ask } from "../ui/form.js";
-import { getLog, clearLog } from "../core/log.js";
+import { getLog, clearLog, getRemoteLog, remoteLogs } from "../core/log.js";
 import { state } from "../core/mqtt.js";
 import { isAndroid } from "../core/platform.js";
 import { icon } from "../ui/icons.js";
@@ -11,7 +11,7 @@ import {
 } from "../core/stats.js";
 
 const FILTERS = [
-  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
+  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()], ["geraete", "Andere Geräte", () => Object.keys(remoteLogs()).length > 0],
 ];
 let filter = null;
 let reviewYear = null;
@@ -198,16 +198,16 @@ export function logView(rerender) {
   const tabs = h("div.segmented.scroll", { role: "group", "aria-label": "Filter" },
     FILTERS.filter(([, , show]) => !show || show()).map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; shown = 20; rerender(); } }, label)));
 
-  const items = filter === "zentrale" ? state.zlog.filter(Boolean) : getLog(filter);
+  const items = filter === "zentrale" ? state.zlog.filter(Boolean) : filter === "geraete" ? getRemoteLog() : getLog(filter);
   let day = "";
   const list = h("ul.log", {});
   for (const e of items) {
     const d = fmtDate(e.ts);
     if (d !== day) { day = d; list.append(h("li", { style: "grid-template-columns:1fr;border-top:0;padding-top:16px" }, h("small", {}, d))); }
-    list.append(h("li." + e.kind, {}, h("time", {}, fmtTime(e.ts)), h("span.ico", {}), h("div", {}, e.text, e.detail && h("small", {}, e.detail))));
+    list.append(h("li." + e.kind, {}, h("time", {}, fmtTime(e.ts)), h("span.ico", {}), h("div", {}, e.dev && h("b.dev", {}, e.dev + " · "), e.text, e.detail && h("small", {}, e.detail))));
   }
   return h("div.page", {},
-    head(filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : "Technik zum Fehlersuchen: Verbindungen, Aktionen, Warnungen. Einsätze stehen unter Einsätze.",
+    head(filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : filter === "geraete" ? "Letzte Einträge von Handy und PCs – zum Fehlersuchen am anderen Gerät." : "Technik zum Fehlersuchen: Verbindungen, Aktionen, Warnungen. Einsätze stehen unter Einsätze.",
       h("button.btn.small", { onclick: async () => { if (await ask("Protokoll wirklich leeren? Die Einsätze bleiben erhalten.")) { clearLog(); rerender(); } } }, "Leeren")),
     tabs,
     h("section.card", {}, items.length ? list : h("p.empty", {}, "Noch keine Einträge.")),

@@ -40,6 +40,11 @@ function sideInfo(alarm) {
   ];
 }
 
+/** Läuft gerade eine Abfrage? */
+export const takeoverOpen = () => Boolean(active);
+/** Abfrage schließen, ohne selbst zu entscheiden (z. B. am anderen Gerät beantwortet). */
+export function closeTakeover() { active?.finish(null); }
+
 export function showTakeover(alarm) {
   active?.finish(null);   // eine neue Abfrage ersetzt eine noch offene
   const root = document.getElementById("takeover");
