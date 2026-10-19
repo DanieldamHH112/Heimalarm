@@ -3,6 +3,9 @@
 // `vacation` bleibt als Ja/Nein daneben stehen: engine.js, rules.js, Discord und Routinen lesen nur das.
 import { shared, updateShared } from "./shared.js";
 import { log } from "./log.js";
+import { on } from "./events.js";
+import { publish, state } from "./mqtt.js";
+import { settings } from "./settings.js";
 
 export const MODES = {
   ready: { label: "Verfügbar", hint: "Bei Alarm läuft alles: Abfrage, Ton, Routinen." },
@@ -37,11 +40,23 @@ export function untilText(until) {
 }
 
 /** Läuft die Zeit ab, wieder auf „verfügbar“ schalten (auch ohne Zentrale). */
+/** Bereitschaft an die LED des eigenen Melders (gelb bei „Nicht verfügbar“). Retained, damit sie nach einem Neustart stimmt. */
+let ledSent = "";
+function sendLed() {
+  if (!state.connected) return;
+  const m = readiness().mode;
+  if (m === ledSent) return;
+  if (publish(`alarm/${settings().alarm.me}/led/status`, m, { retain: true })) ledSent = m;
+}
+
 export function initReadiness() {
+  on("shared", sendLed);
+  on("mqtt-ready", () => { ledSent = ""; sendLed(); });
   setInterval(() => {
     const r = shared().readiness;
     if (r?.mode && r.mode !== "ready" && r.until && r.until <= Date.now()) {
       setReadiness("ready");
+      sendLed();
       log("info", "Wieder verfügbar", "Zeit für „" + (MODES[r.mode]?.label || r.mode) + "“ abgelaufen");
     }
   }, 30e3);

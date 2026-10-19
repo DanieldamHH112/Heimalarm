@@ -165,3 +165,7 @@ ol.tl p { color: var(--text-2); font-size: 9.5pt; }
 .dense { gap: 2.5mm; }
 .dense .card { padding: 3mm 3.5mm; gap: 1mm; }
 .dense .card p { font-size: 8.8pt; line-height: 1.42; }
+
+/* Farbpunkt für die LED-Tabelle */
+.led-dot { display: inline-block; width: 2.6mm; height: 2.6mm; border-radius: 50%; background: var(--a); margin-right: 2mm; vertical-align: -.2mm; }
+table.t td .note { display: block; font-weight: 400; color: var(--text-2); font-size: 8.5pt; margin-top: .8mm; }

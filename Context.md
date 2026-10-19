@@ -96,7 +96,7 @@ Heimalarm/
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
-├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
+├─ esp32/                  ESPHome (Status-LED als Paket in esp32/led/: logik.yaml + Hardware rgb-gpio48/38, einfarbig-esp32/-d1mini): alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
 └─ docs/                   Einrichtung-NAS.md, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/,
                            anleitungen/*.pdf (gebaut aus anleitungen/quelle/*.html mit build.py)
 ```
@@ -255,6 +255,8 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Routinen-Format** wird in `views/routines.js` gebaut und von `zentrale/dienst/src/rules.js` **und** `core/routines-local.js` ausgeführt. Neue Aktion/Bedingung in allen dreien.
 - **Gemeinsame Daten:** neues Feld in `shared.js` (`sharedDefaults`) **und** Dienst `DEFAULTS`. Der Dienst übernimmt die Konfiguration flach (`{...DEFAULTS, ...cfg}`) – verschachtelte Objekte immer komplett schreiben.
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.
+- **Status-LED** (`esp32/led/logik.yaml`): App liest `text_sensor/led_typ` (rgb | einfarbig) und zeigt danach Farbe/Helligkeit/Modus oder nur an/aus (`views/settings.js` → `ledSection`, Tabelle `LED_EVENTS` = Tabelle in der ESP32-Anleitung, beide gleich halten). App sendet `alarm/<k>/led/status` (Bereitschaft, retained, `core/readiness.js`) und `alarm/<k>/led/test` (test | demo).
+- **Alarm halten (Handy):** Zentrale weg → echter App-Alarm wird bis `alarm.holdSec` (Standard 60, max 120) gehalten und mit `{held, from}` nachgereicht; das sendende Handy ignoriert den eigenen (`from`). Ohne Zentrale: PC nicht erreicht → PC macht nichts, Einsatz bekommt `pcMissed`.
 - **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` bzw. `alarm-ich-s3.yaml` (`topic_prefix`, beide gleich halten). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
 - **Links nach außen** (`<a href="https://…">`) öffnet die WebView nicht selbst: `main.js` fängt Klicks ab und gibt sie an `@tauri-apps/plugin-opener` (`openUrl`, Recht `opener:default`).
 - **MQTT-Verbindung** (`core/mqtt.js`): `timerVariant: "native"` ist Pflicht – der Standard nutzt einen Worker aus einer `blob:`-URL, den die CSP blockiert; dann kommt kein Ping an und Mosquitto trennt alle 1,5 × keepalive. Feste clientId + `clean: false`: verpasste QoS-1-Alarme kommen nach dem Wiederverbinden; nachgelieferte Alarme lösen nur aus, wenn die Lücke < 2 min war.

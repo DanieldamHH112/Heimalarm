@@ -85,6 +85,7 @@ export function connect() {
     downSince = 0;
     client.subscribe(["alarm/#", "heimalarm/#", "zigbee2mqtt/#"], { qos: 1 });
     client.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
+    emit("mqtt-ready");
     log("ok", gap ? `Wieder verbunden nach ${gap} s` : "Mit Zentrale verbunden", attempts > 1 ? `${url} · nach ${attempts} Versuchen` : url);
     lastError = ""; attempts = 0;
     emit("conn", state);
@@ -171,6 +172,12 @@ function handle(topic, msg, retained) {
     }
     else if (id === "alarm_bei_offen") d.invert = msg === "ON";
     else if (id === "kontakt_test") d.testing = msg === "ON";
+    // Status-LED (esp32/led/logik.yaml)
+    else if (id === "led_typ") d.ledType = msg;            // "rgb" | "einfarbig"
+    else if (id === "led") d.ledOn = msg === "ON";
+    else if (id === "led_ruhelicht") d.ledIdle = msg === "ON";
+    else if (id === "led_helligkeit") d.ledLevel = Number(msg);
+    else if (id === "led_modus") d.ledMode = msg;
     else if (id === "ip") d.ip = msg;
     else if (id === "version") d.version = msg;
     else if (id === "min_duration") d.minDuration = Number(msg);

@@ -114,6 +114,15 @@ export function editEinsatz(id, patch) {
 }
 
 /** Rückalarm / Alarmende am letzten Einsatz vermerken. */
+/** Kurzer Vermerk am letzten Einsatz (z. B. „PC nicht erreicht“). */
+export function noteLast(patch) {
+  if (!on()) return;
+  const last = list.findLast((e) => !e.deleted);
+  if (!last || Date.now() - last.ts > ANSWER_WINDOW) return;
+  Object.assign(last, patch);
+  save();
+}
+
 export function markEvent(ev) {
   if (!on()) return;
   const last = list.findLast((e) => !e.deleted);
@@ -155,7 +164,7 @@ export function mergeEinsaetze(remote) {
     }
     if (l.deleted) { if (JSON.stringify(l) !== before) changed = true; continue; }
     // Infos aus der Quelle ergänzen
-    for (const k of [...FIELDS, "answer", "answerTs", "via", "recall", "endTs", "srcAt"]) if (r[k] && !l[k]) l[k] = r[k];
+    for (const k of [...FIELDS, "answer", "answerTs", "via", "recall", "endTs", "srcAt", "pcMissed", "held"]) if (r[k] && !l[k]) l[k] = r[k];
     betterKeyword(l, r.keyword);
     for (const s of r.sources || []) if (!l.sources.includes(s)) l.sources.push(s);
     if (r.units?.length) { l.units ||= []; for (const u of r.units) if (!l.units.includes(u)) l.units.push(u); }

@@ -14,7 +14,7 @@ import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
 import { presenceSettled } from "./discord.js";
 import { runHotkeys } from "./hotkeys.js";
-import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
+import { recordAlarm, recordAnswer, addSignal, markEvent, noteLast } from "./stats.js";
 import { readiness } from "./readiness.js";
 const offDuty = () => readiness().mode !== "ready";
 
@@ -22,7 +22,12 @@ const lastByWho = new Map();
 export const engine = { last: null };
 
 export function init() {
-  on("alarm-in", (a) => handleAlarm(a));
+  on("alarm-in", (a) => {
+    if (a.from && a.from === settings().device.id) return;   // eigener gehaltener Alarm kommt zurück – hier schon ausgelöst
+    if (a.held) log("info", `Alarm ${a.held} s verzögert`, "Das Handy hatte ihn gehalten, weil die Zentrale kurz weg war");
+    handleAlarm(a);
+  });
+  on("conn", sendHeld);
   // Nachgereichte Einsatzinfos: Meldung mit Stichwort und Ort nachschicken (nur wenn vorher eine Meldung kam)
   on("alarm-update", (a) => {
     if (!a.notified) return;
@@ -36,14 +41,38 @@ export function init() {
 }
 
 /** Alarm aus einer App-Quelle (Benachrichtigung, Divera): über die Zentrale an alle Geräte, ohne Verbindung nur hier. */
+/** Gehaltene Alarme, solange die Zentrale weg ist (nur echte, nicht Tests). */
+const held = [];
+
 function forward(data) {
   const me = settings().alarm.me;
   if (mode() === "direkt") {
     handleAlarm({ who: me, ts: Date.now(), ...data });
-    if (!hasPcFeatures) sendToPeers(data);   // Handy → gekoppelte PCs
+    // Handy → gekoppelte PCs. Nicht erreicht (PC aus, Handy unterwegs): PC macht nichts, Einsatz bekommt einen Vermerk.
+    if (!hasPcFeatures && (settings().direct.peers || []).length) sendToPeers(data).then((ok) => { if (!ok && !data.test && !data.probe) noteLast({ pcMissed: true }); });
     return;
   }
-  if (!(state.connected && publish(`alarm/${me}`, data))) handleAlarm({ who: me, ts: Date.now(), ...data });
+  if (state.connected && publish(`alarm/${me}`, data)) return;
+  handleAlarm({ who: me, ts: Date.now(), ...data });
+  // Zentrale gerade weg: echten Alarm halten und nachreichen, sobald sie wieder da ist (Einstellung „Alarm halten“)
+  const hold = Math.min(120, Math.max(0, Number(settings().alarm.holdSec) || 0));
+  if (hold && !data.test && !data.probe && mode() === "zentrale") {
+    held.push({ data, ts: Date.now() });
+    log("warn", "Zentrale nicht erreichbar – Alarm wird gehalten", `bis zu ${hold} s, danach nur auf diesem Gerät`);
+  }
+}
+
+function sendHeld() {
+  if (!held.length || !state.connected) return;
+  const me = settings().alarm.me;
+  const hold = Math.min(120, Math.max(0, Number(settings().alarm.holdSec) || 0)) * 1000;
+  for (const { data, ts } of held.splice(0)) {
+    const age = Date.now() - ts;
+    if (age > hold) { log("info", "Gehaltener Alarm nicht weitergegeben", `${Math.round(age / 1000)} s alt – länger als „Alarm halten“`); continue; }
+    publish(`alarm/${me}`, { ...data, held: Math.round(age / 1000), from: settings().device.id });
+    noteLast({ held: Math.round(age / 1000) });
+    log("action", "Gehaltener Alarm weitergegeben", `${Math.round(age / 1000)} s verzögert`);
+  }
 }
 
 export const ALARM_APPS = {
@@ -135,7 +164,7 @@ export function testAlarm() {
 }
 
 /** A11 – Melder-Alarm nachspielen: geht über die Zentrale an alle Geräte, Routinen laufen im Testmodus. */
-export const simulateContact = () => publish(`alarm/${settings().alarm.me}`, { source: "Simulation", test: true });
+export const simulateContact = () => { publish(`alarm/${settings().alarm.me}/led/test`, "test"); return publish(`alarm/${settings().alarm.me}`, { source: "Simulation", test: true }); };
 
 /** I2 – Generalprobe: Routinen schalten wirklich, PC-Aktion wird nur angezeigt. */
 export const fullProbe = () => (mode() === "direkt" ? (forward({ source: "Generalprobe", probe: true }), true) : publish(`alarm/${settings().alarm.me}`, { source: "Generalprobe", probe: true }));

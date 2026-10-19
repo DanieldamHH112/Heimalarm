@@ -25,6 +25,7 @@ export const defaults = {
     mqtt: true,             // A1 – Alarm vom ESP32 über MQTT
     notifications: false,   // (alt) – ersetzt durch alarm.apps
     lockoutSec: 60,         // A4 – Sperrzeit je Person
+    holdSec: 60,            // Handy: Alarm aus einer Alarm-App so lange halten, wenn die Zentrale gerade weg ist (0 = aus, max. 120)
     offlineWarnSec: 120,    // A8 – Warnung, wenn ESP32 so lange offline ist
     heartbeatSec: 180,      // A9 – ohne Lebenszeichen so lange → Warnung
     minDurationMs: 50,      // A3 – Mindestdauer des Kontakts (wird an den ESP32 gesendet)

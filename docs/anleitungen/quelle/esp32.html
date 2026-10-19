@@ -61,6 +61,7 @@
     <a href="#s5"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>5 · Heimalarm am PC</a>
     <a href="#s6"><span class="ico" style="--a:var(--c-phone)">{{i:phone}}</span>6 · Heimalarm am Handy</a>
     <a href="#s7"><span class="ico" style="--a:var(--c-safe)">{{i:tool}}</span>7 · Testen</a>
+    <a href="#led"><span class="ico" style="--a:var(--c-alarm)">{{i:bulb}}</span>Die LED am ESP32</a>
     <a href="#pflege"><span class="ico" style="--a:var(--warn)">{{i:warn}}</span>Pflege und Fehler</a>
   </div>
 </section>
@@ -213,6 +214,29 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
 {{inc:pc|id=s5|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 5|kennung=im ESP32 (<code>kennung</code>)}}
 {{inc:handy|id=s6|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 6|kennung=wie im ESP32 und am PC}}
 {{inc:testen|id=s7|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 7|probe=<span class="note">Die Meldung kommt in unter einer Sekunde.</span>|zeilen=<tr><td>Start: ESP32 „offline“</td><td class="muted">Strom? WLAN 2,4 GHz? <code>mqtt_host</code> und <code>mqtt_pw</code> in den Secrets richtig?</td></tr><tr><td>ESP32 online, Alarm kommt nicht</td><td class="muted"><span class="path">Test &amp; Diagnose <i>›</i> Kontakt-Test</span>: Ändert sich die Anzeige beim Verbinden der Kabelenden nicht, sitzt eine Verbindung locker. Kennung überall gleich?</td></tr><tr><td>Alarm kommt erst, wenn der Kontakt wieder öffnet</td><td class="muted"><span class="path">Einstellungen <i>›</i> ESP32</span> → „Alarm, wenn der Kontakt“ auf <b>öffnet</b>.</td></tr>}}
+
+<section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="led">
+  <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:bulb}}</span><h2>Die LED am ESP32</h2></div>
+  <p class="lead">Die Lampe auf dem Board zeigt, was der Melder gerade tut. Praktisch beim Einrichten und als Kontrolle an der Ladeschale.</p>
+  <div class="box"><table class="t">
+    <tr><th style="width:52mm">Ereignis</th><th>Farbige LED (ESP32-S3)</th><th style="width:40mm">Einfarbige LED (ESP32, D1 mini)</th></tr>
+    <tr><td>Alarm (Kontakt)<span class="note">bis der Kontakt öffnet, höchstens 60 s</span></td><td><span class="led-dot" style="--a:var(--signal)"></span>rot, schnell blinkend</td><td class="muted">schnell blinkend</td></tr>
+    <tr><td>Firmware-Update</td><td><span class="led-dot" style="--a:var(--c-pc)"></span>türkis, sehr schnell</td><td class="muted">sehr schnell blinkend</td></tr>
+    <tr><td>Test, Kontakt-Test<span class="note">beim Kontakt-Test Dauerlicht, solange der Kontakt geschlossen ist</span></td><td><span class="led-dot" style="--a:var(--c-routine)"></span>violett, pulsierend</td><td class="muted">pulsierend</td></tr>
+    <tr><td>Sucht WLAN</td><td><span class="led-dot" style="--a:var(--c-net)"></span>blau, langsam pulsierend</td><td class="muted">langsam pulsierend</td></tr>
+    <tr><td>Zentrale nicht erreicht<span class="note">was fehlt, zeigt die App auf Start</span></td><td><span class="led-dot" style="--a:var(--warn)"></span>orange, blinkend</td><td class="muted">blinkend</td></tr>
+    <tr><td>Mit Zentrale verbunden</td><td><span class="led-dot" style="--a:var(--ok)"></span>3 s grün, dann aus</td><td class="muted">3 s an, dann aus</td></tr>
+    <tr><td>Nicht verfügbar<span class="note">folgt der Bereitschaft auf Start</span></td><td><span class="led-dot" style="--a:var(--warn)"></span>gelb, schwach</td><td class="muted">aus</td></tr>
+    <tr><td>Alles in Ordnung</td><td><span class="led-dot" style="--a:var(--c-app)"></span>aus (mit Ruhelicht schwach grün)</td><td class="muted">aus</td></tr>
+  </table></div>
+  <h3>Einstellen</h3>
+  <ul class="list" style="--a:var(--c-alarm)">
+    <li>In der App unter <span class="path">Einstellungen <i>›</i> Alarm &amp; Quellen <i>›</i> LED am ESP32</span>: an/aus, Helligkeit, <b>Wann leuchten</b> (Alles · Nur Alarm und Fehler · Nur Alarm) und <b>Ruhelicht</b>. Die App erkennt, ob das Board eine farbige oder eine einfarbige LED hat, und zeigt nur, was passt.</li>
+    <li><span class="btn">Alle Farben zeigen</span> spielt jeden Zustand 1,5 s lang nacheinander ab.</li>
+    <li>Die Einstellungen bleiben im ESP32 gespeichert, auch nach einem Neustart.</li>
+  </ul>
+  <div class="callout warn"><span class="ico" style="--a:var(--warn)">{{i:info}}</span><div><b>LED bleibt dunkel?</b> Bei den meisten ESP32-S3-N16R8-Boards sitzt sie an <code>GPIO48</code> (so ist es eingestellt). Bei Espressif-Boards ab Version 1.1 an <code>GPIO38</code>: in <code>alarm-ich-s3.yaml</code> die Zeile <code>led/rgb-gpio48.yaml</code> in <code>led/rgb-gpio38.yaml</code> ändern und neu aufspielen.</div></div>
+</section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="pflege">
   <div class="head"><span class="ico big" style="--a:var(--warn)">{{i:warn}}</span><h2>Pflege und Fehler</h2></div>

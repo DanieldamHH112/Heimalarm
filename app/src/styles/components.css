@@ -539,3 +539,9 @@ pre.code-block { margin: 0; padding: var(--s3) var(--s4); background: var(--surf
 .test-table th, .test-table td { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .test-table th { color: var(--text-2); font-weight: 600; }
 @media (max-width: 760px) { .test-table th:nth-child(4), .test-table td:nth-child(4) { display: none; } }
+
+/* Einstellungen → LED am ESP32: Tabelle Ereignis / LED */
+.table-wrap { overflow-x: auto; }
+.led-table td { vertical-align: top; }
+.led-table td small { display: block; color: var(--text-2); font-size: var(--fs-xs); margin-top: 2px; }
+.led-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--a); margin-right: 8px; vertical-align: 1px; }

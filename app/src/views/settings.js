@@ -160,7 +160,8 @@ function alarm(rerender) {
   return section("alarm", "Alarm", "Wie die App mit Alarmen umgeht – egal aus welcher Quelle.",
     h("div.fields", {},
       field("Meine Kennung", kennungInput("alarm.me", {}, false, rerender), KENNUNG_HINT),
-      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Kommt derselbe Alarm in dieser Zeit noch einmal (z. B. erst vom Melder, dann von SYBOS), zählt er als ein Einsatz.")),
+      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Kommt derselbe Alarm in dieser Zeit noch einmal (z. B. erst vom Melder, dann von SYBOS), zählt er als ein Einsatz."),
+      field("Alarm halten (Sekunden)", text("alarm.holdSec", { type: "number", min: 0, max: 120 }), "Handy: Ist die Zentrale gerade nicht erreichbar, wird ein Alarm aus SYBOS, aPager oder Divera so lange gehalten und dann an die PCs weitergegeben. 0 = aus, höchstens 120.")),
     me === "ich" && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Noch die Standard-Kennung „ich“"), "Passt, solange nur eine Person Heimalarm nutzt. Bei mehreren Personen bekommt jede eine eigene Kennung, sonst lösen sie sich gegenseitig aus.")),
     toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – der PC bleibt an."),
     h("div.row", {}, h("button.btn", { onclick: testAlarm }, "Testalarm"), h("a.btn.ghost", { href: "#/diagnose" }, "Weitere Tests")),
@@ -411,6 +412,50 @@ function esp32() {
   );
 }
 
+/* Status-LED am ESP32 (esp32/led/logik.yaml). Die Tabelle steht genauso in der ESP32-Anleitung (PDF). */
+const LED_EVENTS = [
+  ["Alarm (Kontakt)", "--signal", "rot, schnell blinkend", "schnell blinkend", "Bis der Kontakt öffnet, höchstens 60 s."],
+  ["Firmware-Update", "--c-pc", "türkis, sehr schnell", "sehr schnell blinkend", ""],
+  ["Test, Kontakt-Test", "--c-routine", "violett, pulsierend", "pulsierend", "Beim Kontakt-Test: Dauerlicht, solange der Kontakt geschlossen ist."],
+  ["Sucht WLAN", "--c-net", "blau, langsam pulsierend", "langsam pulsierend", ""],
+  ["Zentrale nicht erreicht", "--warn", "orange, blinkend", "blinkend", "Was fehlt, zeigt die App auf Start."],
+  ["Mit Zentrale verbunden", "--ok", "3 s grün, dann aus", "3 s an, dann aus", ""],
+  ["Nicht verfügbar", "--warn", "gelb, schwach", "aus", "Folgt der Bereitschaft auf Start."],
+  ["Alles in Ordnung", "--text-2", "aus (mit Ruhelicht schwach grün)", "aus", ""],
+];
+const LED_MODES = [["Alles", "Alles"], ["Nur Alarm und Fehler", "Nur Alarm und Fehler"], ["Nur Alarm", "Nur Alarm"]];
+
+function ledSection() {
+  const me = settings().alarm.me;
+  const d = state.devices[me];
+  const send = (topic, v, ok = "An den ESP32 gesendet") => { if (publish(`alarm/${me}/${topic}`, v)) toast(ok); };
+  const rgb = d?.ledType === "rgb";
+  const known = Boolean(d?.ledType);
+  const offline = !d?.online;
+  const table = h("div.table-wrap", {}, h("table.table.led-table", {},
+    h("tr", {}, h("th", {}, "Ereignis"), h("th", {}, rgb || !known ? "Farbige LED" : "LED"), !known && h("th", {}, "Einfarbige LED")),
+    LED_EVENTS.map(([ev, c, col, mono, note]) => h("tr", {},
+      h("td", {}, ev, note && h("small", {}, note)),
+      (rgb || !known) && h("td", {}, h("span.led-dot", { style: `--a:var(${c})`, "aria-hidden": "true" }), col),
+      (!rgb || !known) && h("td", {}, mono)))));
+  const level = h("input", { type: "range", min: 5, max: 100, step: 5, value: d?.ledLevel ?? 40, disabled: offline || !d?.ledOn, "aria-label": "Helligkeit",
+    oninput: (e) => { lvlText.textContent = `${e.target.value} %`; },
+    onchange: (e) => send("number/led_helligkeit/command", e.target.value) });
+  const lvlText = h("span.mono", {}, `${d?.ledLevel ?? 40} %`);
+  return section("led", "LED am ESP32", "Die Lampe auf dem Board zeigt, was der Melder gerade tut – praktisch beim Einrichten und als Kontrolle an der Ladeschale.",
+    !known && h("p.hint", {}, offline ? "ESP32 offline – die Einstellungen erscheinen, sobald er sich meldet." : "Die Firmware auf dem ESP32 kennt die LED noch nicht. Einmal neu bauen und aufspielen (Anleitung ESP32, Schritt 4)."),
+    known && switchRow("LED benutzen", rgb ? "Farbige LED erkannt." : "Einfarbige LED erkannt – sie zeigt Blinkmuster statt Farben.", d.ledOn !== false, (v) => send("switch/led/command", v ? "ON" : "OFF")),
+    known && rgb && h("div.fields", {},
+      h("div.field", {}, h("span", {}, "Helligkeit"), h("div.row", {}, level, lvlText), h("small", {}, "Nachts an der Ladeschale reichen meist 10–20 %.")),
+      field("Wann leuchten", select(LED_MODES, d.ledMode || "Alles", (v) => send("select/led_modus/command", v), { disabled: offline || !d.ledOn }), "„Nur Alarm“: bleibt sonst dunkel, auch bei Fehlern.")),
+    known && rgb && switchRow("Ruhelicht", "Schwach grün, solange alles in Ordnung ist – zeigt auf einen Blick, dass der Melder läuft.", d.ledIdle, (v) => send("switch/led_ruhelicht/command", v ? "ON" : "OFF")),
+    known && h("div.row", {},
+      h("button.btn", { type: "button", disabled: offline, onclick: () => send("led/test", "demo", "LED zeigt alle Zustände nacheinander") }, rgb ? "Alle Farben zeigen" : "Alle Muster zeigen"),
+      h("button.btn.ghost", { type: "button", disabled: offline, onclick: () => send("led/test", "test", "LED zeigt 5 s „Test“") }, "Test-Signal")),
+    h("h3", {}, "Was die LED zeigt"),
+    table);
+}
+
 function pc(rerender) {
   const p = settings().pc;
   if (hibernateOn === null) hibernateEnabled().then((v) => { hibernateOn = v; rerender(); }).catch(() => (hibernateOn = false));
@@ -640,7 +685,7 @@ function darstellung() {
 
 /* ── Gruppen: links die Liste, rechts genau eine Seite (Handy: Liste → Unterseite) ── */
 const GROUPS = () => [
-  { id: "alarm", label: "Alarm & Quellen", icon: "bell", color: "--c-alarm", sections: ["quellen", "alarm", "esp32", "funktionen"],
+  { id: "alarm", label: "Alarm & Quellen", icon: "bell", color: "--c-alarm", sections: ["quellen", "alarm", "esp32", "led", "funktionen"],
     sub: () => activeSources().join(", ") || "Noch keine Quelle" },
   { id: "betrieb", label: "Betrieb & Verbindung", icon: "net", color: "--c-net", sections: ["betrieb", "verbindung", "zentrale"],
     sub: () => (mode() === "direkt" ? "Ohne Zentrale" : mode() === "zentrale" ? (state.connected ? "Mit Zentrale · verbunden" : isConfigured() ? "Mit Zentrale · getrennt" : "Mit Zentrale · nicht eingerichtet") : "Noch nicht gewählt"),
@@ -687,6 +732,7 @@ export function settingsView(rerender) {
     funktionen: () => funktionen(rerender),
     alarm: () => alarm(rerender),
     esp32: () => isConfigured() && esp32(),
+    led: () => isConfigured() && ledSection(),
     pc: () => hasPcFeatures && part(pc),
     hotkeys: () => hasPcFeatures && part(hotkeySection),
     android: () => isTauri && isAndroid && part(androidSection),
@@ -766,6 +812,7 @@ const KEYWORDS = {
   quellen: "melder esp32 sybos apager divera alarm app quelle",
   alarm: "kennung sperrzeit testalarm testmodus",
   esp32: "melder firmware update mindestdauer",
+  led: "led lampe licht farbe blinken helligkeit board",
   pc: "ruhezustand herunterfahren sperren autostart windows wake on lan countdown",
   hotkeys: "speichern strg s tastenkombination blender roblox studio programm tasten taste shortcut",
   android: "akku hintergrund benachrichtigung dienst",

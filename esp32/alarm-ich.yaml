@@ -6,6 +6,12 @@
 substitutions:
   kennung: ich   # DEINE Kennung: kurzer Name, nur a-z, 0-9 und -, z. B. daniel. Gleich wie „Meine Kennung“ in der App. Jede Person eine eigene!
 
+# LED: einfarbige LED an GPIO2 (die meisten ESP32-DevKits). Ohne LED die zwei Zeilen unter packages löschen.
+# Was sie bei welchem Ereignis zeigt: led/logik.yaml bzw. App → Einstellungen → ESP32 → LED.
+packages:
+  led_logik: !include { file: led/logik.yaml, vars: { led_rgb: "false", led_typ: "einfarbig" } }
+  led_hw: !include led/einfarbig-esp32.yaml
+
 esphome:
   name: alarm-${kennung}
 
@@ -23,7 +29,11 @@ http_request:
 ota:
   - platform: esphome          # Update per ESPHome/Browser
     password: !secret ota_pw
+    on_begin: [ globals.set: { id: led_ota, value: 'true' } ]
+    on_error: [ globals.set: { id: led_ota, value: 'false' } ]
   - platform: http_request     # A10 – Update aus der App (Datei im Heimnetz)
+    on_begin: [ globals.set: { id: led_ota, value: 'true' } ]
+    on_error: [ globals.set: { id: led_ota, value: 'false' } ]
 
 # MQTT statt api: (sonst startet das Gerät regelmäßig neu, weil kein API-Client verbindet)
 mqtt:
@@ -101,6 +111,9 @@ binary_sensor:
                 topic: alarm/${kennung}
                 payload: "ALARM"
                 qos: 1
+            - globals.set: { id: led_alarm_bis, value: !lambda 'return millis() + 60000;' }   # LED: rot, bis der Kontakt öffnet, höchstens 60 s
+    on_release:
+      - lambda: 'if (id(led_alarm_bis) > millis() + 3000) id(led_alarm_bis) = millis() + 3000;' 
 
 # Infos für die Übersicht der App (WLAN-Signal, Laufzeit, IP, Firmware)
 sensor:

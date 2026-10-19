@@ -163,6 +163,7 @@ function einsaetzeList(rerender) {
       h("span.ico", { style: `--a:var(${e.recall ? "--warn" : e.answer && e.answer !== "go" ? "--text-2" : "--c-alarm"})` }, icon("bell")),
       h("span.einsatz-main", {}, h("b", {}, e.keyword || "Alarm"),
         h("small", {}, [category(e), e.address, srcLine(e)].filter(Boolean).join(" · ")),
+        (e.pcMissed || e.held) && h("small.einsatz-note", {}, [e.pcMissed && "PC nicht erreicht – dort keine Abfrage", e.held && `an die PCs ${e.held} s verzögert`].filter(Boolean).join(" · ")),
         (e.note || e.vehicle) && h("small.einsatz-note", {}, [e.vehicle, e.role, e.note].filter(Boolean).join(" · "))),
       e.recall ? h("span.chip.warn", {}, "Rückalarm") : e.answer ? h("span.chip" + (e.answer === "go" ? ".ok" : ""), {}, ANSWER_TEXT[e.answer]) : h("span"),
       h("time.mono", {}, `${fmtHm(e.ts)}`)));

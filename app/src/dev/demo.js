@@ -8,7 +8,7 @@ export function fillDemo(state) {
   import("../core/divera.js").then(({ divera }) => { divera.ok = true; divera.current = "1"; divera.loading = true; });
   state.voice = { enabled: true, running: true, commissioned: false, qr: "MT:Y.K90SO527NHQL71V00", manual: "36360023599", fabrics: [], sensors: ["Heimalarm Einsatz", "Einsatz Daniel", "Einsatz Kollege"] };
   state.devices = {
-    ich: { online: true, since: now - 3 * 3600e3, rssi: -58, uptime: 3 * 86400 + 4 * 3600, ip: "192.168.1.42", version: "2026.10.0" },
+    ich: { online: true, since: now - 3 * 3600e3, ledType: "rgb", ledOn: true, ledLevel: 40, ledMode: "Alles", rssi: -58, uptime: 3 * 86400 + 4 * 3600, ip: "192.168.1.42", version: "2026.10.0" },
     kollege: { online: false, since: now - 25 * 60e3, rssi: -81, uptime: 5400, ip: "192.168.1.57", version: "2026.10.0" },
   };
   state.clients = {
