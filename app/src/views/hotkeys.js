@@ -13,7 +13,7 @@ const saveRules = (list) => set("pc.hotkeys.rules", list);
 const updateRule = (id, patch) => saveRules(rules().map((r) => (r.id === id ? { ...r, ...patch } : r)));
 const nameOf = (exe) => { const stem = exe.replace(/\.exe$/u, ""); return KNOWN[exe]?.name || stem.charAt(0).toUpperCase() + stem.slice(1); };
 
-const kbd = (keys) => h("span.keys", { "aria-label": prettyKeys(keys).join(" plus ") },
+const kbd = (keys) => !keys ? h("span.keys-none", {}, "Tasten wählen") : h("span.keys", { "aria-label": prettyKeys(keys).join(" plus ") },
   ...prettyKeys(keys).flatMap((k, i) => [i ? h("span.keys-plus", { "aria-hidden": "true" }, "+") : null, h("kbd", {}, k)]));
 
 /* ── Tasten aufnehmen ─────────────────────────── */
@@ -68,7 +68,7 @@ function appPicker({ onPick, onClose, taken }) {
   };
   const option = (w, i) => {
     const used = taken.includes(w.exe);
-    const hint = KNOWN[w.exe] ? prettyKeys(KNOWN[w.exe].keys).join("+") : "";
+    const hint = KNOWN[w.exe]?.keys ? prettyKeys(KNOWN[w.exe].keys).join("+") : "";
     return h("li.picker-opt" + (i === active ? ".active" : "") + (used ? ".used" : ""), {
       id: `hk-opt-${i}`, role: "option", "aria-selected": String(i === active), "aria-disabled": used ? "true" : null,
       onmousedown: (e) => e.preventDefault(), onmouseenter: () => { active = i; mark(); }, onclick: () => !used && onPick(w),
@@ -152,9 +152,9 @@ export function hotkeySection(rerender) {
           taken: list.map((r) => r.exe),
           onClose: () => { picking = false; paint(); },
           onPick: (w) => {
-            const rule = { id: newId(), exe: w.exe, name: nameOf(w.exe, w.title), keys: KNOWN[w.exe]?.keys || "Ctrl+S", on: true };
+            const rule = { id: newId(), exe: w.exe, name: nameOf(w.exe, w.title), keys: KNOWN[w.exe] ? KNOWN[w.exe].keys : "Ctrl+S", on: true };
             saveRules([...rules(), rule]); picking = false; paint();
-            toast(`${rule.name} hinzugefügt – Taste mit Klick auf ${prettyKeys(rule.keys).join("+")} ändern`);
+            toast(rule.keys ? `${rule.name} hinzugefügt – Taste mit Klick auf ${prettyKeys(rule.keys).join("+")} ändern` : `${rule.name} hinzugefügt – jetzt auf „Tasten wählen“ klicken`);
           },
         })
         : h("div.row", {}, h("button.btn.small", { type: "button", onclick: () => { picking = true; paint(); } }, "+ Programm hinzufügen")));

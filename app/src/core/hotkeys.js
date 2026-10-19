@@ -8,13 +8,9 @@ import { log } from "./log.js";
 export const KNOWN = {
   "blender.exe": { name: "Blender", keys: "Ctrl+S" },
   "robloxstudiobeta.exe": { name: "Roblox Studio", keys: "Ctrl+S" },
-  "winword.exe": { name: "Word", keys: "Ctrl+S" },
-  "excel.exe": { name: "Excel", keys: "Ctrl+S" },
-  "powerpnt.exe": { name: "PowerPoint", keys: "Ctrl+S" },
-  "photoshop.exe": { name: "Photoshop", keys: "Ctrl+S" },
-  "code.exe": { name: "VS Code", keys: "Ctrl+S" },
-  "notepad++.exe": { name: "Notepad++", keys: "Ctrl+Shift+S" },
-  "unity.exe": { name: "Unity", keys: "Ctrl+S" },
+  "discord.exe": { name: "Discord", keys: "Ctrl+Shift+M" },   // Stummschalten (Discord-Standard)
+  "chrome.exe": { name: "Chrome", keys: "" },                 // keine sinnvolle Vorgabe – selbst wählen
+  "opera.exe": { name: "Opera GX", keys: "" },
 };
 
 export const STATUS = {
