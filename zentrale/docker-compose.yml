@@ -90,6 +90,8 @@ services:
   # Nur zum Einrichten des ESP32: übersetzt esp32/*.yaml zu einer Firmware-Datei (.bin).
   # Ordner esp32 (mit secrets.yaml) neben diese Datei legen. Oberfläche: http://<zentrale>:6052
   # Anmeldung mit MQTT_USER / MQTT_PASSWORD aus .env. Nach dem Flashen wieder stoppen.
+  # UGOS-Docker-App: liest COMPOSE_PROFILES aus .env nicht immer – dann die Zeile „profiles“ hier löschen
+  # und neu bereitstellen. Der Container startet danach bei jedem Bereitstellen mit; nach dem Flashen stoppen.
   esphome:
     image: ghcr.io/esphome/esphome:stable
     profiles: ["esphome"]
