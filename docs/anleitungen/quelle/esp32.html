@@ -105,12 +105,12 @@
     <li><div><b>Feste IP:</b> Im WLAN-Router (Weboberfläche oder App des Routers) die NAS in der Geräteliste suchen und ihr eine <b>feste IP-Adresse</b> geben (oft „immer gleiche IP“, „IP reservieren“ oder „DHCP-Reservierung“). IP notieren.<span class="note">Sonst kann sich die Adresse ändern, und ESP32 und App finden die Zentrale nicht mehr.</span></div></li>
     <li><div><b>Docker</b> im App Center installieren. In <span class="path">Dateien <i>›</i> docker</span> den Ordner <code>heimalarm</code> anlegen.</div></li>
     <li><div><b>Dateien:</b> GitHub <span class="mono">DanieldamHH112/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>. In <code>docker/heimalarm</code> hochladen: den Inhalt von <code>zentrale</code> und zusätzlich den Ordner <code>esp32</code>.</div></li>
-    <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit dem Editor öffnen (Windows: Rechtsklick → Öffnen mit → Editor), beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.</div></li>
+    <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit dem Editor öffnen (Windows: Rechtsklick → Öffnen mit → Editor), beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.<span class="note">Die Docker-App der NAS beachtet Profile aus der <code>.env</code> nicht – ohne diesen Schritt gibt es keinen Container <code>heimalarm-esphome-1</code>.</span></div></li>
     <li><div><b>Passwort:</b> am PC <code>.env.example</code> kopieren als <code>env.txt</code>, <code>MQTT_PASSWORD=</code> ausfüllen, hochladen, auf der NAS umbenennen in <code>.env</code>.<span class="note">Sie verschwindet danach aus der Ansicht – das ist richtig.</span></div></li>
     <li><div><b>Starten:</b> <span class="path">Docker <i>›</i> Projekt</span> → <span class="btn">Erstellen</span>, Name <code>heimalarm</code>, Pfad <code>docker/heimalarm</code>, „sofort ausführen“ → <span class="btn">Bereitstellen</span></div></li>
   </ol>
   <div class="done"><div><b>Geklappt, wenn</b> im Protokoll von <code>heimalarm-mosquitto-1</code> „Adding password for user heimalarm“ steht und <code>heimalarm-dienst</code> mit <code>u'heimalarm'</code> verbunden ist.</div></div>
-  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Nur eine Compose-Datei:</b> Liegen im Ordner <code>docker-compose.yml</code> <b>und</b> <code>docker-compose.yaml</code>, nimmt Docker nur eine davon. Die überzählige löschen. <code>.env</code> ist versteckt – im Dateimanager „versteckte Dateien anzeigen“ einschalten, um sie zu sehen.</div></div>
+  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Nur eine Compose-Datei:</b> Liegen im Ordner <code>docker-compose.yml</code> <b>und</b> <code>docker-compose.yaml</code>, nimmt Docker nur eine davon. Die überzählige löschen. <code>.env</code> ist versteckt: in <span class="path">Dateien</span> unten links auf das Zahnrad → „Versteckte Dateien anzeigen“.</div></div>
 </section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s2b">
@@ -174,15 +174,16 @@ mqtt_host: "IP der Zentrale"
 mqtt_user: "heimalarm"
 mqtt_pw: "dein MQTT_PASSWORD"</pre>
       <span class="note"><span class="btn">Save</span>. Die Vorlage dafür ist <code>secrets.example.yaml</code>.</span></div></li>
-    <li><div>Bei der Karte für dein Board (Tabelle Schritt 1) auf <span class="btn">Edit</span>. Die anderen Karten (andere Boards, <code>secrets.example</code>) einfach nicht beachten. Ganz oben steht <code>kennung: ich</code>. Für dich passt <code>ich</code> – bei weiteren Personen eine eigene Kennung wählen, z. B. <code>kollege</code>. <span class="btn">Save</span>.</div></li>
+    <li><div><b>Nur dein Board behalten:</b> ESPHome zeigt drei Karten, alle heißen <code>alarm-ich</code>. Unter dem Namen steht die Datei – die zu deinem Board (Tabelle Schritt 1) behalten, bei den anderen beiden ⋮ → <span class="btn">Löschen</span>.<span class="note">Sie heißen gleich wie dein ESP32. Wer aus Versehen die falsche aufspielt, legt den Melder lahm und muss ihn per Kabel neu flashen.</span></div></li>
+    <li><div>Bei deiner Karte auf <span class="btn">Bearbeiten</span>. Ganz oben steht <code>kennung: ich</code>. Für dich passt <code>ich</code> – bei weiteren Personen eine eigene Kennung wählen, z. B. <code>kollege</code>. <span class="btn">Save</span>.</div></li>
   </ol>
-  <div class="done"><div><b>Geklappt, wenn</b> <span class="btn">Validate</span> im Menü der Karte (⋮) keinen Fehler zeigt.</div></div>
+  <div class="done"><div><b>Geklappt, wenn</b> <span class="btn">Validieren</span> (Validate) im Menü der Karte (⋮) „Konfiguration ist gültig!“ zeigt.</div></div>
 </section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s4">
   <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:chip}}</span><h2>Schritt 4 · Firmware bauen und aufspielen</h2><span class="dur">15 min</span></div>
   <ol class="steps" style="--a:var(--c-alarm)">
-    <li><div><b>Bauen:</b> auf der Karte ⋮ → <span class="btn">Install</span> → <span class="btn">Manual download</span>.<span class="note">Das dauert beim ersten Mal 5–15 Minuten (der Pi ist langsamer als die NAS).</span></div></li>
+    <li><div><b>Bauen:</b> auf der Karte ⋮ → <span class="btn">Installieren</span> → <span class="btn">Erweiterte Optionen</span> → <span class="btn">Firmware-Binärdatei herunterladen</span>.<span class="note">Das dauert beim ersten Mal 5–15 Minuten (der Pi ist langsamer als die NAS).</span></div></li>
     <li><div><b>Herunterladen:</b> wenn fertig, <span class="btn">Factory format</span> wählen. Eine <code>.bin</code>-Datei landet im Download-Ordner.<span class="note">Die Menünamen können je nach ESPHome-Version leicht abweichen.</span></div></li>
     <li><div><b>ESP32 anstecken:</b> per USB-Datenkabel an den PC. Beim S3 die Buchse mit der Aufschrift <b>COM</b> bzw. <b>UART</b> nehmen.</div></li>
     <li><div><b>Aufspielen:</b> in Chrome oder Edge <span class="mono">web.esphome.io</span> → <span class="btn">Connect</span> → den USB-Anschluss wählen → <span class="btn">Install</span> → die <code>.bin</code>-Datei wählen → <span class="btn">Install</span></div></li>
@@ -244,13 +245,16 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
   <ul class="list" style="--a:var(--c-net)">
     <li><b>Apps:</b> PC und Handy melden neue Versionen beim Start → <span class="btn red">Installieren</span></li>
     <li><b>Zentrale auf dem Pi:</b><pre class="code" style="margin-top:1.5mm">cd Heimalarm &amp;&amp; git pull &amp;&amp; cd zentrale &amp;&amp; docker compose up -d --build</pre></li>
-    <li><b>Zentrale auf der NAS:</b> neue Dateien hochladen (nicht <code>.env</code> und die <code>data</code>-Ordner), Container und Images von <code>dienst</code> löschen, <span class="btn">Neu bereitstellen</span>.</li>
-    <li><b>ESP32:</b> nur nötig, wenn es eine neue Firmware gibt – dann ESPHome starten und <span class="btn">Install</span> → <span class="btn">Wirelessly</span>. Ohne Kabel.</li>
+    <li><b>Zentrale auf der NAS:</b> genaue Schritte in der Anleitung <b>Heimalarm-Update.pdf</b>. Kurz: Inhalt von <code>zentrale</code> und den Ordner <code>esp32</code> hochladen und vorhandene Dateien <b>ersetzen</b> (nicht <code>.env</code>, die <code>data</code>-Ordner, <code>secrets.yaml</code>), in <code>docker-compose.yml</code> wieder <code>profiles: ["esphome"]</code> löschen, Container und Image von <code>dienst</code> löschen, <span class="btn">Neu bereitstellen</span>.</li>
+    <li><b>ESP32:</b> nur nötig, wenn es eine neue Firmware gibt – ESPHome starten, auf deiner Karte ⋮ → <span class="btn">Validieren</span>, dann <span class="btn">Installieren</span> → <span class="btn">Im Netzwerk</span>. Ohne Kabel.</li>
   </ul>
   <h3>Häufige Fehler</h3>
   <div class="box"><table class="t">
     <tr><th style="width:62mm">Problem</th><th>Lösung</th></tr>
-    <tr><td>ESPHome-Seite (Port 6052) lädt nicht</td><td class="muted">Container <code>esphome</code> gestartet? Auf der NAS die Zeile <code>profiles: ["esphome"]</code> gelöscht?</td></tr>
+    <tr><td>ESPHome-Seite (Port 6052) lädt nicht, Container fehlt</td><td class="muted">Container <code>esphome</code> gestartet? Auf der NAS die Zeile <code>profiles: ["esphome"]</code> gelöscht und neu bereitgestellt?</td></tr>
+    <tr><td>Drei Karten „alarm-ich“, alle „Online“</td><td class="muted">Normal – sie heißen gleich wie dein ESP32. Nur die Karte zu deinem Board nutzen, die anderen löschen.</td></tr>
+    <tr><td>Im Netzwerk: „Host not found“</td><td class="muted">Docker findet <code>alarm-….local</code> nicht. <span class="btn">Installieren</span> → <span class="btn">Erweiterte Optionen</span> → <span class="btn">Geräte-IP</span>, IP aus der App (Start → ESP32) eintragen.</td></tr>
+    <tr><td>Log: „mqtt took a long time“</td><td class="muted">Harmlos, kommt kurz nach dem Neustart.</td></tr>
     <tr><td>Bauen bricht ab</td><td class="muted">Fehlermeldung lesen – meist fehlt ein Eintrag in den Secrets.</td></tr>
     <tr><td>web.esphome.io findet den ESP32 nicht</td><td class="muted">Datenkabel, andere USB-Buchse, BOOT-Taste beim Einstecken halten.</td></tr>
     <tr><td>ESP32 verbindet sich nicht mit dem WLAN</td><td class="muted">Nur 2,4 GHz. WLAN-Name genau wie im Router (Groß-/Kleinschreibung).</td></tr>

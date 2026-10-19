@@ -83,9 +83,9 @@ function guide(key, rerender) {
     };
     case "zentrale": return {
       lead: "Die Zentrale läuft in Docker auf deinem Gerät, das immer an ist.",
-      steps: steps("Ordner <code>zentrale</code> aus dem Repository auf das Gerät kopieren.",
-        ["Dort ausführen: <code>docker compose up -d</code>", "docker"],
-        "Mit Zigbee-Stick zusätzlich <code>--profile zigbee</code>.",
+      steps: steps("Ordner <code>zentrale</code> aus dem Repository auf das Gerät kopieren, dazu den Ordner <code>esp32</code>.",
+        ["Raspberry Pi: <code>docker compose up -d</code> ausführen. UGREEN-NAS: in der Docker-App Projekt <code>heimalarm</code> erstellen und bereitstellen.", "docker"],
+        "Mit Zigbee-Stick zusätzlich <code>--profile zigbee</code>. Auf der NAS für ESPHome in <code>docker-compose.yml</code> die Zeile <code>profiles: [\"esphome\"]</code> löschen – die Docker-App beachtet Profile aus <code>.env</code> nicht.",
         "Im WLAN-Router dem Gerät eine feste IP-Adresse geben und sie notieren, z. B. <code>192.168.178.5</code>."),
       body: [row(manual(key, rerender, "Zentrale läuft"))], ok: "Zentrale läuft",
     };
@@ -104,7 +104,8 @@ function guide(key, rerender) {
       lead: "Der ESP32 liest den Relaiskontakt der Ladeschale und meldet den Alarm an die Zentrale.",
       steps: steps("Relaiskontakt vorher messen: Er muss potentialfrei sein, sonst Optokoppler verwenden.",
         "<code>esp32/secrets.example.yaml</code> als <code>secrets.yaml</code> kopieren, WLAN und Zentrale eintragen.",
-        `In <code>alarm-ich.yaml</code> deine Kennung „${s.alarm.me}“ eintragen und mit ESPHome flashen.`,
+        `Nur die Datei für dein Board nehmen (<code>alarm-ich.yaml</code>, <code>-s3</code> oder <code>-d1mini</code>), dort die Kennung „${s.alarm.me}“ eintragen und mit ESPHome flashen. Die anderen beiden in ESPHome löschen – sie heißen gleich, eine falsche Firmware legt den Melder lahm.`,
+        "In ESPHome: ⋮ → Validieren, dann Installieren → Im Netzwerk. Findet es den ESP32 nicht: Erweiterte Optionen → Geräte-IP.",
         "Kontakt an GPIO27 und GND (ESP32-S3: GPIO4, direkt neben RST – genau hinsehen).", "Unter Test &amp; Diagnose mit dem Kontakt-Test die Kabel prüfen."),
       body: [row(btn("Zu „Alarm & Quellen“", () => go("#/einstellungen/alarm")), manual(key, rerender))], ok: "Melder meldet sich",
     };

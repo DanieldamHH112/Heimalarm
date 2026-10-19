@@ -20,6 +20,7 @@ OUT = HERE.parent
 DOCS = {
     "uebersicht.html": "Heimalarm-Uebersicht.pdf",
     "esp32.html": "Heimalarm-Einrichtung-ESP32.pdf",
+    "update.html": "Heimalarm-Update.pdf",
 }
 
 # Symbole wie in der App (app/src/ui/icons.js)

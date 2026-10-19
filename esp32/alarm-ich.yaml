@@ -14,6 +14,7 @@ packages:
 
 esphome:
   name: alarm-${kennung}
+  comment: "ESP32 (ältere Boards) – nur für dieses Board"
 
 esp32:
   board: esp32dev

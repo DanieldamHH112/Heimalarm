@@ -102,6 +102,7 @@ Zum Herunterladen und Durchlesen – ohne Vorwissen, Schritt für Schritt:
 |---|---|
 | [**Heimalarm im Überblick**](docs/anleitungen/Heimalarm-Uebersicht.pdf) | Was die App kann, Bausteine, Ablauf eines Alarms, Funktionen, Grenzen – ohne Technik-Deutsch |
 | [**Einrichtung: ESP32 + UGREEN NAS oder Raspberry Pi**](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf) | Ladeschale prüfen und verdrahten, Zentrale auf NAS oder Pi, Firmware am PC oder auf der Zentrale bauen, Kontakt-Test |
+| [**Heimalarm aktualisieren**](docs/anleitungen/Heimalarm-Update.pdf) | Apps, Zentrale auf NAS oder Pi und ESP32 auf den neuen Stand bringen, mit den typischen Stolpersteinen der UGREEN-NAS |
 
 Auf GitHub die Datei öffnen und oben rechts auf **Download** klicken. Die Quellen liegen in `docs/anleitungen/quelle` (HTML), neu bauen mit `python3 docs/anleitungen/quelle/build.py`.
 
