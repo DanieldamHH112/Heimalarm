@@ -117,6 +117,27 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         return enabled.split(":").any { it == me }
     }
 
+    /** Android 17+: Zugriff aufs Heimnetz (Zentrale, PC, WLAN-Geräte) ist eine Laufzeit-Berechtigung,
+     *  sobald die App auf SDK 37 zielt. Vorher erteilt Android sie automatisch. */
+    private val LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"
+    private fun localNetworkNeedsAsk(): Boolean =
+        Build.VERSION.SDK_INT >= 37 && activity.applicationInfo.targetSdkVersion >= 37
+    private fun hasLocalNetwork(): Boolean = !localNetworkNeedsAsk() ||
+        androidx.core.content.ContextCompat.checkSelfPermission(activity, LOCAL_NETWORK) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    @Command
+    fun requestLocalNetwork(invoke: Invoke) {
+        if (!hasLocalNetwork()) {
+            activity.runOnUiThread {
+                androidx.core.app.ActivityCompat.requestPermissions(activity, arrayOf(LOCAL_NETWORK), 4711)
+            }
+        }
+        val ret = JSObject()
+        ret.put("granted", hasLocalNetwork())
+        invoke.resolve(ret)
+    }
+
     @Command
     fun status(invoke: Invoke) {
         readInsets()
@@ -125,6 +146,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("supported", true)
         ret.put("batteryOptimized", !pm.isIgnoringBatteryOptimizations(activity.packageName))
         ret.put("notificationAccess", hasNotificationAccess())
+        ret.put("localNetwork", hasLocalNetwork())
         ret.put("service", KeepAliveService.running)
         ret.put("insetTop", insetTop)
         ret.put("insetBottom", insetBottom)

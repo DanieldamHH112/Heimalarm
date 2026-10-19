@@ -8,6 +8,8 @@
     <!-- Updates: APK von GitHub laden und den Android-Installationsdialog öffnen -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 17+: Zugriff aufs Heimnetz (Zentrale ws://…:9001, PC :8765, WLAN-Geräte) -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <!-- Alarm am Handy: Vollbild-Meldung (Sperrbildschirm), Vibration, nach Neustart wieder starten -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />

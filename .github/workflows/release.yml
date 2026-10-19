@@ -95,6 +95,10 @@ jobs:
           npx tauri android init --ci
           # Eigene Launcher-Symbole (Logo, adaptiv) statt automatisch erzeugter
           cp -r src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
+          # targetSdk auf 36 halten: ab 37 sperrt Android 17 das Heimnetz, bis der Nutzer es erlaubt.
+          # Die Abfrage ist eingebaut (request_local_network) – Wert erst anheben, wenn auf einem Android-17-Gerät geprüft.
+          sed -i -E 's/targetSdk *= *[0-9]+/targetSdk = 36/' src-tauri/gen/android/app/build.gradle.kts
+          grep -n "targetSdk" src-tauri/gen/android/app/build.gradle.kts
       # Fester Signierschlüssel aus dem Secret – sonst lehnt Android Updates ab (neuer Zufallsschlüssel je Build)
       - name: Signierschlüssel
         env: { KEYSTORE: "${{ secrets.ANDROID_DEBUG_KEYSTORE }}" }

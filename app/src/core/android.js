@@ -86,6 +86,11 @@ export async function initAndroid() {
   } catch (e) {
     log("warn", "Benachrichtigungen mitlesen nicht verfügbar", String(e));
   }
+  // Android 17+: ohne diese Erlaubnis erreicht die App weder Zentrale noch PC noch WLAN-Geräte (nur Timeout).
+  try {
+    const { granted } = await call("request_local_network");
+    if (!granted) log("warn", "Zugriff aufs Heimnetz nicht erlaubt", "Android-Einstellungen → Apps → Heimalarm → Berechtigungen → Geräte in der Nähe / Lokales Netzwerk erlauben.");
+  } catch { /* ältere App-Version des Plugins */ }
   configureNative();
   const { on } = await import("./events.js");
   on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android") || path.startsWith("phone")) configureNative(); });
