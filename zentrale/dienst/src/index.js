@@ -10,7 +10,7 @@ import { startSelftest } from "./selftest.js";
 import { startVoice } from "./voice.js";
 import { startHass } from "./hass.js";
 
-export const VERSION = "0.2.4";
+export const VERSION = "0.2.5";
 const URL = process.env.MQTT_URL || "mqtt://mosquitto:1883";
 
 const client = mqtt.connect(URL, {
