@@ -159,7 +159,7 @@ function alarm(rerender) {
   return section("alarm", "Alarm", "Wie die App mit Alarmen umgeht – egal aus welcher Quelle.",
     h("div.fields", {},
       field("Meine Kennung", kennungInput("alarm.me", {}, false, rerender), KENNUNG_HINT),
-      field("Zusammenfassen (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Kommt derselbe Alarm in dieser Zeit noch einmal (z. B. erst vom Melder, dann von SYBOS), zählt er als ein Einsatz.")),
+      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Kommt derselbe Alarm in dieser Zeit noch einmal (z. B. erst vom Melder, dann von SYBOS), zählt er als ein Einsatz.")),
     me === "ich" && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Noch die Standard-Kennung „ich“"), "Passt, solange nur eine Person Heimalarm nutzt. Bei mehreren Personen bekommt jede eine eigene Kennung, sonst lösen sie sich gegenseitig aus.")),
     toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – der PC bleibt an."),
     h("div.row", {}, h("button.btn", { onclick: testAlarm }, "Testalarm"), h("a.btn.ghost", { href: "#/diagnose" }, "Weitere Tests")),
@@ -289,7 +289,7 @@ function quellen(rerender) {
   const a = settings().alarm;
   const sybosOn = a.apps.sybos.on;
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
-  return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Kommt derselbe Alarm doppelt, zählt er als ein Einsatz.",
+  return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
     h("div.sources", {},
       sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale – über ESP32 oder Funkschalter. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
@@ -436,7 +436,7 @@ function androidSection(rerender) {
   if (android === null) androidStatus().then((s) => { android = s; rerender(); }).catch(() => (android = { supported: false }));
   const s = android || {};
   return section("android", "Android", "Damit Alarme auch ankommen, wenn die App im Hintergrund ist.",
-    switchRow("Immer bereit", "Zeigt eine dauerhafte Mitteilung – dafür beendet Android die App nicht und Alarme kommen sicher an.", settings().android.service, (v) => setBackgroundService(v).then(() => { android = null; rerender(); })),
+    switchRow("Hintergrund-Dienst", "Dauerhafte Mitteilung, Android beendet die App dann nicht.", settings().android.service, (v) => setBackgroundService(v).then(() => { android = null; rerender(); })),
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "Akku-Optimierung"), s.batteryOptimized ? h("span.chip.bad", {}, "aktiv – bitte ausschalten") : h("span.chip.ok", {}, "ausgeschaltet")),
       s.batteryOptimized && h("button.btn.small", { onclick: () => openBatterySettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Ausnahme erlauben")),
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "Benachrichtigungen mitlesen"), s.notificationAccess ? h("span.chip.ok", {}, "erlaubt") : h("span.chip", {}, "nicht erlaubt")),
