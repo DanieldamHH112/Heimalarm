@@ -1,4 +1,4 @@
-// Routinen ohne Zentrale: führt dieselben Routinen wie der Zentralen-Dienst aus –
+// Routinen ohne Zentrale: führt dieselben Routinen wie das Zentrale-Programm aus –
 // auf dem Handy (oder dem Gerät, das dafür eingestellt ist). Schaltet WLAN-Geräte und Alexa (Voice Monkey).
 import SunCalc from "suncalc";
 import { on } from "./events.js";
@@ -73,7 +73,7 @@ export function fireLocal(r, ev = {}) {
 
 export function initLocalRoutines() {
   on("alarm", (a) => {
-    // Sperrzeit prüft engine.js schon; reine Testalarme schalten nichts, die Komplettprobe schon
+    // Sperrzeit prüft engine.js schon; reine Testalarme schalten nichts, die Generalprobe schon
     if (!runsHere() || (a.test && !a.probe)) return;
     for (const r of shared().routines || []) {
       if (r.trigger?.type !== "alarm" || (r.who?.length && !r.who.includes(a.who))) continue;

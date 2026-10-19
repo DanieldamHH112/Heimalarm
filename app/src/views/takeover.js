@@ -42,7 +42,7 @@ export function showTakeover(alarm) {
   const live = h("p.sr-only", { "aria-live": "assertive", "aria-atomic": "true" });
   const label = ACTIONS[p.action]?.label || p.action;
   const extra = [alarm.keyword, alarm.unit].filter(Boolean).join(" · ");
-  const tag = alarm.probe ? "Komplettprobe · PC-Aktion nur angezeigt" : test ? "Testalarm · es passiert nichts" : `Einsatz · ${fmtTime(alarm.ts)}`;
+  const tag = alarm.probe ? "Generalprobe · PC-Aktion nur angezeigt" : test ? "Testalarm · es passiert nichts" : `Einsatz · ${fmtTime(alarm.ts)}`;
   const note = onPhone ? "Ohne Antwort: keine Rückmeldung" : p.onTimeout === "run" ? `Ohne Antwort: ${label}` : "Ohne Antwort: keine Aktion";
 
   /** going = true/false: Antwort; null = ersetzt (keine Entscheidung). Läuft genau einmal. */

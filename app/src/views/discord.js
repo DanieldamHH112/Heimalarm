@@ -138,7 +138,7 @@ export function discordSection(rerender) {
         segmented([["clear", "Entfernen"], ["keep", "Stehen lassen"]], c.onStay, (v) => setP("onStay", v))),
       toggle("discord.clearOnRestore", "„Wieder da“ beendet den Status", "Knopf in der Übersicht – ohne Zigbee heißt er dort „Einsatz beenden“."),
       toggle("discord.resume", "Nach dem Ruhezustand wieder anzeigen", "Im Ruhezustand ist auch Discord aus – Freunde sehen dich dann offline. Wacht der PC vor Ablauf auf, erscheint der Status wieder."),
-      toggle("discord.tests", "Auch bei Testalarm", "Sonst nur echte Alarme und Komplettprobe.")),
+      toggle("discord.tests", "Auch bei Testalarm", "Sonst nur echte Alarme und Generalprobe.")),
 
     h("details.group", {}, h("summary.group-title", {}, "Bilder (optional)"),
       h("p.meta", {}, "Ohne Bild zeigt Discord nur Text. Bild im Portal unter ", h("b", {}, "Rich Presence → Art Assets"), " hochladen (mind. 512 × 512 px) und hier den Namen eintragen – oder direkt eine https-Adresse."),

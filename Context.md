@@ -260,6 +260,11 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Sicherheit PC-Empfänger:** nach 10 falschen Codes ist eine IP 5 min gesperrt (429); `POST /pair` nur, solange am PC „Koppeln erlauben“ läuft (Rust `direct_pairing`, 5 min, schließt nach einer Kopplung).
 - **Backup** enthält Schlüssel/Passwörter/Codes nur mit Schalter „mitsichern“; beim Wiederherstellen bleiben vorhandene Schlüssel erhalten. **Protokoll** schwärzt `accesskey=`, `authToken=`, `token=` usw. (`core/log.js`).
 - **Abgleich ohne Zentrale:** Neue Einstellung, die abgeglichen werden soll → in einen Bereich von `core/sync.js` einordnen; was je Gerät bleiben muss, in `PC_LOCAL` bzw. aus `bundle()` heraushalten. `direct.rs` und `direct.js` gehören zusammen (Endpunkte, Events `direct-alarm|config|pair|seen`).
+- **Kennung** (`core/kennung.js`): nur `a–z`, `0–9`, `-` (max. 32). Eingaben in Einstellungen (Meine Kennung, Personen, „Abfrage auch bei Alarm von“) laufen durch `normalizeKennung`. Standard bleibt `ich` (passt zu ESP32-YAML und Tuya-`KENNUNG`), die App warnt dann. Gleiche Regel in YAML-Kommentaren und Doku.
+- **Test-Begriffe** einheitlich: Testalarm, Testmodus, „Melder-Alarm nachspielen“ (`simulateContact`, `test:true`) und „Generalprobe“ (`fullProbe`, `probe:true`). Nicht „Probe“ allein – das Wort meint bei Einsatzkräften den Probealarm. Erklärtabelle in `views/diagnose.js`.
+- **Bestätigungen am PC** (`ui/form.js → ask`): Windows nutzt `@tauri-apps/plugin-dialog` (`confirm`, Rechte in `capabilities/desktop.json`, Plugin nur `cfg(desktop)` in `lib.rs`), Android den Dialog in der Seite.
+- **Mauszeiger:** kein `cursor: pointer` auf Knöpfen, Schaltern, Zeilen (wirkt sonst wie eine Webseite). Nur Textlinks zeigen die Hand (`base.css`).
+- **Keine Konzept-Nummern (A3, D5 …) und keine Fachwörter (MQTT, WebSocket, Dienst) in sichtbaren Texten.** Nummern nur in Code-Kommentaren.
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.
 - **Android-Plugin:** Kotlin-Name `heimalarm`, Event `notification` `{app, title, text}` – wird in `core/android.js` abgehört.
 - **Sperrzeit** prüft `engine.js` (App) und `rules.js` (Dienst) getrennt; `routines-local.js` verlässt sich auf `engine.js`.
@@ -362,7 +367,7 @@ Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
 | G Personen | Einstellungen → Personen, Sicherheit · Routinen „Für wen“ |
 | H Sicherheit | Einstellungen → Verbindung, Zentrale, Sicherheit |
 | I Test & Diagnose | Einstellungen → Alarm (Testalarm) · Test & Diagnose |
-| Sprachassistenten | Einstellungen → Alexa & Google |
+| Sprachassistenten | Einstellungen → Alexa, Google & HA |
 
 ## Prüfen (lokal, nicht in CI)
 

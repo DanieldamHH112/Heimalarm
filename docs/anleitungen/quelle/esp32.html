@@ -88,7 +88,7 @@
     <li><div><b>Feste IP:</b> <span class="path">FRITZ!Box <i>›</i> Heimnetz <i>›</i> Netzwerk</span> → bei der NAS auf den Stift → „Immer die gleiche IPv4-Adresse“ → <span class="btn">Übernehmen</span>. IP notieren.</div></li>
     <li><div><b>Docker</b> im App Center installieren. In <span class="path">Dateien <i>›</i> docker</span> den Ordner <code>heimalarm</code> anlegen.</div></li>
     <li><div><b>Dateien:</b> GitHub <span class="mono">DanieldamHH112/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>. In <code>docker/heimalarm</code> hochladen: den Inhalt von <code>zentrale</code> und zusätzlich den Ordner <code>esp32</code>.</div></li>
-    <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit TextEdit öffnen, beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.</div></li>
+    <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit dem Editor öffnen (Windows: Rechtsklick → Öffnen mit → Editor), beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.</div></li>
     <li><div><b>Passwort:</b> am PC <code>.env.example</code> kopieren als <code>env.txt</code>, <code>MQTT_PASSWORD=</code> ausfüllen, hochladen, auf der NAS umbenennen in <code>.env</code>.<span class="note">Sie verschwindet danach aus der Ansicht – das ist richtig.</span></div></li>
     <li><div><b>Starten:</b> <span class="path">Docker <i>›</i> Projekt</span> → <span class="btn">Erstellen</span>, Name <code>heimalarm</code>, Pfad <code>docker/heimalarm</code>, „sofort ausführen“ → <span class="btn">Bereitstellen</span></div></li>
   </ol>

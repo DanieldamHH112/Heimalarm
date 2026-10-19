@@ -28,7 +28,7 @@ function controls(name, p, s) {
     out.push(h("div.row", {},
       h("button.btn.small" + (s.state === "ON" ? ".primary" : ""), { onclick: () => setDevice(name, { state: "ON", transition: 1 }) }, "An"),
       h("button.btn.small" + (s.state === "OFF" ? ".primary" : ""), { onclick: () => setDevice(name, { state: "OFF", transition: 1 }) }, "Aus"),
-      p.has("effect") && h("button.btn.small", { onclick: () => setDevice(name, { effect: "blink" }), title: "Kurz blinken (C6)" }, "Blinken")));
+      p.has("effect") && h("button.btn.small", { onclick: () => setDevice(name, { effect: "blink" }), title: "Kurz blinken" }, "Blinken")));
   }
   if (p.has("brightness")) {
     const val = h("span", {}, `${pct(s.brightness)} %`);

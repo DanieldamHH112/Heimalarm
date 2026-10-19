@@ -19,6 +19,21 @@ import { recentApps, testAlarm } from "../core/engine.js";
 import { divera, loadDivera, restartDivera } from "../core/divera.js";
 import { answerApager } from "../core/apager.js";
 import qrcode from "qrcode-generator";
+import { normalizeKennung, normalizeKennungList, KENNUNG_HINT } from "../core/kennung.js";
+
+/** Eingabe für Kennungen: macht Umlaute, Leerzeichen und Großbuchstaben passend und sagt Bescheid. */
+function kennungInput(path, attrs = {}, list = false, after) {
+  const fix = list ? normalizeKennungList : normalizeKennung;
+  return h("input.input", { value: get(path) ?? "", autocomplete: "off", autocapitalize: "off", spellcheck: "false", ...attrs,
+    onchange: (e) => {
+      const raw = e.target.value.trim();
+      const v = fix(raw);
+      if (!v && !list) { e.target.value = get(path) ?? ""; toast("Kennung darf nicht leer sein"); return; }
+      if (v !== raw) { e.target.value = v; toast(`Angepasst zu „${v}“ – nur a–z, 0–9 und -`); }
+      set(path, v);
+      after?.(v);
+    } });
+}
 import { toneSettings, percentSlider } from "../ui/tone.js";
 import { icon } from "../ui/icons.js";
 import { activeSources } from "../core/features.js";
@@ -116,7 +131,7 @@ function betrieb(rerender) {
       syncHint,
       h("small.meta", {}, "Handy und PC müssen im selben WLAN sein."));
   };
-  return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Gekoppelte Geräte übernehmen die Betriebsart automatisch.",
+  return section("betrieb", "Betrieb", "Wie der Alarm zu deinen Geräten kommt. Stellst du es hier um, übernehmen gekoppelte PCs und Handys die Einstellung beim nächsten Abgleich.",
     modeChoice((v) => { set("mode", v); connect(); startReceiver(); rerender(); }),
     h("details.item.flow-wrap", {}, h("summary", {}, h("b", {}, "So läuft ein Alarm")), setupFlow()),
     hasPcFeatures ? pcPart() : phonePart(),
@@ -127,27 +142,33 @@ function betrieb(rerender) {
 
 function verbindung(rerender) {
   const host = settings().broker.host;
-  return section("verbindung", "Verbindung", "Die Zentrale – jeder Computer, der immer läuft und Docker kann: NAS, Mini-PC, Raspberry Pi oder ein alter Laptop. Darauf läuft das Heimalarm-Docker-Projekt. Ohne sie kommt kein Melder-Alarm an.",
+  return section("verbindung", "Verbindung", "Die Zentrale ist ein Gerät, das rund um die Uhr läuft: NAS, Mini-PC oder Raspberry Pi (ein alter Laptop geht auch, darf aber nie schlafen). Darauf läuft der Ordner „zentrale“ aus Heimalarm. Ohne sie kommt kein Melder-Alarm an.",
     h("div.fields", {},
-      field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "IP oder Name im Heimnetz"),
-      field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "WebSocket, Standard 9001"),
-      field("Benutzer", text("broker.user", { autocomplete: "off" }), "Aus zentrale/.env (MQTT_USER, Standard: heimalarm)"),
-      field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }), "MQTT_PASSWORD aus zentrale/.env – ohne Passwort lässt die Zentrale niemanden rein.")),
-    toggle("broker.tls", "Verschlüsselt (TLS)", "Nur aktivieren, wenn die Zentrale ein Zertifikat hat (H1)."),
-    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Für unterwegs besser ein VPN (z. B. WireGuard) nutzen, statt die Zentrale ins Internet zu stellen (H3).")),
+      field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "Die feste IP der Zentrale, z. B. aus der FRITZ!Box"),
+      field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "Fast immer 9001 – nur ändern, wenn du ihn in der Zentrale geändert hast."),
+      field("Benutzer", text("broker.user", { autocomplete: "off" }), "Fast immer „heimalarm“."),
+      field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }), "Das Passwort, das du beim Einrichten der Zentrale in die Datei .env geschrieben hast (MQTT_PASSWORD).")),
+    toggle("broker.tls", "Verschlüsselt (TLS)", "Im Heimnetz nicht nötig. Nur einschalten, wenn deine Zentrale dafür eingerichtet ist – sonst klappt die Verbindung nicht."),
+    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Heimalarm ist fürs Heimnetz gedacht. Stell die Zentrale nicht offen ins Internet. Für unterwegs gibt es z. B. das VPN der FRITZ!Box – frag im Zweifel jemanden mit Erfahrung.")),
     h("div.row", {}, h("button.btn.primary", { onclick: () => { connect(); toast("Verbinde mit der Zentrale …"); setTimeout(rerender, 1500); } }, "Speichern & verbinden")),
   );
 }
 
-function alarm() {
+function alarm(rerender) {
   const me = settings().alarm.me;
   return section("alarm", "Alarm", "Wie die App mit Alarmen umgeht – egal aus welcher Quelle.",
     h("div.fields", {},
-      field("Meine Kennung", text("alarm.me", { autocomplete: "off" }), "Gleich wie beim Melder: alarm/<kennung>. Auf jedem eigenen Gerät dieselbe – dann reagieren alle PCs und Laptops gemeinsam."),
-      field("Sperrzeit (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Meldungen derselben Person kurz danach zählen als derselbe Einsatz – auch aus verschiedenen Quellen.")),
-    toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – keine PC-Aktion (A11)."),
+      field("Meine Kennung", kennungInput("alarm.me", {}, false, rerender), KENNUNG_HINT),
+      field("Zusammenfassen (Sekunden)", text("alarm.lockoutSec", { type: "number", min: 0, max: 600 }), "Kommt derselbe Alarm in dieser Zeit noch einmal (z. B. erst vom Melder, dann von SYBOS), zählt er als ein Einsatz.")),
+    me === "ich" && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Noch die Standard-Kennung „ich“"), "Passt, solange nur eine Person Heimalarm nutzt. Bei mehreren Personen bekommt jede eine eigene Kennung, sonst lösen sie sich gegenseitig aus.")),
+    toggle("alarm.testMode", "Testmodus", "Alle Alarme nur anzeigen – der PC bleibt an."),
     h("div.row", {}, h("button.btn", { onclick: testAlarm }, "Testalarm"), h("a.btn.ghost", { href: "#/diagnose" }, "Weitere Tests")),
-    h("p.meta", {}, "Aktuelle Kennung: ", h("code", {}, `alarm/${me}`)),
+    h("details.item", {}, h("summary", {}, h("b", {}, "Wo muss die Kennung überall stehen?")),
+      h("ul.meta", {},
+        h("li", {}, "In der App auf jedem eigenen PC und Handy (hier)"),
+        h("li", {}, "Im ESP32: ", h("code", {}, "kennung:"), " oben in der YAML-Datei"),
+        h("li", {}, "Beim Funk-Alarmschalter: ", h("code", {}, "KENNUNG:"), " in docker-compose.yml"),
+        h("li", {}, "Für weitere Personen unter Personen"))),
   );
 }
 
@@ -179,7 +200,7 @@ function sourceRow({ id, title, summary, on, onToggle, badge, body }) {
 
 /** Benachrichtigung mitlesen (nur Android) – auf PC nur Hinweis. */
 function notifGroup(id, rerender) {
-  if (!isAndroid) return group("Alarm empfangen", h("p.meta", {}, id === "divera" ? "Am Handy: Benachrichtigung mitlesen. Hier: Abfrage per API (unten)." : "Das Handy liest mit und gibt den Alarm über die Zentrale an diesen PC."));
+  if (!isAndroid) return group("Alarm empfangen", h("p.meta", {}, id === "divera" ? "Am Handy liest Heimalarm die Divera-Benachrichtigung mit. Am PC fragt Heimalarm Divera direkt ab – dafür unten den Zugangsschlüssel eintragen." : "Das Handy liest mit und gibt den Alarm über die Zentrale an diesen PC."));
   return group("Alarm empfangen",
     h("div.inline", {},
       field("App auf dem Handy", text(`alarm.apps.${id}.pkg`, { autocomplete: "off", placeholder: "über „Erkennen“ wählen" }), "Paketname, ein Teil reicht."),
@@ -202,12 +223,12 @@ function diveraSource(rerender) {
   const badge = !d.key ? null : divera.ok === false ? h("span.badge.bad", {}, "Fehler") : d.unit ? h("span.badge", {}, d.unit) : null;
   return sourceRow({
     id: "divera", title: "Divera 24/7", on, badge,
-    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Abfrage per API, Rückmeldung und Status.",
+    summary: on && parts.length ? parts.join(" · ") : "Mitlesen, direkt bei Divera abfragen, Rückmeldung und Status.",
     onToggle: (v) => { set("alarm.apps.divera.on", v); restartDivera(); rerender(); },
     body: [
       group("Zugang",
         h("div.inline", {},
-          field("Persönlicher Accesskey", h("input.input", { type: "password", autocomplete: "off", spellcheck: "false", value: d.key, placeholder: "dvpat-…",
+          field("Persönlicher Zugangsschlüssel (in Divera „Accesskey“)", h("input.input", { type: "password", autocomplete: "off", spellcheck: "false", value: d.key, placeholder: "dvpat-…",
             onchange: (e) => { set("divera.key", e.target.value.trim()); restartDivera(); rerender(); } }), "Divera → Profil → Login → API-Schlüssel. Bleibt auf diesem Gerät."),
           h("button.btn.small", { onclick: load, disabled: !d.key }, d.unit ? "Neu laden" : "Verbinden")),
         divera.ok === false && h("p.meta.err", {}, divera.error)),
@@ -268,9 +289,9 @@ function quellen(rerender) {
   const a = settings().alarm;
   const sybosOn = a.apps.sybos.on;
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
-  return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
+  return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Kommt derselbe Alarm doppelt, zählt er als ein Einsatz.",
     h("div.sources", {},
-      sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale über ESP32 oder Funk-Alarmschalter (Tuya-Brücke). Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
+      sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale – über ESP32 oder Funkschalter. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
         summary: "Benachrichtigung der SYBOS-App mitlesen.",
         onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
@@ -303,7 +324,7 @@ function sprache(rerender) {
   const host = settings().broker.host || "<zentrale>";
   const sensors = v?.sensors || [];
   const statusChip = !state.connected ? h("span.chip", {}, "Zentrale getrennt")
-    : !v ? h("span.chip", {}, "Dienst meldet nichts")
+    : !v ? h("span.chip", {}, "Zentrale antwortet nicht")
     : !cfg.enabled ? h("span.chip", {}, "aus")
     : v.running ? h("span.chip" + (v.commissioned ? ".ok" : ".warn"), {}, v.commissioned ? `gekoppelt · ${v.fabrics?.length || 1}` : "bereit zum Koppeln")
     : h("span.chip.bad", {}, "startet nicht");
@@ -340,7 +361,7 @@ function sprache(rerender) {
         h("small", {}, "„Heimalarm Einsatz“ bei jedem Alarm, dazu einer je Person aus „Personen“.")),
       cfg.enabled && h("div.fields", {},
         field("Sensor bleibt offen (Sekunden)", h("input.input", { type: "number", min: 5, max: 600, value: cfg.openSec, onchange: (e) => setCfg({ openSec: Math.max(5, Number(e.target.value) || 30) }) }), "Danach meldet er wieder „geschlossen“.")),
-      cfg.enabled && switchRow("Auch bei Testalarmen auslösen", "Sonst nur echte Alarme und Komplettprobe.", cfg.tests, (on) => setCfg({ tests: on })),
+      cfg.enabled && switchRow("Auch bei Testalarmen auslösen", "Sonst nur echte Alarme und Generalprobe.", cfg.tests, (on) => setCfg({ tests: on })),
       cfg.enabled && v?.running && h("div.row", {},
         h("button.btn.small", { onclick: () => { if (publish("heimalarm/cmd/voice/test", {})) toast("Sensor geöffnet – Routine sollte starten"); } }, "Routine testen"),
         v.commissioned && h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask("Alle Kopplungen mit Alexa/Google Home löschen? Routinen dort müssen danach neu angelegt werden.")) publish("heimalarm/cmd/voice/reset", {}); } }, "Kopplungen löschen"))),
@@ -365,10 +386,10 @@ function esp32() {
     h("div.fields", {},
       field("Mindestdauer Kontakt (ms)", text("alarm.minDurationMs", { type: "number", min: 10, max: 5000 }, {
         onSave: (v) => { if (publish(`alarm/${me}/number/min_duration/command`, String(v))) toast("An den ESP32 gesendet"); },
-      }), `Kürzere Impulse werden ignoriert (A3). Aktuell im ESP32: ${d?.minDuration ?? "–"} ms`),
-      field("Lebenszeichen erwartet alle (s)", text("alarm.heartbeatSec", { type: "number", min: 60, max: 3600 }), "Kommt so lange nichts, gibt es eine Warnung (A9)."),
-      field("Offline-Warnung nach (s)", text("alarm.offlineWarnSec", { type: "number", min: 30, max: 3600 }), "Ist der ESP32 so lange offline, kommt eine Meldung (A8).")),
-    h("div.field", {}, h("span", {}, "Firmware-Update über WLAN (A10)"), url, md5,
+      }), `Kürzere Impulse werden ignoriert. Aktuell im ESP32: ${d?.minDuration ?? "–"} ms`),
+      field("Lebenszeichen erwartet alle (s)", text("alarm.heartbeatSec", { type: "number", min: 60, max: 3600 }), "Kommt so lange nichts, gibt es eine Warnung."),
+      field("Offline-Warnung nach (s)", text("alarm.offlineWarnSec", { type: "number", min: 30, max: 3600 }), "Ist der ESP32 so lange offline, kommt eine Meldung.")),
+    h("div.field", {}, h("span", {}, "Firmware-Update über WLAN"), url, md5,
       h("small", {}, "Adresse einer mit ESPHome gebauten .ota.bin-Datei im Heimnetz und ihre MD5-Prüfsumme.")),
     h("div.row", {}, h("button.btn", { onclick: async () => {
       if (!url.value.trim() || md5.value.trim().length !== 32) return toast("Bitte Adresse und 32-stellige MD5-Summe eintragen");
@@ -382,7 +403,7 @@ function pc(rerender) {
   if (hibernateOn === null) hibernateEnabled().then((v) => { hibernateOn = v; rerender(); }).catch(() => (hibernateOn = false));
   return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert. Jeder PC mit Heimalarm fragt selbst – mehrere PCs und Laptops gehen also gleichzeitig.",
     toggle("pc.silent", "Bei Alarm aus", "Dieser PC fragt nicht „Fährst du?“ und bleibt an. Der Testalarm geht weiter.", () => rerender()),
-    field("Abfrage auch bei Alarm von", text("pc.alsoFor", { autocomplete: "off", placeholder: "z. B. kollege" }), "Weitere Kennungen mit Komma – für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
+    field("Abfrage auch bei Alarm von", kennungInput("pc.alsoFor", { placeholder: "z. B. max, anna" }, true), "Weitere Kennungen mit Komma – für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
     h("div.field", {}, h("span", {}, "Aktion"),
       select(Object.entries(ACTIONS).map(([k, v]) => [k, v.label]), p.action, (v) => { set("pc.action", v); rerender(); }),
       h("small", {}, ACTIONS[p.action]?.hint)),
@@ -394,20 +415,20 @@ function pc(rerender) {
       h("div.field", {}, h("span", {}, "Ohne Antwort"), segmented([["run", "Ausführen"], ["cancel", "Abbrechen"]], p.onTimeout, (v) => set("pc.onTimeout", v)))),
     h("div.fields", {},
       field("Überschrift", text("pc.title")), field("Knopf „fahren“", text("pc.goText")), field("Knopf „bleiben“", text("pc.stayText"))),
-    toggle("pc.sound", "Ton während des Countdowns", "Gut hörbar, auch mit Kopfhörern (D5)."),
+    toggle("pc.sound", "Ton während des Countdowns", "Gut hörbar, auch mit Kopfhörern."),
     p.sound && h("div.group", {}, ...toneSettings("pc", rerender),
       toggle("pc.raiseSystem", "Windows-Lautstärke bei Alarm anheben", "Hebt eine Stummschaltung auf und stellt mindestens den Wert unten ein. Danach wieder wie vorher.", () => rerender()),
       p.raiseSystem && percentSlider("Mindestens", p.systemMin, (n) => set("pc.systemMin", n), { min: 20 })),
-    toggle("pc.stopMedia", "Medien vorher stoppen", "Musik und Videos anhalten (D8)."),
-    field("Ausnahmen", text("pc.exceptions", { placeholder: "z. B. obs64.exe, Teams.exe" }), "Läuft eines davon, wird der PC nur gesperrt (D7)."),
+    toggle("pc.stopMedia", "Medien vorher stoppen", "Musik und Videos anhalten."),
+    field("Ausnahmen", text("pc.exceptions", { placeholder: "z. B. obs64.exe, Teams.exe" }), "Läuft eines davon, wird der PC nur gesperrt."),
     h("div.fields", {},
-      field("Ruhezeit von", text("pc.quietFrom", { type: "time" }), "Keine Abfrage in diesem Zeitraum (D12)"),
+      field("Ruhezeit von", text("pc.quietFrom", { type: "time" }), "Keine Abfrage in diesem Zeitraum"),
       field("bis", text("pc.quietTo", { type: "time" }))),
-    h("div.field", {}, h("span", {}, "Wake-on-LAN (D11)"),
+    h("div.field", {}, h("span", {}, "Wake-on-LAN"),
       h("div.row", {}, h("code", {}, p.wolMac || "noch nicht ermittelt"),
         h("button.btn.small", { onclick: () => macAddress().then((m) => { set("pc.wolMac", m); connect(); rerender(); toast("MAC gespeichert – andere Geräte können diesen PC wecken"); }).catch((e) => toast(String(e))) }, "MAC ermitteln")),
       h("small", {}, "Im BIOS/Netzwerkadapter muss Wake-on-LAN aktiviert sein.")),
-    toggle("pc.autostart", "Mit Windows starten", "Damit kein Alarm verpasst wird (D9).", (v) => setAutostart(v).catch(() => toast("Autostart konnte nicht geändert werden"))),
+    toggle("pc.autostart", "Mit Windows starten", "Damit kein Alarm verpasst wird.", (v) => setAutostart(v).catch(() => toast("Autostart konnte nicht geändert werden"))),
   );
 }
 
@@ -415,8 +436,8 @@ function androidSection(rerender) {
   if (android === null) androidStatus().then((s) => { android = s; rerender(); }).catch(() => (android = { supported: false }));
   const s = android || {};
   return section("android", "Android", "Damit Alarme auch ankommen, wenn die App im Hintergrund ist.",
-    switchRow("Hintergrund-Dienst", "Dauerhafte Mitteilung, Android beendet die App dann nicht.", settings().android.service, (v) => setBackgroundService(v).then(() => { android = null; rerender(); })),
-    h("div.item", {}, h("div.item-head", {}, h("b", {}, "Akku-Optimierung (E6)"), s.batteryOptimized ? h("span.chip.bad", {}, "aktiv – bitte ausschalten") : h("span.chip.ok", {}, "ausgeschaltet")),
+    switchRow("Immer bereit", "Zeigt eine dauerhafte Mitteilung – dafür beendet Android die App nicht und Alarme kommen sicher an.", settings().android.service, (v) => setBackgroundService(v).then(() => { android = null; rerender(); })),
+    h("div.item", {}, h("div.item-head", {}, h("b", {}, "Akku-Optimierung"), s.batteryOptimized ? h("span.chip.bad", {}, "aktiv – bitte ausschalten") : h("span.chip.ok", {}, "ausgeschaltet")),
       s.batteryOptimized && h("button.btn.small", { onclick: () => openBatterySettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Ausnahme erlauben")),
     h("div.item", {}, h("div.item-head", {}, h("b", {}, "Benachrichtigungen mitlesen"), s.notificationAccess ? h("span.chip.ok", {}, "erlaubt") : h("span.chip", {}, "nicht erlaubt")),
       !s.notificationAccess && h("button.btn.small", { onclick: () => openNotificationAccess() }, "Zugriff erlauben")),
@@ -449,7 +470,7 @@ function funktionen(rerender) {
 function geraet() {
   return section("geraet", "Dieses Gerät", "So erscheint die App bei den anderen unter „Verbundene Apps“.",
     field("Gerätename", text("device.name", { placeholder: hasPcFeatures ? "z. B. PC Arbeitszimmer" : "z. B. Handy Daniel", autocomplete: "off" }, { onSave: () => connect() })),
-    toggle("notify.enabled", "Benachrichtigung bei Alarm", hasPcFeatures ? "Für Alarme anderer Personen. Eigene Alarme zeigen die Abfrage." : "Systemmeldung, auch im Hintergrund (E1)."),
+    toggle("notify.enabled", "Benachrichtigung bei Alarm", hasPcFeatures ? "Für Alarme anderer Personen. Eigene Alarme zeigen die Abfrage." : "Systemmeldung, auch im Hintergrund."),
     toggle("sync.enabled", "Einstellungen abgleichen", "Einstellungen mit der Zentrale und gekoppelten Geräten abgleichen. Schlüssel für Divera und aPager bleiben immer hier."),
     !hasPcFeatures && settings().sync?.enabled !== false && field("Abgleich ohne Zentrale alle",
       select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"], ["900", "15 Minuten"]], String(settings().sync?.intervalSec || 120), (v) => set("sync.intervalSec", Number(v))),
@@ -461,12 +482,12 @@ function personen(rerender) {
   const persons = shared().persons || [];
   const edit = async () => {
     if (!(await requireAdmin())) return;
-    const id = h("input.input", { placeholder: "z. B. kollege" });
+    const id = h("input.input", { placeholder: "z. B. max", autocapitalize: "off", spellcheck: "false" });
     const name = h("input.input", { placeholder: "z. B. Max" });
-    const close = dialog("Person hinzufügen", field("Kennung", id, "Wie im ESP32: alarm/<kennung>"), field("Name", name),
-      h("div.row", {}, h("button.btn.primary", { onclick: () => { if (!id.value.trim()) return; updateShared({ persons: [...persons, { id: id.value.trim(), name: name.value.trim() || id.value.trim() }] }); close(); rerender(); } }, "Hinzufügen")));
+    const close = dialog("Person hinzufügen", field("Kennung", id, "Kurzer Name ohne Leerzeichen, wie im Melder dieser Person."), field("Name", name),
+      h("div.row", {}, h("button.btn.primary", { onclick: () => { const k = normalizeKennung(id.value); if (!k) { toast("Bitte eine Kennung eintragen"); return; } if (persons.some((p) => p.id === k)) { toast(`„${k}“ gibt es schon`); return; } if (k !== id.value.trim()) toast(`Kennung angepasst zu „${k}“`); updateShared({ persons: [...persons, { id: k, name: name.value.trim() || k }] }); close(); rerender(); } }, "Hinzufügen")));
   };
-  return section("personen", "Personen", "Wer an dieser Zentrale alarmiert wird. Routinen können pro Person gelten (G1, G2).",
+  return section("personen", "Personen", "Wer an dieser Zentrale alarmiert wird. Routinen können für einzelne Personen gelten.",
     h("ul.rows", {}, persons.map((p) => h("li", {}, h("div.row-main", {},
       h("b", {}, p.name, h("span.badge", {}, p.id)),
       h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask(`${p.name} entfernen?`)) { updateShared({ persons: persons.filter((x) => x.id !== p.id) }); rerender(); } } }, "Entfernen"))))),
@@ -479,15 +500,15 @@ function zentrale(rerender) {
   const host = settings().broker.host || "<zentrale>";
   const hook = s.webhookSecret ? `http://${host}:8080/alarm/${s.webhookSecret}?who=${settings().alarm.me}` : "";
   return section("zentrale", "Zentrale", "Gilt für alle Geräte. Änderungen nur mit Admin-Rechten.",
-    h("p.meta", {}, `Dienst: ${state.dienst?.online ? "läuft, Version " + state.dienst.version : "nicht erreichbar"}`),
+    h("p.meta", {}, `Zentrale-Programm: ${state.dienst?.online ? "läuft, Version " + state.dienst.version : "nicht erreichbar"}`),
     h("div.fields", {},
-      field("Breitengrad", h("input.input", { type: "number", step: "0.01", value: s.location?.lat, onchange: async (e) => { if (await requireAdmin()) updateShared({ location: { ...s.location, lat: Number(e.target.value) } }); } }), "Für hell/dunkel in Routinen (F6)"),
+      field("Breitengrad", h("input.input", { type: "number", step: "0.01", value: s.location?.lat, onchange: async (e) => { if (await requireAdmin()) updateShared({ location: { ...s.location, lat: Number(e.target.value) } }); } }), "Für hell/dunkel in Routinen"),
       field("Längengrad", h("input.input", { type: "number", step: "0.01", value: s.location?.lon, onchange: async (e) => { if (await requireAdmin()) updateShared({ location: { ...s.location, lon: Number(e.target.value) } }); } }))),
     navigator.geolocation && h("div.row", {}, h("button.btn.small", { onclick: async () => {
       if (!(await requireAdmin())) return;
       navigator.geolocation.getCurrentPosition((pos) => { updateShared({ location: { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2) } }); rerender(); toast("Standort übernommen"); }, () => toast("Standort nicht verfügbar"));
     } }, "Standort ermitteln")),
-    h("div.field", {}, h("span", {}, "Webhook für aPager PRO (A7, H2)"),
+    h("div.field", {}, h("span", {}, "Webhook für aPager PRO"),
       hook ? h("code", { style: "overflow-wrap:anywhere" }, hook) : h("small", {}, "Noch kein Schlüssel – ohne Schlüssel nimmt die Zentrale keine Webhooks an."),
       h("div.row", {},
         h("button.btn.small", { onclick: async () => { if (await requireAdmin()) { updateShared({ webhookSecret: newId() + newId() }); rerender(); } } }, hook ? "Neuen Schlüssel" : "Schlüssel erzeugen"),
@@ -503,11 +524,11 @@ function sicherheit(rerender) {
       h("div.row", {}, h("button.btn.primary", { onclick: async () => { await after(a.value ? await sha256(a.value) : ""); close(); rerender(); toast(a.value ? "PIN gespeichert" : "PIN entfernt"); } }, "Speichern")));
   };
   return section("sicherheit", "Sicherheit", null,
-    h("div.item", {}, h("div.item-head", {}, h("b", {}, "App-Sperre (H4)"), h("span.chip" + (settings().lock.pinHash ? ".ok" : ""), {}, settings().lock.pinHash ? "aktiv" : "aus")),
+    h("div.item", {}, h("div.item-head", {}, h("b", {}, "App-Sperre"), h("span.chip" + (settings().lock.pinHash ? ".ok" : ""), {}, settings().lock.pinHash ? "aktiv" : "aus")),
       h("p.meta", {}, "PIN beim Öffnen dieser App. Alarme kommen trotzdem an."),
       h("button.btn.small", { onclick: setPin("App-PIN", (v) => set("lock.pinHash", v)) }, "PIN festlegen"),
       bioToggle(rerender)),
-    h("div.item", {}, h("div.item-head", {}, h("b", {}, "Admin-PIN (G3)"), h("span.chip" + (shared().adminPinHash ? ".ok" : ""), {}, shared().adminPinHash ? (isAdmin() ? "entsperrt" : "gesperrt") : "aus")),
+    h("div.item", {}, h("div.item-head", {}, h("b", {}, "Admin-PIN"), h("span.chip" + (shared().adminPinHash ? ".ok" : ""), {}, shared().adminPinHash ? (isAdmin() ? "entsperrt" : "gesperrt") : "aus")),
       h("p.meta", {}, "Ohne Admin-PIN darf jeder Routinen, Geräte und Personen ändern. Mit PIN können andere nur steuern."),
       h("button.btn.small", { onclick: async () => { if (await requireAdmin()) setPin("Admin-PIN", (v) => updateShared({ adminPinHash: v }))(); } }, "PIN festlegen")),
   );
@@ -584,7 +605,7 @@ function updates(rerender) {
   const u = update;
   const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
   return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert – ohne zusätzliche Programme.",
-    h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Dienst " + state.dienst.version : ""}`),
+    h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Zentrale " + state.dienst.version : ""}`),
     toggle("update.auto", "Beim Start nach Updates suchen", "Nur eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
     u.available
       ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || noteLine(u.available.notes)),
@@ -651,7 +672,7 @@ export function settingsView(rerender) {
     verbindung: () => z && verbindung(rerender),
     quellen: () => quellen(rerender),
     funktionen: () => funktionen(rerender),
-    alarm: () => alarm(),
+    alarm: () => alarm(rerender),
     esp32: () => isConfigured() && esp32(),
     pc: () => hasPcFeatures && part(pc),
     hotkeys: () => hasPcFeatures && part(hotkeySection),

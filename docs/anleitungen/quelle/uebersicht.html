@@ -355,7 +355,7 @@
     <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-net)">{{i:net}}</span>Betrieb &amp; Verbindung</span></td><td class="muted">Mit oder ohne Zentrale, Geräte koppeln, Adresse der Zentrale, Webhook, Standort, Selbsttest.</td></tr>
     <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>Dieser PC / Dieses Handy</span></td><td class="muted">PC: Aktion, Countdown, Texte, Ton und Lautstärke, Ausnahmen, Ruhezeit, Autostart, Aufwecken. Handy: Hintergrund, Akku, Mitlesen, Alarm groß, Ton. Beide: Gerätename, Meldungen, Abgleich.</td></tr>
     <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-people)">{{i:people}}</span>Personen</span></td><td class="muted">Wer im Haushalt alarmiert wird. Routinen können pro Person gelten.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-voice)">{{i:voice}}</span>Alexa &amp; Google</span></td><td class="muted">Matter-Kopplung über die Zentrale oder Voice Monkey.</td></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-voice)">{{i:voice}}</span>Alexa, Google &amp; HA</span></td><td class="muted">Matter-Kopplung über die Zentrale oder Voice Monkey.</td></tr>
     <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-safe)">{{i:lock}}</span>Sicherheit &amp; Backup</span></td><td class="muted">Admin-PIN, App-Sperre, Einstellungen sichern und auf ein anderes Gerät übertragen.</td></tr>
     <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-app)">{{i:paint}}</span>Darstellung &amp; Updates</span></td><td class="muted">Dunkel oder Hell, neue Versionen installieren. Darunter: Test &amp; Diagnose.</td></tr>
   </table>
@@ -372,8 +372,8 @@
     <tr><td>Testalarm</td><td class="muted">Nur diese App zeigt die Abfrage.</td><td class="no">nein</td></tr>
     <tr><td>Ton testen</td><td class="muted">Spielt den gewählten Ton 4 Sekunden mit der eingestellten Lautstärke.</td><td class="no">nein</td></tr>
     <tr><td>Testalarm an ein Gerät</td><td class="muted">Ein bestimmtes anderes Gerät zeigt die Abfrage.</td><td class="no">nein</td></tr>
-    <tr><td>Kontakt simulieren</td><td class="muted">Wie ein echter Melder-Alarm, an alle Geräte. Routinen nur im Testmodus.</td><td class="no">nein</td></tr>
-    <tr><td>Komplettprobe</td><td class="muted">Routinen schalten wirklich, die PC-Aktion wird nur angezeigt.</td><td class="yes">ja</td></tr>
+    <tr><td>Melder-Alarm nachspielen</td><td class="muted">Wie ein echter Melder-Alarm, an alle Geräte. Läuft als Test: Licht und PC-Aktion bleiben aus.</td><td class="no">nein</td></tr>
+    <tr><td>Generalprobe</td><td class="muted">Routinen schalten wirklich, die PC-Aktion wird nur angezeigt.</td><td class="yes">ja</td></tr>
     <tr><td>Verbindungstest</td><td class="muted">Prüft alles, was eingerichtet ist: Zentrale, Melder, Zigbee, Divera, aPager.</td><td class="no">nein</td></tr>
     <tr><td>Wöchentlicher Selbsttest</td><td class="muted">Die Zentrale prüft sonntags um 10 Uhr alle Teile und legt einen Bericht ab.</td><td class="no">nein</td></tr>
   </table>
@@ -442,7 +442,7 @@
     <div class="card"><h3 class="h4">„Fährst du?“</h3><p>Vollbild-Abfrage mit Countdown und zwei Knöpfen – am PC auf allen Bildschirmen, am Handy über dem Sperrbildschirm.</p></div>
     <div class="card"><h3 class="h4">Gekoppelt</h3><p>Handy und PC kennen sich und dürfen sich Alarme und Einstellungen schicken.</p></div>
     <div class="card"><h3 class="h4">Kennung</h3><p>Dein Kürzel im System, z. B. „ich“ oder „daniel“. Damit weiß jedes Gerät, für wen ein Alarm ist.</p></div>
-    <div class="card"><h3 class="h4">Komplettprobe</h3><p>Probelauf, bei dem Routinen wirklich schalten, der PC aber wach bleibt.</p></div>
+    <div class="card"><h3 class="h4">Generalprobe</h3><p>Probelauf, bei dem Routinen wirklich schalten, der PC aber wach bleibt.</p></div>
     <div class="card"><h3 class="h4">Matter</h3><p>Gemeinsame Sprache für Smart-Home-Geräte. Darüber sprechen Alexa und Google mit der Zentrale.</p></div>
     <div class="card"><h3 class="h4">Routine</h3><p>Wenn-dann-Rezept: Auslöser, Bedingungen, Aktionen.</p></div>
     <div class="card"><h3 class="h4">Rückalarm</h3><p>Der Einsatz wird zurückgenommen. Heimalarm vermerkt ihn am Einsatz.</p></div>

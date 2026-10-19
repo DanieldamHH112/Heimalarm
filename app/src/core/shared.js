@@ -1,6 +1,6 @@
 // Gemeinsame Konfiguration für alle Geräte – liegt retained auf der Zentrale:
 //   heimalarm/config/shared   { persons, routines, location, vacation, lockoutSec, webhookSecret, adminPinHash, common }
-// Der Zentralen-Dienst liest dieselben Daten und führt die Routinen aus.
+// Der Zentrale-Programm liest dieselben Daten und führt die Routinen aus.
 // `common` enthält die synchronisierten allgemeinen Einstellungen (SYNC_KEYS) für Handy und PC.
 import { emit, on } from "./events.js";
 import { settings, replace, SYNC_KEYS, mode } from "./settings.js";

@@ -90,7 +90,7 @@ export async function initAndroid() {
   const { on } = await import("./events.js");
   on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android") || path.startsWith("phone")) configureNative(); });
   if (settings().android?.service !== false) {
-    setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));
+    setBackgroundService(true).catch((e) => log("warn", "„Immer bereit“ nicht gestartet", String(e)));
   }
   // Beim ersten Start einmal um die Ausnahme von der Akku-Optimierung bitten (sonst stoppt Android die App im Hintergrund).
   if (!settings().android?.batteryAsked) {

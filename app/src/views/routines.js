@@ -1,4 +1,4 @@
-// B – Routinen & Regeln. Gespeichert in der gemeinsamen Konfiguration, ausgeführt vom Zentralen-Dienst.
+// B – Routinen & Regeln. Gespeichert in der gemeinsamen Konfiguration, ausgeführt vom Zentrale-Programm.
 import { h, toast } from "../ui/dom.js";
 import { dialog, field, select, switchRow, copyText, download, ask } from "../ui/form.js";
 import { shared, updateShared, newId } from "../core/shared.js";
@@ -113,7 +113,7 @@ const actionRow = (a, del) => {
         field("Gerät oder Gruppe", select(devNames(), a.device || "", (v) => (a.device = v))),
         field("Zustand", select([["ON", "An"], ["OFF", "Aus"], ["TOGGLE", "Umschalten"]], a.payload.state || "ON", (v) => (a.payload.state = v))),
         field("Helligkeit %", h("input.input", { type: "number", min: 1, max: 100, value: a.payload.brightness ? Math.round((a.payload.brightness / 254) * 100) : "", placeholder: "unverändert", onchange: (e) => { if (e.target.value) a.payload.brightness = Math.round((Number(e.target.value) / 100) * 254); else delete a.payload.brightness; } })),
-        field("Farbe (C5)", h("input.color-input", { type: "color", value: a.payload.color?.hex || "#ffffff", onchange: (e) => (a.payload.color = { hex: e.target.value }) })),
+        field("Farbe", h("input.color-input", { type: "color", value: a.payload.color?.hex || "#ffffff", onchange: (e) => (a.payload.color = { hex: e.target.value }) })),
         field("Übergang (s)", h("input.input", { type: "number", min: 0, value: a.transition ?? 1, onchange: (e) => (a.transition = Number(e.target.value)) }), "C4 – sanft hochdimmen"),
         field("Danach aus nach (s)", h("input.input", { type: "number", min: 0, value: a.offAfterSec || 0, onchange: (e) => (a.offAfterSec = Number(e.target.value)) }), "0 = bleibt an")),
       h("label.row", { style: "gap:6px" }, h("input", { type: "checkbox", checked: a.payload.color?.hex !== undefined, onchange: (e) => { if (!e.target.checked) delete a.payload.color; else a.payload.color = { hex: "#ff3b2f" }; } }), "Farbe setzen"),
@@ -221,7 +221,7 @@ export function routinesView(rerender) {
       h("button.btn.primary.small", { onclick: () => startEdit(blank(), true) }, "Neue Routine"),
       h("button.btn.small", { onclick: () => startEdit(template(), true) }, "Vorlage Licht"),
       h("button.btn.small", { onclick: () => startEdit(templateAnnounce(), true) }, "Vorlage Ansage")),
-    has.pi() && !state.dienst?.online && h("p.split-warn", {}, "Zentralen-Dienst nicht erreichbar – Routinen laufen erst, wenn er läuft."),
+    has.pi() && !state.dienst?.online && h("p.split-warn", {}, "Zentrale-Programm nicht erreichbar – Routinen laufen erst, wenn es läuft."),
     h("nav.split-nav", { "aria-label": "Routinen" },
       all.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, "Noch keine Routine. Tipp: „Vorlage Licht“ oder „Vorlage Ansage“ legt eine fertige Routine an.") : all.map(item),
       h("div.split-grp", {}, "Allgemein"),

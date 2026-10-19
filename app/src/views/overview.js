@@ -69,7 +69,7 @@ function tuyaCard() {
   const t = state.tuya;
   const host = settings().broker.host;
   return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Funk-Alarmschalter"),
+    h("div.card-head", {}, h("h2", {}, "Melder (Funkschalter)"),
       !t.online ? chip("bad", "Brücke offline") : t.angemeldet ? chip("ok", "bereit") : chip("bad", "nicht angemeldet")),
     h("dl.facts", {},
       h("div", {}, h("dt", {}, "Gerät"), h("dd", {}, t.geraet || "–")),
@@ -84,9 +84,9 @@ function espCard() {
   const me = settings().alarm.me;
   const list = Object.entries(state.devices).toSorted(([a], [b]) => (a === me ? -1 : b === me ? 1 : a.localeCompare(b)));
   return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "ESP32 an der Ladeschale")),
+    h("div.card-head", {}, h("h2", {}, "Melder (ESP32)")),
     list.length === 0
-      ? h("p.hint", {}, "Noch kein ESP32 gemeldet. Er sendet unter ", h("code", {}, `alarm/${me}`), ".")
+      ? h("p.hint", {}, "Noch kein ESP32 gemeldet. Im ESP32 prüfen: WLAN, Passwort (mqtt_pw) und Kennung „", h("code", {}, me), "“.")
       : h("ul.rows", {}, list.map(([who, d]) => h("li", {},
           h("div.row-main", {},
             h("b", {}, who, who === me ? h("span.badge", {}, "ich") : null),
@@ -101,7 +101,7 @@ function espCard() {
   );
 }
 
-/** D11 – PC per Wake-on-LAN wecken: direkt (App) oder über den Zentralen-Dienst. */
+/** D11 – PC per Wake-on-LAN wecken: direkt (App) oder über das Zentrale-Programm. */
 function wake(c) {
   const viaZentrale = () => publish("heimalarm/cmd/wol", { mac: c.mac }) && toast(`Weckruf an „${c.name}“ über die Zentrale`);
   if (isTauri) wakeOnLan(c.mac).then(() => toast(`Weckruf an „${c.name}“ gesendet`)).catch(viaZentrale);

@@ -136,7 +136,7 @@ export function createRules(ctx, log) {
     const lockMs = (ctx.config.lockoutSec ?? 60) * 1000;
     if (!data.test && !data.probe && Date.now() - (lastAlarm.get(who) || 0) < lockMs) return;
     if (!data.test && !data.probe) lastAlarm.set(who, Date.now());
-    log.alarm(data.test ? "Testalarm" : data.probe ? "Komplettprobe" : "Alarm", `${data.source || "?"} · alarm/${who}${data.keyword ? " · " + data.keyword : ""}`);
+    log.alarm(data.test ? "Testalarm" : data.probe ? "Generalprobe" : "Alarm", `${data.source || "?"} · alarm/${who}${data.keyword ? " · " + data.keyword : ""}`);
     const event = { ...data, who, test: Boolean(data.test) };
     ctx.onAlarmAccepted?.(event);
     for (const r of ctx.config.routines || []) {

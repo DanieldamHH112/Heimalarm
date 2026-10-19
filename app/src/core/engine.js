@@ -1,6 +1,6 @@
 // Alarm-Logik in der App: Sperrzeit je Person, eigene vs. fremde Alarme, Test/Probe,
 // Ruhezeiten und Ausnahmen am PC, Ablauf nach „Fährst du?“.
-// Routinen (Licht usw.) laufen im Zentralen-Dienst, damit sie auch ohne Handy/PC funktionieren.
+// Routinen (Licht usw.) laufen im Zentrale-Programm, damit sie auch ohne Handy/PC funktionieren.
 import { on, emit } from "./events.js";
 import { settings, mode } from "./settings.js";
 import { sendToPeers } from "./direct.js";
@@ -74,7 +74,7 @@ function handleAlarm(a) {
   const forThisPc = own || (hasPcFeatures && also.includes(a.who));
   engine.last = { ...a, own, test: test || probe, probe };
   const extra = [a.keyword, a.unit].filter(Boolean).join(" · ");
-  log("alarm", probe ? "Komplettprobe" : test ? "Testalarm" : own ? "Alarm" : `Alarm von „${a.who}“`,
+  log("alarm", probe ? "Generalprobe" : test ? "Testalarm" : own ? "Alarm" : `Alarm von „${a.who}“`,
     `${a.source} · alarm/${a.who}${extra ? " · " + extra : ""}`);
   emit("alarm", engine.last);
   if (own && !test && !probe) recordAlarm(a);   // Einsatz-Statistik
@@ -109,11 +109,11 @@ export function testAlarm() {
   if (!hasPcFeatures) emit("takeover", engine.last);
 }
 
-/** A11 – Kontakt simulieren: geht über die Zentrale an alle Geräte, Routinen laufen im Testmodus. */
+/** A11 – Melder-Alarm nachspielen: geht über die Zentrale an alle Geräte, Routinen laufen im Testmodus. */
 export const simulateContact = () => publish(`alarm/${settings().alarm.me}`, { source: "Simulation", test: true });
 
-/** I2 – Komplettprobe: Routinen schalten wirklich, PC-Aktion wird nur angezeigt. */
-export const fullProbe = () => (mode() === "direkt" ? (forward({ source: "Komplettprobe", probe: true }), true) : publish(`alarm/${settings().alarm.me}`, { source: "Komplettprobe", probe: true }));
+/** I2 – Generalprobe: Routinen schalten wirklich, PC-Aktion wird nur angezeigt. */
+export const fullProbe = () => (mode() === "direkt" ? (forward({ source: "Generalprobe", probe: true }), true) : publish(`alarm/${settings().alarm.me}`, { source: "Generalprobe", probe: true }));
 
 /** Alarm aus einer Android-Benachrichtigung (A1/A6). */
 export function alarmFromNotification({ app, title, text }) {

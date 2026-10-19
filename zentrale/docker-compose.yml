@@ -67,7 +67,7 @@ services:
       MQTT_USER: ${MQTT_USER:-heimalarm}
       MQTT_PW: ${MQTT_PASSWORD:-}
       WEB_PASSWORD: ${TUYA_WEB_PASSWORD:-}   # Schutz der Weboberfläche (leer = MQTT_PASSWORD)
-      KENNUNG: ich            # gleiche Kennung wie in der App („Meine Kennung“)
+      KENNUNG: ich            # DEINE Kennung (nur a-z, 0-9, -), gleich wie „Meine Kennung“ in der App
       ALARM_BEI: geschlossen  # Zustand des Kontakts bei Alarm (geschlossen | offen)
       GERAET: ""              # leer = erster Kontaktsensor, sonst Name oder ID aus Smart Life
 

@@ -28,4 +28,6 @@ button, input, select { font: inherit; color: inherit; }
    Eingaben, Codes und Protokolltexte bleiben markier- und kopierbar. */
 body { user-select: none; -webkit-user-select: none; cursor: default; -webkit-tap-highlight-color: transparent; }
 input, textarea, select, [contenteditable], code, pre, .mono, .selectable, .log-text, .dialog p { user-select: text; -webkit-user-select: text; }
-a, button, [role="button"], label.switch, summary, select { cursor: pointer; }
+/* Wie ein normales Programm: kein Hand-Zeiger auf Knöpfen, Schaltern und Zeilen. Nur Textlinks zeigen die Hand. */
+a, button, [role="button"], label.switch, summary, select { cursor: default; }
+p a, small a, .meta a, .hint a { cursor: pointer; }

@@ -4,7 +4,7 @@
 # Für weitere Personen Datei kopieren und "ich" überall durch die eigene Kennung ersetzen.
 
 substitutions:
-  kennung: ich
+  kennung: ich   # DEINE Kennung: kurzer Name, nur a-z, 0-9 und -, z. B. daniel. Gleich wie „Meine Kennung“ in der App. Jede Person eine eigene!
 
 esphome:
   name: alarm-${kennung}

@@ -1,4 +1,4 @@
-// Einstellungen → Home Assistant: Heimalarm über MQTT-Discovery (macht der Zentralen-Dienst, zentrale/dienst/src/hass.js).
+// Einstellungen → Home Assistant: Heimalarm über MQTT-Discovery (macht das Zentrale-Programm, zentrale/dienst/src/hass.js).
 import { h, toast } from "../ui/dom.js";
 import { field, section, switchRow, copyText } from "../ui/form.js";
 import { settings } from "../core/settings.js";
@@ -77,7 +77,7 @@ export function hassSection(rerender) {
           onchange: (e) => setCfg({ activeMin: Math.min(720, Math.max(1, Number(e.target.value) || 30)) }) }), "„Wieder da“ schaltet ihn früher aus."),
         field("Discovery-Präfix", h("input.input", { value: c.prefix, spellcheck: "false", onchange: (e) => setCfg({ prefix: e.target.value.trim() || "homeassistant" }) }), "Nur ändern, wenn du es in Home Assistant geändert hast.")),
       switchRow("Knöpfe „Wieder da“ und „Testalarm“", "Damit lässt sich Heimalarm auch aus Home Assistant bedienen.", c.buttons, (v) => setCfg({ buttons: v })),
-      switchRow("Auch bei Testalarmen melden", "Gut zum Ausprobieren eigener Automationen. Komplettprobe meldet immer.", c.tests, (v) => setCfg({ tests: v }))),
+      switchRow("Auch bei Testalarmen melden", "Gut zum Ausprobieren eigener Automationen. Generalprobe meldet immer.", c.tests, (v) => setCfg({ tests: v }))),
 
     c.enabled && h("details.group", {}, h("summary.group-title", {}, "Beispiel-Automation"),
       h("pre.code-block", {}, example()),

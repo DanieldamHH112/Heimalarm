@@ -31,7 +31,7 @@
 .stpill {
   position: absolute; left: 0; top: 0; height: 28px; width: fit-content; max-width: 100%;
   display: flex; align-items: center; gap: 8px; padding: 0 12px 0 10px; border: 0; border-radius: 999px;
-  background: var(--surface-3); color: var(--text); cursor: pointer;
+  background: var(--surface-3); color: var(--text);
   font: 500 0.8125rem/28px var(--mono); white-space: nowrap; overflow: hidden;
 }
 .stpill i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--pc); }
@@ -66,7 +66,6 @@
 /* Geräte-Kacheln */
 .devs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .dev { border: 0; border-radius: var(--radius); padding: 12px; background: var(--surface-2); display: grid; gap: 6px; text-align: left; color: var(--text); min-width: 0; transition: background .2s; }
-button.dev { cursor: pointer; }
 .dev.on { background: linear-gradient(160deg, color-mix(in srgb, var(--warn) 22%, transparent), var(--surface-2) 70%); }
 .dev-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .dev b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -78,7 +77,7 @@ button.dev { cursor: pointer; }
 
 /* Schnellaktionen */
 .quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-.q { border: 0; border-radius: var(--radius); padding: 10px 12px; background: var(--surface-2); display: flex; gap: 10px; align-items: center; font-weight: 620; color: var(--text); text-align: left; cursor: pointer; min-width: 0; }
+.q { border: 0; border-radius: var(--radius); padding: 10px 12px; background: var(--surface-2); display: flex; gap: 10px; align-items: center; font-weight: 620; color: var(--text); text-align: left; min-width: 0; }
 .q:hover, button.dev:hover { background: var(--surface-3); }
 .q .ico { width: 30px; height: 30px; }
 .q > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

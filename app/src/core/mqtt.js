@@ -23,7 +23,7 @@ export const state = {
   bridge: null,    // Zigbee2MQTT: "online" | "offline"
   permitJoinUntil: 0,
   networkmap: null,
-  dienst: null,    // Zentralen-Dienst: { online, version }
+  dienst: null,    // Zentrale-Programm: { online, version }
   report: null,    // I4 – letzter Selbsttest
   zlog: [],        // F5 – Protokoll der Zentrale
   pong: null,      // I3 – Antwort auf Verbindungstest

@@ -1,6 +1,7 @@
 // Bausteine für Formulare. Werte werden direkt über Pfade gespeichert (settings.js).
 import { h } from "./dom.js";
 import { get, set } from "../core/settings.js";
+import { hasPcFeatures } from "../core/platform.js";
 
 export const field = (label, input, hint) => h("label.field", {}, h("span", {}, label), input, hint && h("small", {}, hint));
 
@@ -91,6 +92,16 @@ export function ask(question, { ok, cancel = "Abbrechen" } = {}) {
     .find(([k]) => question.toLowerCase().includes(k))?.[1];
   const danger = Boolean(verb);
   const label = ok || verb || "OK";
+  // Am Windows-PC: echtes Systemfenster statt Dialog in der Seite – wirkt wie ein normales Programm.
+  if (hasPcFeatures) {
+    return import("@tauri-apps/plugin-dialog")
+      .then(({ confirm }) => confirm(question, { title: "Heimalarm", kind: danger ? "warning" : "info", okLabel: label, cancelLabel: cancel }))
+      .catch(() => askInPage(question, label, cancel, danger));
+  }
+  return askInPage(question, label, cancel, danger);
+}
+
+function askInPage(question, label, cancel, danger) {
   return new Promise((resolve) => {
     let done = false;
     const answer = (v) => { if (done) return; done = true; close(); resolve(v); };
