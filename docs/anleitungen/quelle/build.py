@@ -19,7 +19,6 @@ OUT = HERE.parent
 
 DOCS = {
     "uebersicht.html": "Heimalarm-Uebersicht.pdf",
-    "funkschalter.html": "Heimalarm-Einrichtung-Funkschalter-UGREEN.pdf",
     "esp32.html": "Heimalarm-Einrichtung-ESP32.pdf",
 }
 

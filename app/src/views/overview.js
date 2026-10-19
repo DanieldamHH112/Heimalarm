@@ -67,22 +67,6 @@ function updateBanner() {
       h("a.btn.small", { href: "#/einstellungen/updates" }, "Details")));
 }
 
-/** Melder über den Funk-Alarmschalter (Tuya-Brücke) statt ESP32. */
-function tuyaCard() {
-  const t = state.tuya;
-  const host = settings().broker.host;
-  return h("section.card", {},
-    h("div.card-head", {}, h("h2", {}, "Melder (Funkschalter)"),
-      !t.online ? chip("bad", "Brücke offline") : t.angemeldet ? chip("ok", "bereit") : chip("bad", "nicht angemeldet")),
-    h("dl.facts", {},
-      h("div", {}, h("dt", {}, "Gerät"), h("dd", {}, t.geraet || "–")),
-      h("div", {}, h("dt", {}, "Kennung"), h("dd.mono", {}, t.kennung || "–")),
-      h("div", {}, h("dt", {}, "Über"), h("dd", {}, "Tuya-Brücke (Smart Life)")),
-      h("div", {}, h("dt", {}, "Stand"), h("dd", {}, t.ts ? fmtAgo(t.ts) : "–"))),
-    !t.angemeldet && t.online && h("p.hint", {}, "Noch nicht bei Smart Life angemeldet: ", h("code", {}, `http://${host}:8082`), " öffnen."),
-    t.kennung && t.kennung !== settings().alarm.me && h("p.hint", {}, `Achtung: Die Brücke meldet für „${t.kennung}“, diese App hat die Kennung „${settings().alarm.me}“.`));
-}
-
 function espCard() {
   const me = settings().alarm.me;
   const list = Object.entries(state.devices).toSorted(([a], [b]) => (a === me ? -1 : b === me ? 1 : a.localeCompare(b)));
@@ -346,7 +330,7 @@ export function overview() {
     h("div.home-cols" + (left ? "" : ".single"), {}, left, recentPanel()),
     h("div.home-more", {},
       has.diveraApi() && diveraCard(),
-      has.esp() && (has.tuya() ? tuyaCard() : espCard()),
+      has.esp() && espCard(),
       has.pi() && appsCard()),
   );
 }

@@ -25,7 +25,7 @@
   </div>
   <div class="meta">
     <div><span>Für wen</span>Alle, die Heimalarm einrichten, nutzen oder weiterentwickeln wollen</div>
-    <div><span>Stand</span>Heimalarm 0.1.8 · Oktober 2026</div>
+    <div><span>Stand</span>Heimalarm 0.1.19 · Oktober 2026</div>
     <div><span>Geräte</span>Windows-PC und Android-Handy</div>
   </div>
 </section>
@@ -73,7 +73,7 @@
   <p class="lead">Heimalarm besteht aus wenigen Teilen. <b>Nicht alle sind nötig</b> – schon Handy und PC allein funktionieren.</p>
   <div class="flow" style="grid-template-columns:1fr 6mm 0.85fr 6mm 1fr">
     <div class="col"><span class="lab">Alarm kommt an</span>
-      <div class="node"><span class="ico" style="--a:var(--c-alarm)">{{i:bell}}</span><div>Melder in der Ladeschale<small>ESP32 oder Funk-Schalter</small></div></div>
+      <div class="node"><span class="ico" style="--a:var(--c-alarm)">{{i:bell}}</span><div>Melder in der Ladeschale<small>über einen ESP32</small></div></div>
       <div class="node"><span class="ico" style="--a:var(--c-phone)">{{i:phone}}</span><div>Alarm-Apps<small>SYBOS · aPager · Divera</small></div></div>
       <div class="node"><span class="ico" style="--a:var(--c-net)">{{i:link}}</span><div>Webhook<small>aPager PRO → Zentrale oder PC</small></div></div>
     </div>
@@ -93,7 +93,7 @@
     </div>
   </div>
   <div class="grid2">
-    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>Melder-Leser (ESP32)</div><p>Ein kleiner Mikrocontroller für wenige Euro. Er hängt am Schaltkontakt der Ladeschale und meldet nur: „Jetzt ist Alarm.“ Bis er da ist, übernimmt der vorhandene Funk-Alarmschalter diese Aufgabe über die Smart-Life-Cloud.</p></div>
+    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>Melder-Leser (ESP32)</div><p>Ein kleiner Mikrocontroller für wenige Euro. Er hängt am Schaltkontakt der Ladeschale und meldet nur: „Jetzt ist Alarm.“</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-phone)">{{i:bell}}</span>Alarm-Apps</div><p>SYBOS, aPager PRO und Divera 24/7 auf deinem Handy. Heimalarm liest ihre Meldungen mit. Divera fragt Heimalarm zusätzlich direkt ab – auch vom PC aus. aPager kann per Webhook selbst an die Zentrale oder direkt an den PC melden.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--signal)">{{i:server}}</span>Zentrale <span class="tag">optional</span></div><p>Ein Gerät, das immer läuft: NAS, Mini-PC, Raspberry Pi oder ein alter Laptop – jeder Computer, der Docker kann. Verteilt Alarme an alle Geräte und schaltet das Licht – auch wenn Handy und PC aus sind.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>Heimalarm am PC</div><p>Programm für Windows. Startet mit dem PC, läuft unsichtbar im Hintergrund und zeigt bei Alarm das Vollbild „Fährst du?“ auf allen Bildschirmen.</p></div>
@@ -169,7 +169,6 @@
   <table class="t">
     <tr><th style="width:36mm">Quelle</th><th style="width:34mm">Was kommt an</th><th>Wie und mit welcher Einschränkung</th></tr>
     <tr><td>Melder (ESP32)</td><td><span class="tag">nur „Alarm“</span></td><td class="muted">Liest nur den Schaltkontakt der Ladeschale. Der Text auf dem Display des Melders kommt darüber nicht heraus.</td></tr>
-    <tr><td>Funk-Alarmschalter</td><td><span class="tag">nur „Alarm“</span></td><td class="muted">Übergangslösung bis zum ESP32, läuft über die Smart-Life-Cloud. Ein paar Sekunden langsamer.</td></tr>
     <tr><td>Divera 24/7</td><td><span class="tag ok">am meisten</span></td><td class="muted">Heimalarm fragt Divera mit deinem persönlichen Schlüssel direkt ab: Stichwort, Text, Adresse und alle weiteren Angaben des Einsatzes. Geht auch am PC, ganz ohne Handy.</td></tr>
     <tr><td>aPager PRO – Benachrichtigung</td><td><span class="tag">was in der Meldung steht</span></td><td class="muted">Das Handy liest die Benachrichtigung mit – auch den ausgeklappten Langtext. Wie viel drinsteht, entscheidet aPager.</td></tr>
     <tr><td>aPager PRO – Webhook</td><td><span class="tag">Stichwort + Einheit</span></td><td class="muted">aPager auf dem Handy ruft bei Alarm selbst eine Adresse auf – an die Zentrale oder direkt an den PC (dann im selben WLAN). Die Heimalarm-App muss dafür nicht laufen. Braucht das kostenpflichtige Smart-Home-Paket in aPager. Alarmtext und Adresse schickt aPager hier nie. Mehrere Einheiten werden ein Einsatz, Rückalarm wird vermerkt.</td></tr>
@@ -372,6 +371,7 @@
     <tr><td>Testalarm</td><td class="muted">Nur diese App zeigt die Abfrage.</td><td class="no">nein</td></tr>
     <tr><td>Ton testen</td><td class="muted">Spielt den gewählten Ton 4 Sekunden mit der eingestellten Lautstärke.</td><td class="no">nein</td></tr>
     <tr><td>Testalarm an ein Gerät</td><td class="muted">Ein bestimmtes anderes Gerät zeigt die Abfrage.</td><td class="no">nein</td></tr>
+    <tr><td>Kontakt-Test</td><td class="muted">Zeigt live: Kontakt offen oder zu. Löst keinen Alarm aus.</td><td class="no">nein</td></tr>
     <tr><td>Melder-Alarm nachspielen</td><td class="muted">Wie ein echter Melder-Alarm, an alle Geräte. Läuft als Test: Licht und PC-Aktion bleiben aus.</td><td class="no">nein</td></tr>
     <tr><td>Generalprobe</td><td class="muted">Routinen schalten wirklich, die PC-Aktion wird nur angezeigt.</td><td class="yes">ja</td></tr>
     <tr><td>Verbindungstest</td><td class="muted">Prüft alles, was eingerichtet ist: Zentrale, Melder, Zigbee, Divera, aPager.</td><td class="no">nein</td></tr>
@@ -387,7 +387,7 @@
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-safe)">{{i:lock}}</span>Schlüssel bleiben hier</div><p>Divera- und aPager-Schlüssel verlassen das Gerät nie und werden nicht abgeglichen.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-safe)">{{i:log}}</span>Backup</div><p>Einstellungen sichern und übertragen. Schlüssel nur, wenn du es einschaltest.</p></div>
   </div>
-  <div class="card accent" style="--a:var(--c-net)"><div class="t"><span class="ico" style="--a:var(--c-net)">{{i:cloud}}</span>Updates</div><p>PC und Handy prüfen beim Start, ob es eine neue Version gibt, und zeigen „Heimalarm x ist verfügbar“. Ein Tipp auf <span class="btn red">Installieren</span> lädt sie herunter, prüft, dass die Datei unverändert ist, und installiert. Am Handy fragt Android einmal nach der Erlaubnis zum Installieren.</p></div>
+  <div class="card accent" style="--a:var(--c-net)"><div class="t"><span class="ico" style="--a:var(--c-net)">{{i:cloud}}</span>Updates</div><p>PC und Handy prüfen beim Start und alle 6 Stunden auf neue Versionen. <span class="btn red">Installieren</span> lädt, prüft und installiert – am Handy fragt Android einmal nach der Erlaubnis.</p></div>
 </section>
 
 <!-- 15 · Grenzen -->

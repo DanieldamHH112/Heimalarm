@@ -4,12 +4,12 @@ Stand: 18.10.2026 · Repo: `DanieldamHH112/Heimalarm` (öffentlich)
 
 ## Ausgangslage
 
-Zwei Einsatzkräfte mit Motorola TPG2200 in der Ladeschale. Alarm kommt über den Melder sowie die Apps SYBOS, aPager PRO und Divera. Ziel: Bei Alarm soll zuhause automatisch etwas passieren – PC in den Ruhezustand, Licht an, Ansage über Alexa/Google. Der vorhandene Funkhandel-Alarmschalter (Tuya) bleibt als eigener zweiter Weg erhalten.
+Zwei Einsatzkräfte mit Motorola TPG2200 in der Ladeschale. Alarm kommt über den Melder sowie die Apps SYBOS, aPager PRO und Divera. Ziel: Bei Alarm soll zuhause automatisch etwas passieren – PC in den Ruhezustand, Licht an, Ansage über Alexa/Google.
 
 ## Konzept
 
-- Konzept-PDF mit Varianten, Hardware und Anleitung (`docs/Konzept.pdf`).
-- Entscheidung: **eigene App „Heimalarm“**, keine Tuya-Cloud, kostenlos, lokal, Open Source.
+- Anleitungen als PDF in `docs/anleitungen` (Überblick, Einrichtung mit ESP32).
+- Entscheidung: **eigene App „Heimalarm“**, ohne Hersteller-Cloud, kostenlos, lokal, Open Source.
 - Name und Logo: **Heimalarm**, Haus mit Funkwellen auf Signalrot.
 
 ## Gebaut
@@ -42,7 +42,6 @@ Zwei Einsatzkräfte mit Motorola TPG2200 in der Ladeschale. Alarm kommt über de
 
 ## Offen
 
-- **Funkhandel-Alarmschalter umflashen?** Er ist ein Tuya-Gerät mit WLAN-Modul und eigenem Steuerchip (Firmware v1.0.10). Nächster Schritt: Auto-Update aus, Gerät öffnen, Platine fotografieren → dann Entscheidung.
 - Mit echter Hardware prüfen: Koppeln Handy↔PC, Android-Mitlesen, Divera mit echtem Alarm, Matter auf der NAS, WLAN-Geräte.
 - NAS-Einrichtung durchspielen (Docker-Projekt, Ports, Zigbee).
 - Fester Android-Signierschlüssel; dabei Cleartext-HTTP fürs Heimnetz freigeben.

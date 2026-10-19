@@ -2,7 +2,7 @@
 
 > Arbeitsgrundlage für alle, die am Projekt mitarbeiten (Menschen und KI).
 > **Vor jeder Änderung lesen:** Abschnitt [Abhängigkeiten](#abhängigkeiten--was-braucht-was) und [Vorsicht bei Änderungen](#vorsicht-bei-änderungen) zeigen, was sonst kaputtgehen kann.
-> Ausführliches Konzept mit Diagrammen: [`docs/Konzept.pdf`](docs/Konzept.pdf) (Stand vor Divera, Ohne-Zentrale und Matter).
+> Anleitungen für Nutzer: `docs/anleitungen/*.pdf` (Überblick, Einrichtung mit ESP32), NAS kurz: `docs/Einrichtung-NAS.md`.
 
 ## Was ist Heimalarm?
 
@@ -24,7 +24,7 @@ Zwei **Betriebsarten** (Einstellungen → Betrieb):
 
 **Grundsätze:** kostenlos, Open Source, lokal (Cloud nur, wo der Nutzer sie ausdrücklich wählt: Divera, aPager-API, Voice Monkey), eine Codebasis für PC und Handy. Heimalarm ist eine **Komfortfunktion** – Melder und Alarm-App bleiben die eigentliche Alarmierung.
 
-Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkontakt (NX-4900, jetzt in Smart Life). Bis der ESP32 da ist, liest ihn die **Tuya-Brücke** (`zentrale/tuya-bruecke`, Profil `tuya`) über die Smart-Life-Cloud mit und meldet `ALARM` auf `alarm/<kennung>` – wie der ESP32. Lokal mitlesen geht nicht (Gerät schläft), Umflashen ist verworfen.
+Der Melder wird ausschließlich über einen **ESP32** an der Steckklemme der Ladeschale gelesen.
 
 ## Arbeitsweise & Regeln
 
@@ -34,7 +34,7 @@ Der vorhandene Funkhandel-Alarmschalter ist ein batteriebetriebener Tuya-Türkon
   Konkret: keine Tests, kein Linting, keine Prüfschritte in GitHub Actions. Normale Pushes lösen keinen Build aus. Nur ein Tag `v*` (oder manueller Start) baut das Release.
 - **Prüfen passiert lokal** (siehe [Prüfen](#prüfen-lokal-nicht-in-ci)): Oxlint muss 0 Befunde haben.
 - **UI in HTML, CSS und JavaScript** (Tauri 2). Kein Framework, ES-Module, klein und modular.
-- **Texte kurz, informativ, gut lesbar**, auf Deutsch, ohne Fachjargon. Jede Einstellung hat einen Satz Erklärung.
+- **Texte kurz, informativ, gut lesbar**, auf Deutsch, ohne Fachjargon. Keine bestimmte Router-Marke voraussetzen („im WLAN-Router“ statt „FRITZ!Box“). Jede Einstellung hat einen Satz Erklärung.
 - **Nur zeigen, was eingerichtet ist:** Übersicht, Diagnose, Navigation und Protokoll blenden alles aus, was der Nutzer nicht nutzt (`core/features.js`). **Einstellungen zeigen immer alles.**
 - **Tests nicht im Dashboard:** Testalarm und Simulation liegen unter Einstellungen → Alarm bzw. Test & Diagnose.
 - **Ohne Vorwissen einrichtbar:** sinnvolle Standardwerte, „In 3 Schritten startklar“, Testalarm ohne Folgen.
@@ -97,7 +97,7 @@ Heimalarm/
 │     ├─ src/log.js        Protokoll der Zentrale
 │     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
 ├─ esp32/                  ESPHome: alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
-└─ docs/                   Konzept.pdf, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/,
+└─ docs/                   Einrichtung-NAS.md, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/,
                            anleitungen/*.pdf (gebaut aus anleitungen/quelle/*.html mit build.py)
 ```
 
@@ -175,6 +175,8 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `alarm/<kennung>/status` | `online` / `offline` (Last Will) | ESP32 |
 | `alarm/<kennung>/sensor/wifi_signal\|uptime/state`, `…/text_sensor/ip\|version/state` | WLAN, Laufzeit, IP, Firmware | ESP32 |
 | `alarm/<kennung>/number/min_duration/command\|state` | Mindestdauer Kontakt (A3) | App ↔ ESP32 |
+| `alarm/<kennung>/switch/alarm_bei_offen\|kontakt_test/command\|state` | Kontakt-Logik, Kontakt-Test | App ↔ ESP32 |
+| `alarm/<kennung>/binary_sensor/kontakt/state` | Kontakt roh, `ON` = geschlossen | ESP32 |
 | `alarm/<kennung>/ota` | `<url>|<md5>` Firmware-Update (A10) | App → ESP32 |
 | `heimalarm/clients/<id>` | `{name, platform, version, online, ts, mac}` (retained, Last Will); leer = aus der Liste entfernt | jede App |
 | `heimalarm/config/shared` | gemeinsame Daten (retained), siehe unten | Apps ↔ Dienst |
@@ -255,13 +257,13 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.
 - **ESP32-Topics** (`alarm/<kennung>/…`) kommen aus `esp32/alarm-ich.yaml` bzw. `alarm-ich-s3.yaml` (`topic_prefix`, beide gleich halten). Umbenennen bricht App-Anzeige, Warnungen und Selbsttest.
 - **HTTP aus der App** geht nur zu Adressen im Scope von `capabilities/default.json`. Neue externe API → Scope ergänzen, sonst schlägt `fetch` still fehl.
-- **Benachrichtigungen mitlesen** (`AlarmListener.kt`): Titel (groß), Kurztext, Langtext (`EXTRA_BIG_TEXT`), Zeilen (`EXTRA_TEXT_LINES`), Unter-/Zusatztext – zusammengefügt als `text`. Einsatzdetails kommen nur aus Alarm-Apps (Divera-API am meisten, aPager/SYBOS über die Benachrichtigung), ESP32/Tuya liefern nur „Kontakt zu“.
+- **Benachrichtigungen mitlesen** (`AlarmListener.kt`): Titel (groß), Kurztext, Langtext (`EXTRA_BIG_TEXT`), Zeilen (`EXTRA_TEXT_LINES`), Unter-/Zusatztext – zusammengefügt als `text`. Einsatzdetails kommen nur aus Alarm-Apps (Divera-API am meisten, aPager/SYBOS über die Benachrichtigung), der ESP32 liefert nur „Kontakt zu“.
 - **Alarm-Infos:** Alles, was eine Quelle mehr liefert, kommt als `details` (nur einfache Werte, ≤ 1500 Zeichen) ins Alarm-JSON – Divera (`pickDetails` in `divera.js`), Webhook (alle weiteren Parameter, `webhook.js`). Neue Felder mit eigener Bedeutung in `FIELDS` von `stats.js` aufnehmen.
-- **Sicherheit Zentrale:** Mosquitto nur mit Passwort (`zentrale/.env`, Vorlage `.env.example`); Dienst, Tuya-Brücke, Zigbee2MQTT bekommen es per Umgebungsvariable. Tuya-Weboberfläche mit Basic-Auth (`TUYA_WEB_PASSWORD`, sonst MQTT-Passwort).
+- **Sicherheit Zentrale:** Mosquitto nur mit Passwort (`zentrale/.env`, Vorlage `.env.example`); Dienst und Zigbee2MQTT bekommen es per Umgebungsvariable.
 - **Sicherheit PC-Empfänger:** nach 10 falschen Codes ist eine IP 5 min gesperrt (429); `POST /pair` nur, solange am PC „Koppeln erlauben“ läuft (Rust `direct_pairing`, 5 min, schließt nach einer Kopplung).
 - **Backup** enthält Schlüssel/Passwörter/Codes nur mit Schalter „mitsichern“; beim Wiederherstellen bleiben vorhandene Schlüssel erhalten. **Protokoll** schwärzt `accesskey=`, `authToken=`, `token=` usw. (`core/log.js`).
 - **Abgleich ohne Zentrale:** Neue Einstellung, die abgeglichen werden soll → in einen Bereich von `core/sync.js` einordnen; was je Gerät bleiben muss, in `PC_LOCAL` bzw. aus `bundle()` heraushalten. `direct.rs` und `direct.js` gehören zusammen (Endpunkte, Events `direct-alarm|config|pair|seen`).
-- **Kennung** (`core/kennung.js`): nur `a–z`, `0–9`, `-` (max. 32). Eingaben in Einstellungen (Meine Kennung, Personen, „Abfrage auch bei Alarm von“) laufen durch `normalizeKennung`. Standard bleibt `ich` (passt zu ESP32-YAML und Tuya-`KENNUNG`), die App warnt dann. Gleiche Regel in YAML-Kommentaren und Doku.
+- **Kennung** (`core/kennung.js`): nur `a–z`, `0–9`, `-` (max. 32). Eingaben in Einstellungen (Meine Kennung, Personen, „Abfrage auch bei Alarm von“) laufen durch `normalizeKennung`. Standard bleibt `ich` (passt zur ESP32-YAML), die App warnt dann. Gleiche Regel in YAML-Kommentaren und Doku.
 - **Test-Begriffe** einheitlich: Testalarm, Testmodus, „Melder-Alarm nachspielen“ (`simulateContact`, `test:true`) und „Generalprobe“ (`fullProbe`, `probe:true`). Nicht „Probe“ allein – das Wort meint bei Einsatzkräften den Probealarm. Erklärtabelle in `views/diagnose.js`.
 - **Bestätigungen am PC** (`ui/form.js → ask`): Windows nutzt `@tauri-apps/plugin-dialog` (`confirm`, Rechte in `capabilities/desktop.json`, Plugin nur `cfg(desktop)` in `lib.rs`), Android den Dialog in der Seite.
 - **Mauszeiger:** kein `cursor: pointer` auf Knöpfen, Schaltern, Zeilen (wirkt sonst wie eine Webseite). Nur Textlinks zeigen die Hand (`base.css`).
@@ -273,11 +275,12 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Sichtbarkeit:** Neue Karten/Seiten über `has.*` in `features.js` freischalten, sonst erscheinen sie auch bei Nutzern ohne diese Ausstattung.
 - **Betriebsart:** `isConfigured()` ist nur im Zentrale-Betrieb wahr. Code, der „ist eine Zentrale da?“ fragt, nutzt `has.pi()` bzw. `isConfigured()`, nicht nur `broker.host`.
 - **Windows-Update:** `install_update` startet das Setup direkt mit `/P /UPDATE /R` (früher über eine abgelöste PowerShell, die beim Beenden verloren ging; ab 0.1.7).
-- **Tuya-Status:** `heimalarm/tuya/status` → `state.tuya`; ohne ESP32 zeigt die Übersicht „Funk-Alarmschalter“ statt „Mein ESP32“ (`has.tuya()`).
-- **Updates (wie RigCheck):** `core/update.js` fragt `releases/latest` ab (404 = Repo privat), sucht `*-setup.exe` bzw. `*.apk` plus `<datei>.sha256`. Windows: Rust `install_update` lädt per PowerShell, prüft SHA256, startet das Setup mit `/P` und danach die App neu. Android: Plugin `install_apk` lädt, prüft, öffnet den System-Installationsdialog (FileProvider `UpdateFileProvider`, Erlaubnis `REQUEST_INSTALL_PACKAGES`). Beide laden nur von `github.com/DanieldamHH112/Heimalarm/releases/download/`. Der Release-Workflow muss die `.sha256`-Dateien mit hochladen, sonst bricht das Update ab.
+- **Updates (wie RigCheck):** `core/update.js` fragt beim Start und alle 6 h `releases/latest` ab (404 = Repo privat), sucht `*-setup.exe` bzw. `*.apk` plus `<datei>.sha256`. Windows: Rust `install_update` lädt per PowerShell, prüft SHA256, startet das Setup mit `/P` und danach die App neu. Android: Plugin `install_apk` lädt, prüft, öffnet den System-Installationsdialog (FileProvider `UpdateFileProvider`, Erlaubnis `REQUEST_INSTALL_PACKAGES`). Beide laden nur von `github.com/DanieldamHH112/Heimalarm/releases/download/`. Der Release-Workflow muss die `.sha256`-Dateien mit hochladen, sonst bricht das Update ab.
 - **Android-Signierschlüssel:** Secret `ANDROID_DEBUG_KEYSTORE` (base64 eines Keystores, Alias `androiddebugkey`, Passwörter `android`) wird im Workflow nach `~/.android/debug.keystore` geschrieben. Fehlt es, gibt es nur eine Warnung und Updates lassen sich nicht drüberinstallieren. Schlüssel niemals wechseln oder verlieren.
 - **Mehrere PCs:** Jeder PC entscheidet selbst – `own` (eigene Kennung) oder `pc.alsoFor` (weitere Kennungen, lokal, nicht synchronisiert) → „Fährst du?“. Ohne Zentrale schickt das Handy an alle `direct.peers`.
-- **Tuya-Brücke** sendet dasselbe `ALARM` wie der ESP32 (Quelle „ESP32“, also über den Schalter *Melder* in der App), aber **kein** `alarm/<kennung>/status` – das bleibt dem ESP32 vorbehalten. Eigener Status: `heimalarm/tuya/status`. Anmeldung liegt in `zentrale/tuya-bruecke/data/tuya.json` (nicht im Repo).
+- **ESP32-Schalter aus der App:** `alarm/<kennung>/switch/alarm_bei_offen/command` (ON = Alarm, wenn der Kontakt öffnet; bleibt gespeichert) und `…/switch/kontakt_test/command` (ON = Kontakt-Test: kein ALARM, endet nach 10 min). Roher Kontakt: `…/binary_sensor/kontakt/state` (ON = geschlossen) → `state.devices[k].contact`. Alle drei YAMLs gleich halten. Ältere Firmware meldet `contact` nicht – die App zeigt dann „ältere Firmware“.
+- **ESP32-Neustart:** sinkt `uptime`, schreibt `mqtt.js` „ESP32 neu gestartet“ ins Protokoll (Hinweis auf Kabel an RST beim S3).
+- **ESP32-S3-Log:** `logger: hardware_uart: UART0` in `alarm-ich-s3.yaml`, damit das Log an der Buchse COM/UART erscheint.
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
 - **Alarmton:** `ui/sound.js` ist die einzige Stelle, die Töne startet. Windows → Rust `sound_*` (spielt auch bei verstecktem Fenster), Android → Plugin `play_sound`/`show_alarm` (Wecker-Lautstärke, `USAGE_ALARM`), Browser → Web Audio. Ton `""` = eingebauter Melder-Ton (in `sound.rs` und `AlarmSound.kt` gleich erzeugt – beide ändern). Eigene Töne liegen nur auf dem Gerät (PC: `<AppData>/sounds`, nur mp3/wav/ogg/flac; Handy: `files/sounds`), werden nicht synchronisiert.
 - **„Fährst du?“ auf mehreren Monitoren:** `takeover.js` sendet jede Sekunde `takeover-state`, `mirror.js` antwortet mit `takeover-answer`. Fensterlabels `takeover-<n>` müssen in `capabilities/default.json` → `windows` stehen. `finish()` läuft genau einmal (Sperre `done`).
@@ -300,7 +303,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 
 ## Anleitungen (PDF)
 
-Quelle: `docs/anleitungen/quelle/` – `uebersicht.html`, `funkschalter.html`, `esp32.html`, gemeinsames `stil.css` (gleiche Farben/Ecken wie die App), gemeinsame Seiten in `teile/` (PC, Handy, Testen – `{{inc:name|schlüssel=wert}}`), Symbole `{{i:name}}`. Bauen: `python3 docs/anleitungen/quelle/build.py` (Playwright + Chromium). Jede `<section class="page">` ist eine A4-Seite mit fester Höhe – nach Änderungen die PDFs ansehen, ob nichts abgeschnitten ist. Screenshots in `docs/screenshots` kommen aus `npm run dev` mit `?demo`. **Bei Änderungen an Menünamen oder Abläufen in der App die Anleitungen mitziehen.**
+Quelle: `docs/anleitungen/quelle/` – `uebersicht.html`, `esp32.html`, gemeinsames `stil.css` (gleiche Farben/Ecken wie die App), gemeinsame Seiten in `teile/` (PC, Handy, Testen – `{{inc:name|schlüssel=wert}}`), Symbole `{{i:name}}`. Bauen: `python3 docs/anleitungen/quelle/build.py` (Playwright + Chromium). Jede `<section class="page">` ist eine A4-Seite mit fester Höhe – nach Änderungen die PDFs ansehen, ob nichts abgeschnitten ist. Screenshots in `docs/screenshots` kommen aus `npm run dev` mit `?demo`. **Bei Änderungen an Menünamen oder Abläufen in der App die Anleitungen mitziehen.**
 
 ## Design-System
 
@@ -340,7 +343,7 @@ Schrift: **Archivo** (Text, Titel), **JetBrains Mono** (Topics, Uhrzeiten, Codes
 
 ## Funktionsliste – Einschränkungen
 
-Nummern wie im Konzept (A–I). Alles in erster Version umgesetzt, außer:
+Nummern wie im früheren Konzept (A–I, nur noch in Code-Kommentaren). Alles in erster Version umgesetzt, außer:
 
 - **Windows-Signatur:** optional über Secrets `WINDOWS_CERTIFICATE` (base64 .pfx) + `WINDOWS_CERTIFICATE_PASSWORD`; ohne warnt SmartScreen.
 - **E2 Widget:** kein echtes Android-Widget; Ersatz: Karte „Schnellaktionen“ („Wieder da“, Routinen „Nur per Knopf“).
@@ -394,7 +397,7 @@ Nicht in der Cloud-Testumgebung prüfbar: Matter (braucht IPv6/mDNS), echte Andr
 
 ## Offene Punkte / Hinweise
 
-- Relaiskontakt der Ladeschale vor dem Anschluss messen (potentialfrei?). Sonst Optokoppler.
+- Relaiskontakt der Ladeschale vor dem Anschluss messen (potentialfrei?). Sonst Optokoppler. Anschluss TPG2200: Steckklemme; keine Litze in Dupont-Buchsen (WAGO 221 dazwischen).
 - Android: Akku-Optimierung trotz Hintergrund-Dienst ausschalten (Einstellungen → Android).
 - Neu und am echten Gerät zu prüfen: Ton/Vibration/Vollbild am Handy, Neustart-Puffer, Zweitmonitor-Fenster, Fokus-Trick, eigener Ton (Kotlin ist ohne Android-SDK nicht lokal geprüft).
 - Android-APK ist **debug-signiert**; fester Signierschlüssel als GitHub-Secret folgt.

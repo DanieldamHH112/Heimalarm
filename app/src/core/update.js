@@ -96,8 +96,10 @@ export async function installUpdate() {
   }
 }
 
-/** Beim Start prüfen (abschaltbar), kurz verzögert, damit der Start nicht wartet. */
+/** Beim Start und danach alle 6 Stunden prüfen (abschaltbar), kurz verzögert, damit der Start nicht wartet. */
 export function initUpdates() {
   if (!isTauri || settings().update?.auto === false) return;
   setTimeout(() => checkUpdate({ quiet: true }), 4000);
+  // Läuft oft wochenlang im Infobereich bzw. Hintergrund – darum alle 6 Stunden erneut prüfen.
+  setInterval(() => { if (settings().update?.auto !== false && !update.available) checkUpdate({ quiet: true }); }, 6 * 60 * 60 * 1000);
 }

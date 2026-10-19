@@ -2,9 +2,7 @@
 # Start ohne Zigbee:  docker compose up -d
 # Start mit Zigbee:   docker compose --profile zigbee up -d   (USB-Stick unten eintragen)
 # Licht für Alexa / Google Home zusätzlich:  docker compose --profile zigbee --profile matter up -d
-# Tuya-Brücke (Melder über Smart Life, ohne ESP32):  docker compose --profile tuya up -d
-# ESP32-Firmware bauen (nur zum Einrichten, danach stoppen):  docker compose --profile esphome up -d  → http://<zentrale>:6052
-#   Ohne Kommandozeile (z. B. UGOS-Docker-App): Datei .env neben dieser Datei mit COMPOSE_PROFILES=tuya
+# Ohne Kommandozeile (z. B. UGOS-Docker-App): Profile in .env setzen, z. B. COMPOSE_PROFILES=zigbee
 #
 # Vorher: .env.example nach .env kopieren und MQTT_PASSWORD setzen. Ohne Passwort startet die Zentrale nicht
 # (sonst könnte jeder im WLAN Fehlalarme senden und mitlesen). Dasselbe Passwort in der App unter
@@ -50,26 +48,6 @@ services:
       - ./dienst/data:/app/data
     depends_on: [mosquitto]
 
-  # Übergang ohne ESP32: liest den Tuya-Kontakt (Funkhandel-Alarmschalter) über Smart Life mit
-  # und meldet "ALARM" auf alarm/<KENNUNG> – wie der ESP32. Anmelden: http://<zentrale>:8082
-  tuya-bruecke:
-    build: ./tuya-bruecke
-    profiles: ["tuya"]
-    restart: unless-stopped
-    depends_on: [mosquitto]
-    ports:
-      - "8082:8082"   # Weboberfläche (Anmeldung per QR-Code)
-    volumes:
-      - ./tuya-bruecke/data:/data
-    environment:
-      TZ: Europe/Berlin
-      MQTT_HOST: mosquitto
-      MQTT_USER: ${MQTT_USER:-heimalarm}
-      MQTT_PW: ${MQTT_PASSWORD:-}
-      WEB_PASSWORD: ${TUYA_WEB_PASSWORD:-}   # Schutz der Weboberfläche (leer = MQTT_PASSWORD)
-      KENNUNG: ich            # DEINE Kennung (nur a-z, 0-9, -), gleich wie „Meine Kennung“ in der App
-      ALARM_BEI: geschlossen  # Zustand des Kontakts bei Alarm (geschlossen | offen)
-      GERAET: ""              # leer = erster Kontaktsensor, sonst Name oder ID aus Smart Life
 
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt:2

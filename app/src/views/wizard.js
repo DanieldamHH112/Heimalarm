@@ -85,8 +85,8 @@ function guide(key, rerender) {
       lead: "Die Zentrale läuft in Docker auf deinem Gerät, das immer an ist.",
       steps: steps("Ordner <code>zentrale</code> aus dem Repository auf das Gerät kopieren.",
         ["Dort ausführen: <code>docker compose up -d</code>", "docker"],
-        "Mit Zigbee-Stick zusätzlich <code>--profile zigbee</code>, mit Funkschalter <code>--profile tuya</code>.",
-        "Adresse des Geräts notieren, z. B. <code>192.168.178.5</code>."),
+        "Mit Zigbee-Stick zusätzlich <code>--profile zigbee</code>.",
+        "Im WLAN-Router dem Gerät eine feste IP-Adresse geben und sie notieren, z. B. <code>192.168.178.5</code>."),
       body: [row(manual(key, rerender, "Zentrale läuft"))], ok: "Zentrale läuft",
     };
     case "verbinden": return {
@@ -105,14 +105,8 @@ function guide(key, rerender) {
       steps: steps("Relaiskontakt vorher messen: Er muss potentialfrei sein, sonst Optokoppler verwenden.",
         "<code>esp32/secrets.example.yaml</code> als <code>secrets.yaml</code> kopieren, WLAN und Zentrale eintragen.",
         `In <code>alarm-ich.yaml</code> deine Kennung „${s.alarm.me}“ eintragen und mit ESPHome flashen.`,
-        "Kontakt an GPIO27 und GND (ESP32-S3: GPIO4)."),
+        "Kontakt an GPIO27 und GND (ESP32-S3: GPIO4, direkt neben RST – genau hinsehen).", "Unter Test &amp; Diagnose mit dem Kontakt-Test die Kabel prüfen."),
       body: [row(btn("Zu „Alarm & Quellen“", () => go("#/einstellungen/alarm")), manual(key, rerender))], ok: "Melder meldet sich",
-    };
-    case "tuya": return {
-      lead: "Der Funk-Alarmschalter meldet sich über die Smart-Life-Cloud. Das dauert ein paar Sekunden länger als der ESP32.",
-      steps: steps("Auf der Zentrale <code>docker compose --profile tuya up -d</code> ausführen.",
-        "In Heimalarm unter „Alarm & Quellen“ die Tuya-Brücke öffnen.", "QR-Code mit der Smart-Life-App scannen."),
-      body: [row(btn("Zu „Alarm & Quellen“", () => go("#/einstellungen/alarm")), manual(key, rerender))], ok: "Brücke läuft",
     };
     case "sybos": case "apager": {
       const ap = key === "apager";
@@ -238,7 +232,7 @@ export function wizardView(rerender) {
   else if (st === 3) body.push(head("hub", "--c-net", "Frage 3 von 3", "Läuft ein Gerät rund um die Uhr?"),
     lead(wz.needsPi() ? "Für deine Auswahl brauchst du eine Zentrale, also ein Gerät, das immer an ist." : "Für deine Auswahl reicht es auch ohne."),
     choices(wz.ALWAYS, "always", false, rerender),
-    wz.needsPi() && !wz.withPi() && note("Melder, Funkschalter, Zigbee und Matter gehen nur mit Zentrale. Ohne sie lassen wir diese Schritte weg.", true));
+    wz.needsPi() && !wz.withPi() && note("Melder, Zigbee und Matter gehen nur mit Zentrale. Ohne sie lassen wir diese Schritte weg.", true));
   else if (st === 4) body.push(head("chart", "--c-app", wz.withPi() ? "Betriebsart: Mit Zentrale" : "Betriebsart: Ohne Zentrale", `Dein Plan · ${p.length} Schritte`),
     lead("Rechts steht, wo du den Schritt machst. Was schon passt, wird automatisch abgehakt. Mit „Anleitung starten“ werden deine Antworten gespeichert."),
     h("div.wz-plan", {}, p.map((it) => h("div.wz-pi", {}, tile(it.icon, it.color), h("b", {}, it.title), h("span.wz-where", {}, wz.WHERE[it.where])))),

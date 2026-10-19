@@ -1,5 +1,5 @@
 // Lokale Einstellungen dieses Geräts, mit Standardwerten.
-// Nummern verweisen auf die Funktionsliste im Konzept (docs/Konzept.pdf).
+// Nummern verweisen auf die Funktionsliste (Context.md, „Funktionsliste“).
 // Was für alle Geräte gleich sein soll, liegt in shared.js (über die Zentrale synchronisiert).
 import { emit } from "./events.js";
 

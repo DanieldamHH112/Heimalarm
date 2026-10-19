@@ -22,7 +22,7 @@
   <div class="meta">
     <div><span>Dauer</span>etwa 90 Minuten</div>
     <div><span>Für</span>UGREEN NAS (UGOS Pro) oder Raspberry Pi 4/5</div>
-    <div><span>Stand</span>Heimalarm 0.1.8 · Oktober 2026</div>
+    <div><span>Stand</span>Heimalarm 0.1.19 · Oktober 2026</div>
   </div>
 </section>
 
@@ -34,6 +34,7 @@
       <ul class="list" style="--a:var(--c-alarm)">
         <li><b>ESP32-S3 DevKitC-1 (N16R8)</b> mit verlöteten Stiftleisten, ca. 10 €<br><span class="muted small">Alternativ ESP32 DevKit oder Wemos D1 mini</span></li>
         <li>2 Jumper-Kabel Buchse–Buchse</li>
+        <li>2-adriges Kabel zur Ladeschale (z. B. Klingeldraht), 2 WAGO-Klemmen 221, Isolierband</li>
         <li>USB-C-<b>Daten</b>kabel (nicht nur Ladekabel)</li>
         <li>Altes USB-Netzteil für Dauerstrom</li>
         <li>Multimeter zum Prüfen der Ladeschale</li>
@@ -41,7 +42,7 @@
     <div class="card"><h3>Außerdem</h3>
       <ul class="list" style="--a:var(--c-net)">
         <li>Zentrale: UGREEN NAS oder Raspberry Pi 4/5 mit Netzteil und microSD-Karte (32 GB)</li>
-        <li>Windows-PC mit Chrome oder Edge</li>
+        <li>Windows-PC (für ESPHome oder Chrome/Edge)</li>
         <li>Android-Handy</li>
         <li>Zugang zum Router, WLAN-Name und -Passwort (2,4 GHz)</li>
         <li>Ein langes eigenes Passwort für die Zentrale</li>
@@ -49,12 +50,14 @@
   </div>
   <h3>Die Schritte</h3>
   <div class="toc">
-    <a href="#s1"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>1 · Ladeschale und ESP32</a>
+    <a href="#s1"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>1 · Ladeschale prüfen</a>
+    <a href="#s1b"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>1B · Kabel bauen und anschließen</a>
     <a href="#s2a"><span class="ico" style="--a:var(--signal)">{{i:server}}</span>2A · Zentrale auf der UGREEN NAS</a>
     <a href="#s2b"><span class="ico" style="--a:var(--signal)">{{i:server}}</span>2B · Raspberry Pi vorbereiten</a>
     <a href="#s2c"><span class="ico" style="--a:var(--signal)">{{i:server}}</span>2B · Zentrale auf dem Pi</a>
     <a href="#s3"><span class="ico" style="--a:var(--c-alarm)">{{i:tool}}</span>3 · Firmware vorbereiten</a>
     <a href="#s4"><span class="ico" style="--a:var(--c-alarm)">{{i:chip}}</span>4 · Firmware bauen und aufspielen</a>
+    <a href="#s4b"><span class="ico" style="--a:var(--c-alarm)">{{i:pc}}</span>4B · Ohne Zentrale bauen: am Windows-PC</a>
     <a href="#s5"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>5 · Heimalarm am PC</a>
     <a href="#s6"><span class="ico" style="--a:var(--c-phone)">{{i:phone}}</span>6 · Heimalarm am Handy</a>
     <a href="#s7"><span class="ico" style="--a:var(--c-safe)">{{i:tool}}</span>7 · Testen</a>
@@ -63,29 +66,42 @@
 </section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s1">
-  <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:chip}}</span><h2>Schritt 1 · Ladeschale und ESP32</h2><span class="dur">15 min</span></div>
-  <div class="callout bad"><span class="ico" style="--a:var(--signal)">{{i:warn}}</span><div><b>Erst messen, dann anschließen.</b> Der ESP32 verträgt keine fremde Spannung am Eingang. Bei Spannung am Kontakt: nicht anschließen, sondern einen Optokoppler dazwischen setzen.</div></div>
+  <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:chip}}</span><h2>Schritt 1 · Ladeschale prüfen</h2><span class="dur">10 min</span></div>
+  <div class="callout bad"><span class="ico" style="--a:var(--signal)">{{i:warn}}</span><div><b>Erst messen, dann anschließen.</b> Der ESP32 verträgt keine fremde Spannung am Eingang. Bei Spannung am Kontakt: nicht anschließen, sondern einen Optokoppler dazwischen setzen. Ein einfaches Multimeter kostet im Baumarkt ca. 10–15 €.</div></div>
   <ol class="steps" style="--a:var(--c-alarm)">
-    <li><div><b>Kontakt finden:</b> Hinten an der Ladeschale (z. B. Motorola TPG2200) sitzen zwei Kontaktstifte für ein externes Gerät.</div></li>
-    <li><div><b>Spannung messen:</b> Multimeter auf Gleichspannung. Zwischen den Stiften muss <b>0 V</b> anliegen – im Ruhezustand und bei Alarm.</div></li>
-    <li><div><b>Durchgang messen:</b> Multimeter auf Durchgang. In Ruhe kein Durchgang, bei Probealarm Durchgang (Piepton).</div></li>
-    <li><div><b>Verbinden:</b> je ein Jumper-Kabel von einem Stift an den Eingang des ESP32 und vom anderen an GND. Die Reihenfolge ist egal.</div></li>
+    <li><div><b>Anschluss finden:</b> An der Ladeschale (z. B. Motorola TPG2200) sitzt eine kleine <b>Steckklemme</b> für ein externes Gerät: zwei <b>runde Löcher</b> für die Drähte, darunter zwei <b>eckige Schlitze</b> zum Lösen.<span class="note">Draht einstecken, bis er hält. Lösen: mit einem kleinen Schraubendreher in den eckigen Schlitz drücken und den Draht herausziehen.</span></div></li>
+    <li><div><b>Spannung messen:</b> Multimeter auf Gleichspannung (V DC). Zwischen den beiden Kontakten muss <b>0 V</b> anliegen – im Ruhezustand und bei Alarm.</div></li>
+    <li><div><b>Durchgang messen:</b> Multimeter auf Durchgang. In Ruhe kein Durchgang, bei Probealarm Durchgang (Piepton).<span class="note">Ist es umgekehrt (in Ruhe Durchgang, bei Alarm offen), ist das kein Problem: Das stellst du später in der App um.</span></div></li>
   </ol>
   <div class="box"><table class="t">
     <tr><th>Board</th><th>Eingang</th><th>Masse</th><th>Datei</th></tr>
-    <tr><td>ESP32-S3 DevKitC-1</td><td class="muted"><code>GPIO4</code></td><td class="muted"><code>GND</code></td><td class="muted"><code>alarm-ich-s3.yaml</code></td></tr>
+    <tr><td>ESP32-S3 DevKitC-1</td><td class="muted"><code>4</code> (GPIO4)</td><td class="muted"><code>GND</code></td><td class="muted"><code>alarm-ich-s3.yaml</code></td></tr>
     <tr><td>ESP32 DevKit (klassisch)</td><td class="muted"><code>GPIO27</code></td><td class="muted"><code>GND</code></td><td class="muted"><code>alarm-ich.yaml</code></td></tr>
     <tr><td>Wemos D1 mini (ESP8266)</td><td class="muted"><code>D5</code> (GPIO14)</td><td class="muted"><code>G</code></td><td class="muted"><code>alarm-ich-d1mini.yaml</code></td></tr>
   </table></div>
   <p class="muted small">Kein Widerstand nötig – der ESP32 nutzt seinen eingebauten Pull-up. Die Datei aus der rechten Spalte brauchst du in Schritt 3.</p>
-  <div class="done"><div><b>Geklappt, wenn</b> beide Messungen wie oben aussehen und die Kabel fest sitzen. Strom bekommt der ESP32 erst nach dem Flashen.</div></div>
+  <div class="done"><div><b>Geklappt, wenn</b> beide Messungen wie oben aussehen.</div></div>
+</section>
+
+<section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s1b">
+  <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:chip}}</span><h2>Schritt 1B · Kabel bauen und anschließen</h2><span class="dur">15 min</span></div>
+  <p class="lead">Ein 2-adriges Kabel führt von der Steckklemme der Ladeschale zum ESP32. Am ESP32-Ende kommen zwei Jumper-Kabel dran.</p>
+  <ol class="steps" style="--a:var(--c-alarm)">
+    <li><div><b>Ladeschalen-Ende:</b> Hülle ca. 3 cm entfernen, beide Adern 8–10 mm abisolieren und fest verdrillen.<span class="note">Am besten verzinnen (mit Lötzinn), dann hält der Draht in der Steckklemme besonders gut.</span></div></li>
+    <li><div><b>ESP32-Ende:</b> genauso abisolieren. Von zwei Jumper-Kabeln <b>Buchse–Buchse</b> jeweils eine Buchse abschneiden und 8–10 mm abisolieren.</div></li>
+    <li><div><b>Verbinden:</b> jede Ader mit einem Jumper-Kabel in eine <b>WAGO-Klemme 221</b> stecken – oder fest miteinander verdrillen und mit Isolierband umwickeln. Die beiden Stellen dürfen sich nicht berühren.</div></li>
+    <li><div><b>Am ESP32:</b> ein Jumper auf den <b>Eingang</b> (Tabelle Schritt 1), der andere auf <b>GND</b>. Die Reihenfolge ist egal.<span class="note">ESP32-S3: Pin <code>4</code> liegt direkt neben <code>RST</code>. Von der Ecke mit <code>3V3</code> aus zählen: 3V3, 3V3, RST, <b>4</b>. Steckt das Kabel auf RST, startet der ESP32 bei Alarm nur neu.</span></div></li>
+    <li><div><b>An die Ladeschale:</b> die verdrillten Enden in die runden Löcher der Steckklemme stecken, bis sie halten. Kurz daran ziehen.</div></li>
+  </ol>
+  <div class="callout warn"><span class="ico" style="--a:var(--warn)">{{i:info}}</span><div><b>Keine Litze in die Jumper-Buchse stecken.</b> Die Buchsen sind für die Stifte am ESP32 gemacht. Weiche, dünne Drähte haben darin keinen sicheren Kontakt – das führt zu verpassten Alarmen oder Fehlalarmen.</div></div>
+  <div class="done"><div><b>Geklappt, wenn</b> alles fest sitzt. Prüfen kannst du das nach dem Flashen mit dem <b>Kontakt-Test</b> (Schritt 7).</div></div>
 </section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s2a">
   <div class="head"><span class="ico big" style="--a:var(--signal)">{{i:server}}</span><h2>Schritt 2A · Zentrale auf der UGREEN NAS</h2><span class="dur">20 min</span></div>
   <p class="lead">Hast du einen Raspberry Pi? Dann diese Seite überspringen und mit 2B weitermachen.</p>
   <ol class="steps" style="--a:var(--signal)">
-    <li><div><b>Feste IP:</b> <span class="path">FRITZ!Box <i>›</i> Heimnetz <i>›</i> Netzwerk</span> → bei der NAS auf den Stift → „Immer die gleiche IPv4-Adresse“ → <span class="btn">Übernehmen</span>. IP notieren.</div></li>
+    <li><div><b>Feste IP:</b> Im WLAN-Router (Weboberfläche oder App des Routers) die NAS in der Geräteliste suchen und ihr eine <b>feste IP-Adresse</b> geben (oft „immer gleiche IP“, „IP reservieren“ oder „DHCP-Reservierung“). IP notieren.<span class="note">Sonst kann sich die Adresse ändern, und ESP32 und App finden die Zentrale nicht mehr.</span></div></li>
     <li><div><b>Docker</b> im App Center installieren. In <span class="path">Dateien <i>›</i> docker</span> den Ordner <code>heimalarm</code> anlegen.</div></li>
     <li><div><b>Dateien:</b> GitHub <span class="mono">DanieldamHH112/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>. In <code>docker/heimalarm</code> hochladen: den Inhalt von <code>zentrale</code> und zusätzlich den Ordner <code>esp32</code>.</div></li>
     <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit dem Editor öffnen (Windows: Rechtsklick → Öffnen mit → Editor), beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.</div></li>
@@ -93,7 +109,7 @@
     <li><div><b>Starten:</b> <span class="path">Docker <i>›</i> Projekt</span> → <span class="btn">Erstellen</span>, Name <code>heimalarm</code>, Pfad <code>docker/heimalarm</code>, „sofort ausführen“ → <span class="btn">Bereitstellen</span></div></li>
   </ol>
   <div class="done"><div><b>Geklappt, wenn</b> im Protokoll von <code>heimalarm-mosquitto-1</code> „Adding password for user heimalarm“ steht und <code>heimalarm-dienst</code> mit <code>u'heimalarm'</code> verbunden ist.</div></div>
-  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Ausführlich mit Bildern:</b> Anleitung „Funk-Alarmschalter + UGREEN NAS“, Schritte 2–4.</div></div>
+  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Nur eine Compose-Datei:</b> Liegen im Ordner <code>docker-compose.yml</code> <b>und</b> <code>docker-compose.yaml</code>, nimmt Docker nur eine davon. Die überzählige löschen. <code>.env</code> ist versteckt – im Dateimanager „versteckte Dateien anzeigen“ einschalten, um sie zu sehen.</div></div>
 </section>
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s2b">
@@ -179,9 +195,24 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
   <div class="done"><div><b>Geklappt, wenn</b> in der App (Schritt 5) auf Start die Karte <b>ESP32 an der Ladeschale</b> „online“ zeigt – mit WLAN-Stärke und IP.</div></div>
 </section>
 
+<section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="s4b">
+  <div class="head"><span class="ico big" style="--a:var(--c-alarm)">{{i:pc}}</span><h2>Schritt 4B · Ohne Zentrale bauen: am Windows-PC</h2><span class="dur">30 min</span></div>
+  <p class="lead">Statt Schritt 3 und 4: ESPHome direkt am PC. Gebaut und aufgespielt wird in einem Rutsch.</p>
+  <ol class="steps" style="--a:var(--c-alarm)">
+    <li><div><b>Python installieren:</b> Windows-Taste, <code>cmd</code> eingeben, Enter. Dann:
+      <pre class="code">winget install Python.Python.3.12</pre><span class="note">Danach das Fenster schließen und neu öffnen. Kommt bei <code>python --version</code> ein Hinweis auf den Microsoft Store: <span class="path">Einstellungen <i>›</i> Apps <i>›</i> Erweiterte App-Einstellungen <i>›</i> App-Ausführungsaliase</span> → <code>python.exe</code> und <code>python3.exe</code> aus.</span></div></li>
+    <li><div><b>ESPHome installieren:</b><pre class="code">pip install esphome</pre><span class="note">Meldet <code>esphome version</code> „nicht gefunden“, überall <code>python -m esphome</code> statt <code>esphome</code> schreiben.</span></div></li>
+    <li><div><b>Dateien:</b> GitHub → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>, entpacken. Im Ordner <code>esp32</code> die <code>secrets.example.yaml</code> als <code>secrets.yaml</code> kopieren und ausfüllen (wie in Schritt 3), <code>ota_pw</code> unbedingt ändern.</div></li>
+    <li><div><b>Eingabe im richtigen Ordner:</b> im Explorer den Ordner <code>esp32</code> öffnen, oben in die Adressleiste <code>cmd</code> schreiben, Enter.</div></li>
+    <li><div><b>Bauen und aufspielen:</b> ESP32 an die Buchse <b>COM</b>/<b>UART</b>, dann
+      <pre class="code">esphome run alarm-ich-s3.yaml</pre><span class="note">Das erste Mal dauert 5–15 Minuten. Bei der Frage nach dem Weg die Zeile mit <code>COM…</code> wählen. Taucht kein COM-Anschluss auf: Treiber <b>CH343</b> bzw. <b>CP210x</b> installieren oder die andere USB-Buchse probieren.</span></div></li>
+  </ol>
+  <div class="done"><div><b>Geklappt, wenn</b> im Log <code>WiFi Connected</code> und <code>MQTT Connected</code> stehen (beenden mit <code>Strg</code> + <code>C</code>). Spätere Updates: derselbe Befehl, dann „Over The Air“ wählen – ohne Kabel.</div></div>
+</section>
+
 {{inc:pc|id=s5|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 5|kennung=im ESP32 (<code>kennung</code>)}}
 {{inc:handy|id=s6|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 6|kennung=wie im ESP32 und am PC}}
-{{inc:testen|id=s7|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 7|probe=<span class="note">Die Meldung kommt in unter einer Sekunde.</span>|zeilen=<tr><td>Start: ESP32 „offline“</td><td class="muted">Strom? WLAN 2,4 GHz? <code>mqtt_host</code> und <code>mqtt_pw</code> in den Secrets richtig?</td></tr><tr><td>ESP32 online, Alarm kommt nicht</td><td class="muted">Kabel an GPIO-Eingang und GND? Kennung im ESP32 und in der App gleich?</td></tr>}}
+{{inc:testen|id=s7|doc=ESP32 + UGREEN NAS oder Raspberry Pi|schritt=Schritt 7|probe=<span class="note">Die Meldung kommt in unter einer Sekunde.</span>|zeilen=<tr><td>Start: ESP32 „offline“</td><td class="muted">Strom? WLAN 2,4 GHz? <code>mqtt_host</code> und <code>mqtt_pw</code> in den Secrets richtig?</td></tr><tr><td>ESP32 online, Alarm kommt nicht</td><td class="muted"><span class="path">Test &amp; Diagnose <i>›</i> Kontakt-Test</span>: Ändert sich die Anzeige beim Verbinden der Kabelenden nicht, sitzt eine Verbindung locker. Kennung überall gleich?</td></tr><tr><td>Alarm kommt erst, wenn der Kontakt wieder öffnet</td><td class="muted"><span class="path">Einstellungen <i>›</i> ESP32</span> → „Alarm, wenn der Kontakt“ auf <b>öffnet</b>.</td></tr>}}
 
 <section class="page" data-title="ESP32 + UGREEN NAS oder Raspberry Pi" id="pflege">
   <div class="head"><span class="ico big" style="--a:var(--warn)">{{i:warn}}</span><h2>Pflege und Fehler</h2></div>
@@ -199,9 +230,11 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
     <tr><td>Bauen bricht ab</td><td class="muted">Fehlermeldung lesen – meist fehlt ein Eintrag in den Secrets.</td></tr>
     <tr><td>web.esphome.io findet den ESP32 nicht</td><td class="muted">Datenkabel, andere USB-Buchse, BOOT-Taste beim Einstecken halten.</td></tr>
     <tr><td>ESP32 verbindet sich nicht mit dem WLAN</td><td class="muted">Nur 2,4 GHz. WLAN-Name genau wie im Router (Groß-/Kleinschreibung).</td></tr>
+    <tr><td>Protokoll: „ESP32 neu gestartet“ beim Alarm</td><td class="muted">Kabel steckt auf <code>RST</code> statt auf dem Eingang. Pins nachzählen.</td></tr>
     <tr><td>Fehlalarme ohne Einsatz</td><td class="muted"><span class="path">Einstellungen <i>›</i> Alarm &amp; Quellen <i>›</i> ESP32</span> → Mindestdauer erhöhen.</td></tr>
     <tr><td>Start: rote Pille „Verbindung fehlgeschlagen“</td><td class="muted">Pille antippen – sie zeigt, welcher Teil fehlt. Dann IP, Port <code>9001</code>, Benutzer <code>heimalarm</code>, Passwort prüfen.</td></tr>
     <tr><td>NAS: „Compose-Datei verloren“</td><td class="muted">Projekt löschen (ohne Dateien) und neu erstellen.</td></tr>
+    <tr><td>Zentrale plötzlich nicht erreichbar</td><td class="muted">Hat die NAS bzw. der Pi eine neue IP? Im Router eine feste IP einstellen.</td></tr>
   </table></div>
   <div class="callout bad"><span class="ico" style="--a:var(--signal)">{{i:warn}}</span><div><b>Nie löschen:</b> <code>.env</code>, <code>mosquitto/data</code>, <code>esp32/secrets.yaml</code>. Den Pi nicht einfach vom Strom ziehen – vorher <code>sudo shutdown now</code>.</div></div>
 </section>

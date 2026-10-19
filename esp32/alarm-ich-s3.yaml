@@ -1,6 +1,6 @@
 # Heimalarm – ESP32-S3 (z. B. DevKitC-1 N16R8) an der Ladeschale (Motorola TPG2200)
 # Verdrahtung: Relais Pol A -> GPIO4, Pol B -> GND. Interner Pull-up, kein Widerstand nötig.
-# Flashen: https://web.esphome.io (Chrome/Edge) oder ESPHome-Dashboard.
+# Flashen: esphome run <datei>.yaml (siehe docs/anleitungen) oder ESPHome-Dashboard.
 # Für weitere Personen Datei kopieren und "ich" überall durch die eigene Kennung ersetzen.
 
 substitutions:
@@ -15,6 +15,7 @@ esp32:
   flash_size: 16MB
 
 logger:
+  hardware_uart: UART0   # Log über die Buchse COM/UART (sonst nur über die Buchse USB)
 
 wifi:
   ssid: !secret wifi_ssid
@@ -54,20 +55,55 @@ number:
     step: 10
     unit_of_measurement: ms
 
+# Einstellungen aus der App (alarm/<kennung>/switch/<name>/command)
+switch:
+  # Kontakt öffnet bei Alarm statt zu schließen (je nach Ladeschale). Bleibt nach Neustart erhalten.
+  - platform: template
+    name: "Alarm bei offen"
+    id: alarm_bei_offen
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+  # Kontakt-Test: Melder meldet keinen Alarm, die App zeigt nur offen/geschlossen. Endet nach 10 Minuten von selbst.
+  - platform: template
+    name: "Kontakt Test"
+    id: kontakt_test
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - script.execute: test_ende
+    on_turn_off:
+      - script.stop: test_ende
+
+script:
+  - id: test_ende
+    mode: restart
+    then:
+      - delay: 10min
+      - switch.turn_off: kontakt_test
+
 binary_sensor:
+  # Roher Kontakt, ohne Mindestdauer: ON = geschlossen. Für den Kontakt-Test in der App.
   - platform: gpio
-    name: "Melder Alarm"
+    name: "Kontakt"
+    id: kontakt
     pin:
       number: GPIO4
       mode: { input: true, pullup: true }
-      inverted: true               # Kontakt geschlossen = Alarm = ON
+      inverted: true
+  - platform: template
+    name: "Melder Alarm"
+    lambda: 'return id(kontakt).state != id(alarm_bei_offen).state;'
     filters:
       - delayed_on: !lambda 'return (uint32_t) id(min_duration).state;'   # Entprellen / Mindestdauer
     on_press:
-      - mqtt.publish:
-          topic: alarm/${kennung}
-          payload: "ALARM"
-          qos: 1
+      - if:
+          condition:
+            switch.is_off: kontakt_test
+          then:
+            - mqtt.publish:
+                topic: alarm/${kennung}
+                payload: "ALARM"
+                qos: 1
 
 # Infos für die Übersicht der App (WLAN-Signal, Laufzeit, IP, Firmware)
 sensor:

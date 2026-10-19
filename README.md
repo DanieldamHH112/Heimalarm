@@ -13,7 +13,7 @@ Heimalarm ist für Einsatzkräfte, die zuhause alarmiert werden – egal ob Feue
 - **Handy:** Alarm groß – auch auf dem Sperrbildschirm – mit Stichwort und Adresse, auf Wunsch eigener Alarmton, Rückmeldung mit einem Tipp.
 - **Licht & Sprachassistenten:** Nachts geht das Flurlicht gedimmt an, Alexa oder Google sagen „Einsatz!“ an.
 
-Alles läuft lokal im Heimnetz und ohne laufende Kosten. Cloud-Dienste (Divera, aPager-Rückmeldung, Voice Monkey, Funk-Alarmschalter über Tuya) nutzt Heimalarm nur, wenn du sie selbst einschaltest. Melder und Alarm-App bleiben die eigentliche Alarmierung – Heimalarm ist eine Komfortfunktion.
+Alles läuft lokal im Heimnetz und ohne laufende Kosten. Cloud-Dienste (Divera, aPager-Rückmeldung, Voice Monkey) nutzt Heimalarm nur, wenn du sie selbst einschaltest. Melder und Alarm-App bleiben die eigentliche Alarmierung – Heimalarm ist eine Komfortfunktion.
 
 <p align="center">
   <img src="docs/screenshots/pc-uebersicht.png" width="68%" alt="Start am PC: Status Aktiv, Kennzahlen, Schnellaktionen, Zuletzt">
@@ -34,7 +34,7 @@ Heimalarm läuft auf zwei Arten – du wählst in der App unter *Einstellungen �
 | ein Gerät, das immer läuft (z. B. **UGREEN-NAS**, Synology, Raspberry Pi, Heimserver) | **Mit Zentrale** – dazu der Melder in der Ladeschale |
 | einen Melder in der Ladeschale | **Mit Zentrale** + **ESP32** am Relaiskontakt (ca. 10 €) |
 
-Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt (`zentrale/`). Es läuft überall, wo Docker läuft – ein Raspberry Pi ist **nicht** nötig. Anleitung für die UGREEN-NAS: [docs/Einrichtung-NAS-Alarmschalter.md](docs/Einrichtung-NAS-Alarmschalter.md).
+Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt (`zentrale/`). Es läuft überall, wo Docker läuft – ein Raspberry Pi ist **nicht** nötig. Anleitung für die UGREEN-NAS: [docs/Einrichtung-NAS.md](docs/Einrichtung-NAS.md).
 
 **Mit Zentrale (NAS oder Raspberry Pi)** – alles läuft auch, wenn PC und Handy aus sind.
 
@@ -101,8 +101,7 @@ Zum Herunterladen und Durchlesen – ohne Vorwissen, Schritt für Schritt:
 | PDF | Inhalt |
 |---|---|
 | [**Heimalarm im Überblick**](docs/anleitungen/Heimalarm-Uebersicht.pdf) | Was die App kann, Bausteine, Ablauf eines Alarms, Funktionen, Grenzen – ohne Technik-Deutsch |
-| [**Einrichtung: Funk-Alarmschalter + UGREEN NAS**](docs/anleitungen/Heimalarm-Einrichtung-Funkschalter-UGREEN.pdf) | Tuya-Funk-Schalter an der Ladeschale, Zentrale auf der NAS, Apps, Testen |
-| [**Einrichtung: ESP32 + UGREEN NAS oder Raspberry Pi**](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf) | Ladeschale verdrahten, Zentrale auf NAS oder Pi, Firmware bauen und aufspielen |
+| [**Einrichtung: ESP32 + UGREEN NAS oder Raspberry Pi**](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf) | Ladeschale prüfen und verdrahten, Zentrale auf NAS oder Pi, Firmware am PC oder auf der Zentrale bauen, Kontakt-Test |
 
 Auf GitHub die Datei öffnen und oben rechts auf **Download** klicken. Die Quellen liegen in `docs/anleitungen/quelle` (HTML), neu bauen mit `python3 docs/anleitungen/quelle/build.py`.
 
@@ -135,7 +134,7 @@ Unter *Geräte → WLAN-Gerät* Lampen und Steckdosen hinzufügen, unter *Einste
 
 **5 · Zentrale (optional)** – NAS oder Raspberry Pi mit Docker
 
-Auf einer NAS mit Docker-Oberfläche (z. B. UGREEN, Synology) den Ordner `zentrale` hochladen und als Projekt starten – Schritt für Schritt in [docs/Einrichtung-NAS-Alarmschalter.md](docs/Einrichtung-NAS-Alarmschalter.md). Mit Kommandozeile:
+Auf einer NAS mit Docker-Oberfläche (z. B. UGREEN, Synology) den Ordner `zentrale` hochladen und als Projekt starten – Schritt für Schritt in [docs/Einrichtung-NAS.md](docs/Einrichtung-NAS.md). Mit Kommandozeile:
 ```bash
 cd zentrale
 cp .env.example .env                                     # MQTT_PASSWORD setzen – Pflicht
@@ -147,22 +146,20 @@ Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einste
 
 **6 · ESP32 (optional)**
 1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren, WLAN-Daten und als `mqtt_host` die IP der Zentrale eintragen. Bei `mqtt_pw` **dasselbe Passwort wie `MQTT_PASSWORD` in `zentrale/.env`**. In der YAML-Datei die `kennung` setzen – dieselbe wie in der App (siehe „Kennung“ unten).
-2. Kontakt der Ladeschale messen (keine Spannung, bei Alarm Durchgang), dann einen Pol an `GPIO27`, den anderen an `GND`.
-3. `esp32/alarm-ich.yaml` über [web.esphome.io](https://web.esphome.io) flashen. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` (Pol A an `GPIO4`), für einen **Wemos D1 mini (ESP8266)** `esp32/alarm-ich-d1mini.yaml` (Pol A an `D5`).
-
-**Ohne ESP32: Funk-Alarmschalter (Tuya) als Übergang**
-Ein vorhandener Tuya-Alarmschalter (z. B. von Funkhandel) lässt sich über die **Tuya-Brücke** der Zentrale einbinden (Profil `tuya`, Anmeldung per QR-Code mit Smart Life). Läuft über die Tuya-Cloud, daher einige Sekunden langsamer als der ESP32.
+2. Kontakt der Ladeschale messen (keine Spannung, bei Alarm Durchgang). Die Ladeschale hat eine Steckklemme: ein 2-adriges Kabel einstecken, am anderen Ende per WAGO-Klemme mit zwei Jumper-Kabeln verbinden (keine Litze direkt in die Jumper-Buchse). Einen Pol an `GPIO27`, den anderen an `GND`.
+3. `esp32/alarm-ich.yaml` flashen – am Windows-PC mit `pip install esphome` und `esphome run alarm-ich.yaml` (Anleitung: [ESP32-PDF](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf), Schritt 4B) oder mit der ESPHome-Oberfläche der Zentrale. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` (Pol A an `GPIO4`, direkt neben `RST` – genau zählen), für einen **Wemos D1 mini (ESP8266)** `esp32/alarm-ich-d1mini.yaml` (Pol A an `D5`).
+4. In der App unter *Test & Diagnose → Kontakt-Test* die Kabel prüfen: Die Anzeige springt beim Verbinden auf „geschlossen“, ein Alarm wird dabei nicht ausgelöst. Öffnet der Kontakt deiner Ladeschale bei Alarm, statt zu schließen: *Einstellungen → ESP32 → „Alarm, wenn der Kontakt“ → öffnet*.
 
 **Kennung**
-Ein kurzer Name pro Person, z. B. `daniel` – nur Kleinbuchstaben, Ziffern und `-`. Jede Person braucht eine **eigene**; bleibt überall der Standard `ich` stehen, lösen sich mehrere Personen gegenseitig aus. Dieselbe Kennung gehört in die App (*Alarm & Quellen → Meine Kennung*, auf jedem eigenen Gerät), in den ESP32 (`kennung:`), bei Funk-Alarmschalter in `docker-compose.yml` (`KENNUNG:`) und unter *Einstellungen → Personen*.
+Ein kurzer Name pro Person, z. B. `daniel` – nur Kleinbuchstaben, Ziffern und `-`. Jede Person braucht eine **eigene**; bleibt überall der Standard `ich` stehen, lösen sich mehrere Personen gegenseitig aus. Dieselbe Kennung gehört in die App (*Alarm & Quellen → Meine Kennung*, auf jedem eigenen Gerät), in den ESP32 (`kennung:`) und unter *Einstellungen → Personen*.
 
 **7 · Testen**
 Auf *Start* **Testalarm** – es passiert nichts Echtes, du siehst nur die Abfrage. Unter *Einstellungen → Dieser PC* bzw. *Dieses Handy* mit **Ton testen** prüfen, wie laut es wird. Mehr unter *Einstellungen → Test & Diagnose*.
 
 **Updates**
-Heimalarm sucht beim Start auf GitHub nach einer neuen Version (*Einstellungen → Darstellung & Updates*, abschaltbar). Mit **Installieren** lädt die App die Datei, prüft die Prüfsumme und installiert – am PC still mit Neustart, am Handy über den normalen Android-Installationsdialog (beim ersten Mal „Apps aus dieser Quelle zulassen“). Einstellungen bleiben erhalten. 
+Heimalarm sucht beim Start und danach alle 6 Stunden auf GitHub nach einer neuen Version (*Einstellungen → Darstellung & Updates*, abschaltbar). Mit **Installieren** lädt die App die Datei, prüft die Prüfsumme und installiert – am PC still mit Neustart, am Handy über den normalen Android-Installationsdialog (beim ersten Mal „Apps aus dieser Quelle zulassen“). Einstellungen bleiben erhalten. 
 
-Ausführlich mit Bildern: [Heimalarm im Überblick (PDF)](docs/anleitungen/Heimalarm-Uebersicht.pdf) · ursprüngliches [Konzept (PDF, veraltet – nur zur Geschichte)](docs/Konzept.pdf)
+Ausführlich mit Bildern: [Heimalarm im Überblick (PDF)](docs/anleitungen/Heimalarm-Uebersicht.pdf)
 
 ---
 

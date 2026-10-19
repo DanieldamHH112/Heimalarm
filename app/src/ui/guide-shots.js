@@ -12,7 +12,7 @@ export const SHOTS = {
   firewall: { title: "Windows-Firewall", cap: "Erscheint beim ersten Start", src: "Windows 11", win: true,
     html: `<div class="bar">Windows-Sicherheitswarnung</div><div class="pad"><b>Einige Features von Heimalarm wurden blockiert.</b><span class="m">Kommunikation in diesen Netzwerken zulassen:</span>${hl(1, `${cb(true)}Private Netzwerke`)}<span>${cb(false)}Öffentliche Netzwerke</span><div class="btns">${hl(2, "Zugriff zulassen", "bt p")}<span class="bt">Abbrechen</span></div></div>` },
   notifList: { title: "Benachrichtigungen lesen", cap: "Liste der Apps · Heimalarm antippen", src: "Android 14 (Pixel), ähnlich bei Samsung",
-    html: `<div class="bar">‹ Benachrichtigungen lesen</div>${row("Divera 24/7", tg(false))}<div class="r hl" data-n="1"><span>Heimalarm</span>${tg(false)}</div>${row("Smart Life", tg(true))}${row("Wear OS", tg(true))}` },
+    html: `<div class="bar">‹ Benachrichtigungen lesen</div>${row("Divera 24/7", tg(false))}<div class="r hl" data-n="1"><span>Heimalarm</span>${tg(false)}</div>${row("Google", tg(true))}${row("Wear OS", tg(true))}` },
   notifAllow: { title: "Zugriff bestätigen", cap: "Schalter an, dann „Zulassen“", src: "Android 14", dim: true,
     html: `<div class="dlg"><b>Heimalarm erlauben, Benachrichtigungen zu lesen?</b><span class="m">Die App kann alle Benachrichtigungen lesen.</span><div class="btns"><span class="bt">Nicht zulassen</span>${hl(1, "Zulassen", "bt p")}</div></div>` },
   battery: { title: "Akku-Ausnahme", cap: "Systemfrage nach „Ausnahme erlauben“", src: "Android 14", dim: true,

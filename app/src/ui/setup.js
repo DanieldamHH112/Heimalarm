@@ -39,7 +39,7 @@ export function setupFlow() {
     const melder = has.esp() ? Boolean(state.devices[s.alarm.me]?.online) : null;
     return flow("So läuft ein Alarm mit Zentrale",
       column("Alarm kommt an",
-        node("Melder in der Ladeschale", "ESP32 am Relaiskontakt – oder übergangsweise der Funk-Alarmschalter über die Tuya-Brücke", melder),
+        node("Melder in der Ladeschale", "ESP32 am Relaiskontakt der Ladeschale", melder),
         node("Alarm-Apps", "SYBOS, aPager, Divera auf dem Handy", (has.sybos() || has.apager() || has.divera()) || null)),
       column("Zentrale",
         node("Zentrale", s.broker.host ? `${s.broker.host} · läuft immer` : "Adresse unter „Verbindung“ eintragen", s.broker.host ? state.connected : false)),

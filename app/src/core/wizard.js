@@ -12,7 +12,6 @@ import { emit } from "./events.js";
 /** Fragen: [id, Titel, Erklärung, Hinweis, Symbol, Bereichsfarbe] */
 export const SOURCES = [
   ["esp", "Melder in der Ladeschale", "ESP32 am Relaiskontakt deines Melders", "Braucht Zentrale", "bell", "--c-alarm"],
-  ["tuya", "Funk-Alarmschalter", "Smart Life, übergangsweise über die Tuya-Brücke", "Braucht Zentrale", "net", "--c-alarm"],
   ["sybos", "SYBOS", "Heimalarm liest die Meldung am Handy mit", "", "bell", "--c-phone"],
   ["apager", "aPager PRO", "Mitlesen, optional Rückmeldung „Ich fahre“", "", "bell", "--c-phone"],
   ["divera", "Divera 24/7", "Über die Divera-API mit deinem Schlüssel", "", "link", "--c-net"],
@@ -39,7 +38,7 @@ export const INTRO = [
 
 const w = () => settings().wizard;
 export const answers = () => w().answers;
-export const needsPi = (a = answers()) => a.src.some((x) => x === "esp" || x === "tuya") || a.act.some((x) => x === "zigbee" || x === "matter");
+export const needsPi = (a = answers()) => a.src.includes("esp") || a.act.some((x) => x === "zigbee" || x === "matter");
 export const withPi = (a = answers()) => a.always === "ja";
 /** Was dieses Gerät ist: Schritte für das andere Gerät werden nur angezeigt. */
 export const here = hasPcFeatures ? "pc" : isAndroid ? "phone" : "both";
@@ -54,7 +53,6 @@ export function plan(a = answers()) {
   if (z) { add("zentrale", "Zentrale starten", "pi", "hub", "--c-net"); add("verbinden", "Mit Zentrale verbinden", "both", "net", "--c-net"); }
   else add("koppeln", "Handy mit PC koppeln", "both", "link", "--c-net");
   if (z && has(a.src, "esp")) add("esp", "Melder anschließen", "pi", "bell", "--c-alarm");
-  if (z && has(a.src, "tuya")) add("tuya", "Tuya-Brücke einrichten", "pi", "net", "--c-alarm");
   if (has(a.src, "sybos")) add("sybos", "SYBOS mitlesen", "phone", "bell", "--c-phone");
   if (has(a.src, "apager")) add("apager", "aPager mitlesen", "phone", "bell", "--c-phone");
   if (has(a.src, "divera")) add("divera", "Divera-Schlüssel", "both", "link", "--c-net");
@@ -106,7 +104,7 @@ export function applyAnswers() {
   const apps = structuredClone(settings().alarm.apps);
   for (const k of ["sybos", "apager", "divera"]) apps[k] = { ...apps[k], on: a.src.includes(k) };
   set("alarm.apps", apps);
-  set("alarm.mqtt", withPi(a) && a.src.some((x) => x === "esp" || x === "tuya"));
+  set("alarm.mqtt", withPi(a) && a.src.includes("esp"));
   emit("conn", {});
 }
 

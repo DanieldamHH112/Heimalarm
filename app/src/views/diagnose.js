@@ -11,6 +11,24 @@ import { testAlarm, simulateContact, fullProbe } from "../core/engine.js";
 import { sendToPeers } from "../core/direct.js";
 import { hasPcFeatures } from "../core/platform.js";
 
+/** Kontakt-Test: zeigt live, ob der Kontakt offen oder geschlossen ist. Der ESP32 meldet so lange keinen Alarm. */
+function contactCard() {
+  const me = settings().alarm.me;
+  const d = state.devices[me];
+  const set = (on) => { if (publish(`alarm/${me}/switch/kontakt_test/command`, on ? "ON" : "OFF")) toast(on ? "Kontakt-Test läuft (max. 10 Minuten)" : "Kontakt-Test beendet"); };
+  const known = d?.contact !== undefined;
+  return h("section.card", {},
+    h("div.card-head", {}, h("h2", {}, "Kontakt-Test"),
+      !d?.online ? h("span.chip.bad", {}, "ESP32 offline")
+        : !known ? h("span.chip", {}, "ältere Firmware")
+        : h("span.chip" + (d.contact ? ".ok" : ""), {}, d.contact ? "geschlossen" : "offen")),
+    h("p.hint", {}, "Zeigt live, ob der Kontakt an der Ladeschale offen oder geschlossen ist. Während des Tests meldet der Melder keinen Alarm – gut zum Prüfen der Kabel."),
+    d?.testing && h("p.meta", {}, "Test läuft. Kabelenden kurz verbinden oder am Kabel wackeln: Springt die Anzeige, sitzt etwas locker. Endet nach 10 Minuten von selbst."),
+    h("div.row", {}, d?.testing
+      ? h("button.btn.primary", { onclick: () => set(false) }, "Test beenden")
+      : h("button.btn", { onclick: () => set(true), disabled: !d?.online || !known }, "Test starten")));
+}
+
 /** Geräte, an die ein gezielter Testalarm gehen kann. */
 function testTargets() {
   const out = [];
@@ -59,8 +77,7 @@ async function connectionTest(rerender) {
     checks: [
       has.pi() && { name: "Zentrale (Mosquitto)", ok: state.connected, hint: state.connected ? settings().broker.host : "nicht verbunden" },
       has.pi() && { name: "Zentrale-Programm", ok: Boolean(pong), hint: pong ? `Version ${state.pong.version} · ${state.pong.at - started} ms` : "keine Antwort" },
-      has.esp() && (esp || !state.tuya) && { name: `Melder (ESP32) „${me}“`, ok: Boolean(esp?.online), hint: esp ? (esp.online ? (fresh ? "online, Lebenszeichen aktuell" : "online, aber lange kein Lebenszeichen") : "offline") : "noch nie gemeldet" },
-      has.esp() && state.tuya && { name: "Melder (Funkschalter)", ok: Boolean(state.tuya.online && state.tuya.angemeldet), hint: !state.tuya.online ? "Tuya-Brücke offline" : state.tuya.angemeldet ? `angemeldet${state.tuya.geraet ? " · " + state.tuya.geraet : ""}` : "nicht angemeldet – http://<zentrale>:8082 öffnen" },
+      has.esp() && { name: `Melder (ESP32) „${me}“`, ok: Boolean(esp?.online), hint: esp ? (esp.online ? (fresh ? "online, Lebenszeichen aktuell" : "online, aber lange kein Lebenszeichen") : "offline") : "noch nie gemeldet" },
       has.zigbee() && { name: "Zigbee2MQTT", ok: state.bridge === "online", hint: state.bridge || "nicht gefunden" },
       has.pi() && { name: "Andere Apps", ok: Object.values(state.clients).some((c) => c.online), hint: `${Object.values(state.clients).filter((c) => c.online).length} online` },
       dv && { name: "Divera 24/7", ok: dvOk, hint: dvOk ? settings().divera.unit || "verbunden" : divera.error },
@@ -87,6 +104,7 @@ export function diagnoseView(rerender) {
         h("h2", {}, "Einrichtung"),
         h("p.hint", {}, "Schritt für Schritt neu durchgehen: Fragen, persönlicher Plan, Anleitung mit Bildern."),
         h("div.row", {}, h("button.btn", { type: "button", onclick: () => { startWizard(); location.hash = "#/einrichtung"; } }, "Einrichtung starten"))),
+      has.esp() && contactCard(),
       has.esp() && h("section.card", {},
         h("h2", {}, "Melder-Alarm nachspielen"),
         h("p.hint", {}, "Wie ein echter Melder-Alarm – alle Geräte zeigen die Abfrage. Licht und PC-Aktion bleiben aus."),
@@ -104,6 +122,7 @@ export function diagnoseView(rerender) {
         h("tbody", {}, [
           ["Testalarm", "nur dieses Gerät", "nein", "nein"],
           ["Testmodus (Schalter)", "ja, bei jedem Alarm", "mit Zentrale ja", "nein"],
+          ["Kontakt-Test", "nein", "nein", "nein"],
           ["Melder-Alarm nachspielen", "alle Geräte", "nein", "nein"],
           ["Generalprobe", "alle Geräte", "ja", "nein"],
         ].map((r) => h("tr", {}, r.map((c) => h("td", {}, c)))))),

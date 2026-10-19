@@ -145,12 +145,12 @@ function verbindung(rerender) {
   const host = settings().broker.host;
   return section("verbindung", "Verbindung", "Die Zentrale ist ein Gerät, das rund um die Uhr läuft: NAS, Mini-PC oder Raspberry Pi (ein alter Laptop geht auch, darf aber nie schlafen). Darauf läuft der Ordner „zentrale“ aus Heimalarm. Ohne sie kommt kein Melder-Alarm an.",
     h("div.fields", {},
-      field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "Die feste IP der Zentrale, z. B. aus der FRITZ!Box"),
+      field("Adresse", text("broker.host", { placeholder: "z. B. 192.168.1.10", inputmode: "url", autocomplete: "off" }), "Die feste IP der Zentrale. Im WLAN-Router für dieses Gerät eine feste IP-Adresse einstellen."),
       field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "Fast immer 9001 – nur ändern, wenn du ihn in der Zentrale geändert hast."),
       field("Benutzer", text("broker.user", { autocomplete: "off" }), "Fast immer „heimalarm“."),
       field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }), "Das Passwort, das du beim Einrichten der Zentrale in die Datei .env geschrieben hast (MQTT_PASSWORD).")),
     toggle("broker.tls", "Verschlüsselt (TLS)", "Im Heimnetz nicht nötig. Nur einschalten, wenn deine Zentrale dafür eingerichtet ist – sonst klappt die Verbindung nicht."),
-    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Heimalarm ist fürs Heimnetz gedacht. Stell die Zentrale nicht offen ins Internet. Für unterwegs gibt es z. B. das VPN der FRITZ!Box – frag im Zweifel jemanden mit Erfahrung.")),
+    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Heimalarm ist fürs Heimnetz gedacht. Stell die Zentrale nicht offen ins Internet. Für unterwegs gibt es z. B. ein VPN über deinen Router – frag im Zweifel jemanden mit Erfahrung.")),
     h("div.row", {}, h("button.btn.primary", { onclick: () => { connect(); toast("Verbinde mit der Zentrale …"); setTimeout(rerender, 1500); } }, "Speichern & verbinden")),
   );
 }
@@ -168,7 +168,6 @@ function alarm(rerender) {
       h("ul.meta", {},
         h("li", {}, "In der App auf jedem eigenen PC und Handy (hier)"),
         h("li", {}, "Im ESP32: ", h("code", {}, "kennung:"), " oben in der YAML-Datei"),
-        h("li", {}, "Beim Funk-Alarmschalter: ", h("code", {}, "KENNUNG:"), " in docker-compose.yml"),
         h("li", {}, "Für weitere Personen unter Personen"))),
   );
 }
@@ -292,7 +291,7 @@ function quellen(rerender) {
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
   return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
     h("div.sources", {},
-      sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale – über ESP32 oder Funkschalter. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
+      sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale über den ESP32. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
         summary: "Benachrichtigung der SYBOS-App mitlesen.",
         onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
@@ -378,6 +377,16 @@ function sprache(rerender) {
   );
 }
 
+/** Kontakt-Logik direkt im ESP32 umschalten – ohne neu zu flashen. */
+function segmentedEsp(d, me) {
+  const pick = (open) => () => { if (publish(`alarm/${me}/switch/alarm_bei_offen/command`, open ? "ON" : "OFF")) toast("An den ESP32 gesendet"); };
+  const on = d?.invert === true, known = d?.invert !== undefined;
+  return h("div.row", {},
+    h("button.btn.small" + (known && !on ? ".primary" : ""), { type: "button", onclick: pick(false), disabled: !d?.online }, "schließt"),
+    h("button.btn.small" + (on ? ".primary" : ""), { type: "button", onclick: pick(true), disabled: !d?.online }, "öffnet"),
+    !known && h("span.meta", {}, d?.online ? "ältere Firmware – neu flashen" : "ESP32 offline"));
+}
+
 function esp32() {
   const me = settings().alarm.me;
   const d = state.devices[me];
@@ -388,6 +397,9 @@ function esp32() {
       field("Mindestdauer Kontakt (ms)", text("alarm.minDurationMs", { type: "number", min: 10, max: 5000 }, {
         onSave: (v) => { if (publish(`alarm/${me}/number/min_duration/command`, String(v))) toast("An den ESP32 gesendet"); },
       }), `Kürzere Impulse werden ignoriert. Aktuell im ESP32: ${d?.minDuration ?? "–"} ms`),
+      h("div.field", {}, h("span", {}, "Alarm, wenn der Kontakt"),
+        segmentedEsp(d, me),
+        h("small", {}, "Bei den meisten Ladeschalen schließt der Kontakt bei Alarm. Prüfen unter Test & Diagnose → Kontakt-Test.")),
       field("Lebenszeichen erwartet alle (s)", text("alarm.heartbeatSec", { type: "number", min: 60, max: 3600 }), "Kommt so lange nichts, gibt es eine Warnung."),
       field("Offline-Warnung nach (s)", text("alarm.offlineWarnSec", { type: "number", min: 30, max: 3600 }), "Ist der ESP32 so lange offline, kommt eine Meldung.")),
     h("div.field", {}, h("span", {}, "Firmware-Update über WLAN"), url, md5,
@@ -607,7 +619,7 @@ function updates(rerender) {
   const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
   return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert – ohne zusätzliche Programme.",
     h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Zentrale " + state.dienst.version : ""}`),
-    toggle("update.auto", "Beim Start nach Updates suchen", "Nur eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
+    toggle("update.auto", "Automatisch nach Updates suchen", "Beim Start und alle 6 Stunden eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
     u.available
       ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || noteLine(u.available.notes)),
           h("div.row", {},

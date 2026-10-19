@@ -14,7 +14,7 @@ let client = null;
 /** Live-Zustand für die Ansichten. */
 export const state = {
   connected: false,
-  devices: {},     // ESP32: kennung -> { online, since, ip, rssi, uptime, version, lastSeen }
+  devices: {},     // ESP32: kennung -> { online, since, ip, rssi, uptime, version, lastSeen, contact, invert, testing }
   clients: {},     // Apps: id -> { name, platform, version, online, ts, mac }
   zigbee: null,    // Zigbee2MQTT-Geräteliste (null = kein Zigbee2MQTT)
   zstate: {},      // Zigbee: friendly_name -> letzter Zustand
@@ -27,7 +27,6 @@ export const state = {
   report: null,    // I4 – letzter Selbsttest
   zlog: [],        // F5 – Protokoll der Zentrale
   pong: null,      // I3 – Antwort auf Verbindungstest
-  tuya: null,      // Tuya-Brücke (Funk-Alarmschalter über Smart Life): { online, angemeldet, kennung, geraet, ts }
   voice: null,     // Matter-Bridge für Alexa / Google Home: { running, qr, manual, commissioned, fabrics, sensors, error }
 };
 
@@ -139,7 +138,19 @@ function handle(topic, msg, retained) {
   } else if (p.at(-1) === "state") {
     const id = p.at(-2);
     if (id === "wifi_signal") d.rssi = Number(msg);
-    else if (id === "uptime") d.uptime = Number(msg);
+    else if (id === "uptime") {
+      const n = Number(msg);
+      // Laufzeit springt zurück → ESP32 ist neu gestartet (z. B. Strom weg, Kabel auf RST statt auf dem Kontakt-Pin)
+      if (!retained && d.uptime != null && n < d.uptime) log("warn", `ESP32 „${who}“ neu gestartet`, "Strom oder WLAN kurz weg? Steckt ein Kabel versehentlich auf RST?");
+      d.uptime = n;
+    }
+    else if (id === "kontakt") {
+      const closed = msg === "ON";
+      if (!retained && d.testing && d.contact !== undefined && d.contact !== closed) log("info", `Kontakt-Test „${who}“: ${closed ? "geschlossen" : "offen"}`);
+      d.contact = closed; d.contactTs = Date.now();
+    }
+    else if (id === "alarm_bei_offen") d.invert = msg === "ON";
+    else if (id === "kontakt_test") d.testing = msg === "ON";
     else if (id === "ip") d.ip = msg;
     else if (id === "version") d.version = msg;
     else if (id === "min_duration") d.minDuration = Number(msg);
@@ -170,7 +181,6 @@ function handleHeimalarm(p, msg) {
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
-  else if (p[1] === "tuya" && p[2] === "status") state.tuya = json();
   else if (p[1] === "pong") state.pong = { ...json(), at: Date.now() };
   else if (p[1] === "log" && p[2] === "recent") state.zlog = json() || [];
   else if (p[1] === "log" && !p[2]) { state.zlog.unshift(json()); state.zlog.length = Math.min(state.zlog.length, 200); }

@@ -35,26 +35,16 @@ function steps() {
   // why(): Grund und Hinweis, wenn der Schritt fehlschlägt (landet im Protokoll)
   if (has.pi()) list.push({ name: `Zentrale ${s.broker.host}:${s.broker.port}`, run: () => until(() => state.connected, 8000),
     why: () => (mqttLastError() ? explainMqttError(mqttLastError()).join(" · ") : "Keine Antwort in 8 s · Ist die Zentrale an, IP und Port 9001 richtig, PC und Zentrale im selben Netz?") });
-  // Melder: ob ESP32 oder Funk-Alarmschalter (Tuya-Brücke), steht erst fest, wenn die Zentrale verbunden ist
-  // und ihre gespeicherten Meldungen geschickt hat – darum erst im Schritt selbst entscheiden.
+  // Melder: erst entscheiden, wenn die Zentrale ihre gespeicherten Meldungen geschickt hat.
   if (has.esp()) {
-    let kind = "";
     list.push({ name: "Melder", run: async () => {
-      await until(() => state.tuya || state.devices[s.alarm.me], 5000);
-      kind = state.devices[s.alarm.me] ? "esp" : state.tuya ? "tuya" : "";
-      if (kind === "esp") return until(() => state.devices[s.alarm.me]?.online, 3000);
-      if (kind === "tuya") return until(() => state.tuya?.online && state.tuya?.angemeldet, 3000);
-      return false;
+      await until(() => state.devices[s.alarm.me], 5000);
+      return until(() => state.devices[s.alarm.me]?.online, 3000);
     },
     why: () => {
       if (!state.connected) return "Ohne Zentrale kein Melder";
-      if (kind === "esp") return `ESP32 „${s.alarm.me}“ meldet sich offline · Strom und WLAN (2,4 GHz) prüfen`;
-      if (kind === "tuya") {
-        if (!state.tuya?.online) return "Tuya-Brücke läuft nicht · Container tuya-bruecke auf der NAS prüfen";
-        if (!state.tuya?.angemeldet) return "Tuya-Brücke nicht bei Smart Life angemeldet · http://<IP der NAS>:8082 öffnen und anmelden";
-        return "Funk-Alarmschalter nicht bereit";
-      }
-      return `Weder ESP32 „${s.alarm.me}“ noch Tuya-Brücke gemeldet · Läuft der Container tuya-bruecke bzw. ist der ESP32 an? Kennung überall „${s.alarm.me}“?`;
+      if (state.devices[s.alarm.me]) return `ESP32 „${s.alarm.me}“ meldet sich offline · Strom und WLAN (2,4 GHz) prüfen`;
+      return `ESP32 „${s.alarm.me}“ hat sich noch nie gemeldet · Ist er an? Kennung überall „${s.alarm.me}“? mqtt_pw richtig?`;
     } });
   }
   if (has.direct() && hasPcFeatures) list.push({ name: "Empfang vom Handy", run: () => until(() => direct.ip && !direct.error, 4000),
