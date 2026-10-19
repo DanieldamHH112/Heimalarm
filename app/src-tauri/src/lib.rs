@@ -136,6 +136,7 @@ fn wake_on_lan(mac: String) -> Result<(), String> {
 
 mod direct;
 mod discord;
+mod hotkeys;
 mod sound;
 mod takeover;
 
@@ -365,7 +366,9 @@ pub fn run() {
             takeover::tray_status,
             discord::discord_set,
             discord::discord_clear,
-            discord::discord_running
+            discord::discord_running,
+            hotkeys::window_list,
+            hotkeys::send_hotkey
         ])
         .run(tauri::generate_context!())
         .expect("Heimalarm konnte nicht starten");

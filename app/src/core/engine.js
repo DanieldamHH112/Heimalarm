@@ -14,6 +14,7 @@ import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
 import { shared } from "./shared.js";
 import { presenceSettled } from "./discord.js";
+import { runHotkeys } from "./hotkeys.js";
 import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
 
 const lastByWho = new Map();
@@ -169,6 +170,7 @@ export async function decide(going, { test = false, timeout = false } = {}) {
     return;
   }
   if (p.stopMedia) await stopMedia().catch(() => {}); // D8
+  await runHotkeys().catch((e) => log("warn", "Tasten vor dem Ruhezustand", String(e)));   // z. B. Strg+S in Blender
   // Discord-Status soll noch rausgehen, bevor der PC schläft (höchstens 3 s warten)
   await Promise.race([presenceSettled(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
   log("action", `${why} → ${label}`, "wird ausgeführt");

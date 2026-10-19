@@ -24,6 +24,7 @@ import { icon } from "../ui/icons.js";
 import { activeSources } from "../core/features.js";
 import { discordSection } from "./discord.js";
 import { hassSection } from "./hass.js";
+import { hotkeySection } from "./hotkeys.js";
 import { discord } from "../core/discord.js";
 
 const PRIVATE = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$|[a-z0-9-]+\.local$|[a-z0-9-]+$)/iu;
@@ -611,7 +612,7 @@ const GROUPS = () => [
     sub: () => (mode() === "direkt" ? "Ohne Zentrale" : mode() === "zentrale" ? (state.connected ? "Mit Zentrale · verbunden" : isConfigured() ? "Mit Zentrale · getrennt" : "Mit Zentrale · nicht eingerichtet") : "Noch nicht gewählt"),
     warn: () => isConfigured() && !state.connected },
   { id: "geraet", label: hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät", icon: hasPcFeatures ? "pc" : "phone", color: hasPcFeatures ? "--c-pc" : "--c-phone",
-    sections: ["pc", "android", "geraet"],
+    sections: ["pc", "hotkeys", "android", "geraet"],
     sub: () => (hasPcFeatures ? `${ACTIONS[settings().pc.action]?.label} nach ${settings().pc.countdownSec} s` : android?.batteryOptimized ? "Akku-Optimierung aktiv" : settings().device.name || "Name, Benachrichtigung, Abgleich"),
     warn: () => (hasPcFeatures && settings().pc.action === "hibernate" && hibernateOn === false) || Boolean(android?.batteryOptimized) },
   { id: "personen", label: "Personen", icon: "people", color: "--c-people", sections: ["personen"],
@@ -653,6 +654,7 @@ export function settingsView(rerender) {
     alarm: () => alarm(),
     esp32: () => isConfigured() && esp32(),
     pc: () => hasPcFeatures && part(pc),
+    hotkeys: () => hasPcFeatures && part(hotkeySection),
     android: () => isTauri && isAndroid && part(androidSection),
     geraet: () => geraet(),
     personen: () => part(personen),
@@ -728,6 +730,7 @@ const KEYWORDS = {
   alarm: "kennung sperrzeit testalarm testmodus",
   esp32: "melder firmware update mindestdauer",
   pc: "ruhezustand herunterfahren sperren autostart windows wake on lan countdown",
+  hotkeys: "speichern strg s tastenkombination blender roblox studio programm tasten taste shortcut",
   android: "akku hintergrund benachrichtigung dienst",
   geraet: "name gerätename benachrichtigung abgleich sync intervall",
   funktionen: "logbuch statistik jahresrückblick einsätze zusatz",

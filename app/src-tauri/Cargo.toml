@@ -1,6 +1,6 @@
 [package]
 name = "heimalarm"
-version = "0.1.14"
+version = "0.1.15"
 description = "Heimalarm"
 edition = "2021"
 
@@ -28,7 +28,7 @@ tauri-plugin-window-state = "2"
 tauri-plugin-biometric = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Foundation"] }
+windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Foundation", "Win32_Security"] }
 # Alarmton nativ (spielt auch bei verstecktem Fenster), MP3/WAV/OGG/FLAC
 rodio = "0.20"
 # Windows Hello für die App-Sperre (gleiche Version wie Tauri, keine doppelte Kompilierung)

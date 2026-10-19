@@ -56,6 +56,8 @@ export const defaults = {
     systemMin: 60,          // … auf mindestens so viel Prozent
     exceptions: "",         // D7 – kein Ruhezustand, wenn eines dieser Programme läuft (z. B. obs64.exe)
     stopMedia: true,        // D8 – Medienwiedergabe vorher stoppen
+    // Vor dem Ruhezustand Tasten an Programme senden (z. B. Strg+S in Blender). core/hotkeys.js
+    hotkeys: { enabled: false, waitSec: 2, rules: [] },   // rules: [{ id, exe, name, keys, on }]
     quietFrom: "",          // D12 – Zeitfenster ohne Reaktion (leer = aus)
     quietTo: "",
     wolMac: "",             // D11 – MAC dieses PCs zum Aufwecken (wird angezeigt)
