@@ -20,7 +20,7 @@ Alles läuft lokal im Heimnetz und ohne laufende Kosten. Cloud-Dienste (Divera, 
   <img src="docs/screenshots/handy-uebersicht.png" width="22%" alt="Start am Handy">
 </p>
 
-Oben auf **Start** steht immer, ob Heimalarm bereit ist: **Aktiv**, **Verbindet** (prüft gerade Zentrale, Melder, PCs, Divera) oder **Inaktiv** (Urlaubsmodus – verbunden, aber bei Alarm passiert nichts). PC und Handy zeigen dieselben Teile, am Handy untereinander.
+Oben auf **Start** steht immer, ob Heimalarm bereit ist: **Aktiv**, **Verbindet** (prüft gerade Zentrale, Melder, PCs, Divera) oder – je nach **Bereitschaft** – **Nicht verfügbar** bzw. **Abwesend** (verbunden, aber bei Alarm passiert nichts; endet zur gewählten Zeit von selbst und springt auf **Verfügbar** zurück). PC und Handy zeigen dieselben Teile, am Handy untereinander.
 
 ## So funktioniert es
 

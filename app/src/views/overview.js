@@ -19,7 +19,8 @@ import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { on } from "../core/events.js";
 import { startWizard, inProgress } from "../core/wizard.js";
-import { updateShared } from "../core/shared.js";
+import { MODES, readiness, setReadiness, untilText } from "../core/readiness.js";
+import { pickUntil } from "../ui/until-picker.js";
 import { testAlarm } from "../core/engine.js";
 import { statsEntries } from "../core/stats.js";
 import { checkup, runCheckup, statusKind, connectionFailed, failedNow, reconnectAll } from "../core/checkup.js";
@@ -175,37 +176,50 @@ function statusPill() {
   return pill;
 }
 
+/* Bereitschaft (ersetzt „Aktiv/Inaktiv schalten“): Verfügbar, Nicht verfügbar, Abwesend – mit Endzeit. */
+async function chooseReadiness(k) {
+  if (k === "ready") { setReadiness("ready"); toast("Verfügbar – Alarme lösen wieder alles aus"); return; }
+  const r = readiness();
+  const until = await pickUntil(k, r.mode === k ? r.until : null);
+  if (!until) return;
+  setReadiness(k, until);
+  toast(`${MODES[k].label} ${untilText(until)} – danach wieder verfügbar`);
+}
+
 function statusCard() {
-  const vacation = Boolean(shared().vacation);
-  const kind = statusKind(vacation);
+  const r = readiness();
+  const off = r.mode !== "ready";
+  const kind = statusKind(off);
   const slot = h("div.stslot", { "aria-live": "polite" }, statusPill());
-  const title = h("h2.st-title", {}, ST_TEXT[kind]);
-  const toggle = h("button.btn.st-toggle" + (kind === "off" ? ".primary" : ""), {
-    type: "button", disabled: kind === "wait",
-    title: kind === "off" ? "Alarme lösen wieder Abfrage, Routinen und Ton aus" : "Urlaubsmodus: alles bleibt verbunden, bei Alarm passiert nichts",
-    onclick: () => { updateShared({ vacation: !vacation }); toast(vacation ? "Aktiv – Alarme lösen wieder alles aus" : "Inaktiv – bei Alarm passiert nichts"); },
-  }, kind === "off" ? "Aktivieren" : "Inaktiv schalten");
+  const title = h("h2.st-title", {}, kind === "off" ? `${MODES[r.mode].label} ${untilText(r.until)}`.trim() : ST_TEXT[kind]);
   const reconnect = h("button.btn", {
     type: "button", disabled: kind === "wait", title: "Alle Verbindungen neu aufbauen und prüfen – Ergebnis im Protokoll",
     onclick: () => reconnectAll(),
   }, "Neu verbinden");
-  const card = h("section.status-card", { "data-st": kind },
+  const ready = h("div.st-ready", {},
+    h("span.st-ready-label", {}, "Bereitschaft"),
+    h("div.ready-pick", { role: "group", "aria-label": "Bereitschaft" },
+      Object.entries(MODES).map(([k, m]) => h("button", {
+        type: "button", "data-mode": k, "aria-pressed": String(r.mode === k),
+        title: k === "ready" ? m.hint : r.mode === k ? "Endzeit ändern" : "Bis wann? – danach wieder verfügbar",
+        onclick: () => chooseReadiness(k),
+      }, m.label))),
+    h("span.st-ready-hint", {}, MODES[r.mode].hint));
+  const card = h("section.status-card", { "data-st": kind, "data-ready": r.mode },
     h("div.st-pulse", { "aria-hidden": "true" }, icon(ST_ICON[kind])),
     h("div.st-text", {}, title, slot),
     h("div.st-actions", {},
       h("button.btn", { type: "button", onclick: testAlarm }, "Testalarm"),
-      reconnect,
-      toggle));
+      reconnect),
+    ready);
   // Nur Pille und Zustand aktualisieren, nicht die ganze Seite (kein Springen während des Checks)
   stopStatus?.();
   stopStatus = on("checkup", () => {
     if (!card.isConnected) { stopStatus?.(); stopStatus = null; return; }
-    const k = statusKind(Boolean(shared().vacation));
+    const k = statusKind(readiness().mode !== "ready");
     card.dataset.st = k;
-    title.textContent = ST_TEXT[k];
     card.querySelector(".st-pulse").replaceChildren(icon(ST_ICON[k]));
     slot.replaceChildren(statusPill());
-    toggle.disabled = k === "wait";
     reconnect.disabled = k === "wait";
   });
   return card;

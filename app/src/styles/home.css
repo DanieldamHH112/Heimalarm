@@ -107,3 +107,43 @@
   .devs { grid-template-columns: 1fr 1fr; }
   .quick { grid-template-columns: 1fr 1fr; }
 }
+
+/* Bereitschaft in der Status-Karte: drei Knöpfe in Knopfform, jede Stufe mit eigener Farbe */
+.status-card[data-ready="away"] { --st: var(--warn); }
+.status-card[data-ready="absent"] { --st: var(--c-absent); }
+.st-ready { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); padding-top: var(--s4); border-top: 1px solid var(--line-2); }
+.st-ready-label { font-size: var(--fs-xs); font-weight: 650; color: var(--text-2); }
+.ready-pick { display: inline-flex; gap: 3px; padding: 3px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.ready-pick button { --m: var(--ok); min-height: 38px; padding: 0 16px; border: 0; border-radius: calc(var(--radius-sm) - 2px); background: transparent; color: var(--text-2); font-weight: 600; white-space: nowrap; transition: background .15s, color .15s; }
+.ready-pick button[data-mode="away"] { --m: var(--warn); }
+.ready-pick button[data-mode="absent"] { --m: var(--c-absent); }
+.ready-pick button:hover { color: var(--text); }
+.ready-pick button[aria-pressed="true"] { background: color-mix(in srgb, var(--m) 18%, var(--surface-2)); color: var(--m); }
+.st-ready-hint { font-size: var(--fs-sm); color: var(--text-2); flex: 1 1 260px; }
+@media (max-width: 760px) {
+  .st-ready { gap: var(--s2); }
+  .ready-pick { width: 100%; }
+  .ready-pick button { flex: 1 1 auto; padding: 0 6px; font-size: var(--fs-xs); }
+}
+
+/* Auswahl „bis wann?“ (ui/until-picker.js) */
+.until-presets { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.until-pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s5); align-items: start; }
+.cal { display: grid; gap: var(--s2); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; }
+.cal-nav { min-height: 38px; width: 38px; padding: 0; }
+.cal-nav svg.icon { width: 18px; height: 18px; }
+.cal-month { font-weight: 650; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal-wd { text-align: center; font-size: var(--fs-xs); color: var(--text-2); padding: 4px 0; }
+.cal-day { min-height: 38px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font-variant-numeric: tabular-nums; font-weight: 550; }
+.cal-day:hover:not(:disabled) { background: var(--surface-3); }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--line); }
+.cal-day[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.cal-day:disabled { color: color-mix(in srgb, var(--text-2) 45%, transparent); }
+.until-time { display: grid; gap: 6px; font-size: var(--fs-xs); font-weight: 650; color: var(--text-2); }
+.until-time .input { width: 120px; font-size: 1.1rem; }
+.until-sum { margin: 0; font-weight: 600; }
+.until-sum.bad { color: var(--signal); }
+.row.end { justify-content: flex-end; }
+@media (max-width: 560px) { .until-pick { grid-template-columns: 1fr; } .until-time .input { width: 100%; } }

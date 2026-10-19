@@ -3,6 +3,7 @@
 // Weitere Bildschirme zeigen dieselbe Abfrage (mirror.html), die Antwort kommt per Ereignis zurück.
 import { h, fmtTime } from "../ui/dom.js";
 import { settings } from "../core/settings.js";
+import { on } from "../core/events.js";
 import { decide } from "../core/engine.js";
 import { ACTIONS, takeoverWindow } from "../core/pc.js";
 import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
@@ -41,7 +42,18 @@ export function showTakeover(alarm) {
   const ring = h("div.ring", { style: "--p:1", role: "img", "aria-label": `Noch ${left} Sekunden` }, num);
   const live = h("p.sr-only", { "aria-live": "assertive", "aria-atomic": "true" });
   const label = ACTIONS[p.action]?.label || p.action;
-  const extra = [alarm.keyword, alarm.unit].filter(Boolean).join(" · ");
+  let extra = [alarm.keyword, alarm.unit].filter(Boolean).join(" · ");
+  // Melder zuerst: Stichwort und Ort kommen meist ein paar Sekunden später (engine.js → „alarm-update“)
+  const waiting = () => !test && !alarm.keyword && !alarm.address && alarm.source === "ESP32";
+  const extraEl = h("p.meta-big", {}, extra);
+  const addrEl = h("p.meta", {}, alarm.address || "");
+  const showInfo = () => {
+    extra = [alarm.keyword, alarm.unit].filter(Boolean).join(" · ");
+    extraEl.textContent = extra || (waiting() ? (Date.now() - alarm.ts > 90e3 ? "Keine Einsatzinfos" : "Einsatzinfos folgen …") : "");
+    extraEl.classList.toggle("pending", !extra && waiting());
+    addrEl.textContent = alarm.address || "";
+    extraEl.hidden = !extraEl.textContent; addrEl.hidden = !addrEl.textContent;
+  };
   const tag = alarm.probe ? "Generalprobe · PC-Aktion nur angezeigt" : test ? "Testalarm · es passiert nichts" : `Einsatz · ${fmtTime(alarm.ts)}`;
   const note = onPhone ? "Ohne Antwort: keine Rückmeldung" : p.onTimeout === "run" ? `Ohne Antwort: ${label}` : "Ohne Antwort: keine Aktion";
 
@@ -77,6 +89,7 @@ export function showTakeover(alarm) {
       emit("takeover-state", { tag, title: p.title || "Fährst du?", extra, address: alarm.address || "", left: Math.max(left, 0), total, goText: p.goText || "Ich fahre", stayText: p.stayText || "Ich fahre nicht", note });
     } catch { /* nur Komfort */ }
   };
+  unlisten.push(on("alarm-update", (a) => { if (a === alarm || a.ts === alarm.ts) { Object.assign(alarm, a); showInfo(); broadcast(); } }));
   if (hasPcFeatures) {
     import("@tauri-apps/api/event").then(async ({ listen }) => {
       if (done) return;
@@ -88,8 +101,8 @@ export function showTakeover(alarm) {
   root.replaceChildren(h("div.box", {},
     h("div.tag", {}, tag),
     h("h1", {}, p.title || "Fährst du?"),
-    extra && h("p.meta-big", {}, extra),
-    alarm.address && h("p.meta", {}, alarm.address),
+    extraEl,
+    addrEl,
     ring, live,
     h("div.actions", {},
       h("button.btn.primary", { type: "button", onclick: () => finish(true) }, p.goText || "Ich fahre"),
@@ -97,6 +110,7 @@ export function showTakeover(alarm) {
     h("p.note", {}, note),
     !onPhone && h("p.keys", {}, "Enter = fahren · Esc = bleiben"),
   ));
+  showInfo();
   root.hidden = false;
   takeoverWindow(true);
   raiseVolume(p).then((v) => { if (done && v) setDeviceVolume(v.level, v.muted).catch(() => {}); else restore = v; });
@@ -116,6 +130,7 @@ export function showTakeover(alarm) {
     ring.style.setProperty("--p", String(l / total));
     ring.setAttribute("aria-label", `Noch ${l} Sekunden`);
     if (l > 0 && (l % 10 === 0 || l <= 5)) live.textContent = `Noch ${l} Sekunden`;
+    if (extraEl.classList.contains("pending")) showInfo();
     broadcast();
     if (left <= 0) finish(p.onTimeout === "run", true);
   }, 1000);

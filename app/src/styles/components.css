@@ -337,7 +337,7 @@ details.more > .field { margin-top: var(--s3); }
 .pair-big small { color: var(--text-2); font-size: var(--fs-xs); font-weight: 600; }
 .pair-big code { font-size: 1.5rem; font-weight: 650; letter-spacing: .05em; font-variant-numeric: tabular-nums; background: none; padding: 0; }
 
-/* Einsatz-Logbuch und Statistik (Protokoll → Einsätze) */
+/* Einsatz-Logbuch und Statistik (Seite Einsätze) */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
 .month-bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 140px; margin-bottom: var(--s3); }
 .month-bars .bar { display: grid; grid-template-rows: auto 1fr auto; height: 100%; align-items: end; justify-items: center; gap: 4px; }
@@ -397,7 +397,7 @@ details[open].flow-details > summary, details[open].flow-wrap > summary { margin
 .slider { width: 100%; min-height: 32px; accent-color: var(--signal); }
 .field output { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
 
-/* Protokoll → Einsätze: eine Liste wie „Alle“, Tippen öffnet die Details */
+/* Seite Einsätze: eine Liste wie „Alle“, Tippen öffnet die Details */
 .einsatz-list { display: grid; gap: 2px; }
 .einsatz-grp { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); padding: var(--s3) 0 var(--s1); }
 .einsatz-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: var(--s3); align-items: center; width: 100%; padding: 10px 8px; border: 0; border-top: 1px solid var(--line-2); background: none; color: var(--text); text-align: left; border-radius: 0; }

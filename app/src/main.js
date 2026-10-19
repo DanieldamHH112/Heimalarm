@@ -11,7 +11,7 @@ import { ensurePermission, notify } from "./core/notify.js";
 import { isAndroid, isTauri, hasPcFeatures } from "./core/platform.js";
 import { h, toast } from "./ui/dom.js";
 import { overview } from "./views/overview.js";
-import { logView } from "./views/log.js";
+import { logView, einsaetzeView } from "./views/log.js";
 import { settingsView } from "./views/settings.js";
 import { showTakeover } from "./views/takeover.js";
 import { devicesView } from "./views/devices.js";
@@ -26,11 +26,12 @@ import { has } from "./core/features.js";
 import { startReceiver, startSync } from "./core/direct.js";
 import { initLocalRoutines } from "./core/routines-local.js";
 import { initDiscord } from "./core/discord.js";
+import { initReadiness } from "./core/readiness.js";
 import { initCheckup } from "./core/checkup.js";
 
 const routes = {
   uebersicht: overview, geraete: devicesView, routinen: routinesView,
-  protokoll: logView, einstellungen: settingsView, diagnose: diagnoseView, einrichtung: wizardView,
+  einsaetze: einsaetzeView, protokoll: logView, einstellungen: settingsView, diagnose: diagnoseView, einrichtung: wizardView,
 };
 const NAV_OF = { diagnose: "einstellungen", einrichtung: "einstellungen" };
 const view = document.getElementById("view");
@@ -52,6 +53,7 @@ function render() {
   else window.scrollTo(0, y);
   // Geräte und Routinen gibt es nur mit Zentrale
   document.querySelectorAll('.nav-item[data-route="geraete"], .nav-item[data-route="routinen"]').forEach((a) => { a.hidden = !has.routines(); });
+  document.querySelectorAll('.nav-item[data-route="einsaetze"]').forEach((a) => { a.hidden = !has.logbuch(); });
   document.querySelectorAll(".nav-item").forEach((a) => {
     if (a.dataset.route === (NAV_OF[name] || name)) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
@@ -84,6 +86,15 @@ const live = () => {
 };
 
 applyTheme();
+// Links nach außen (https://…, target="_blank") öffnet die WebView in Tauri nicht – an den Standard-Browser geben
+if (isTauri) {
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest?.('a[href^="http://"], a[href^="https://"]');
+    if (!a || e.defaultPrevented) return;
+    e.preventDefault();
+    import("@tauri-apps/plugin-opener").then((o) => o.openUrl(a.href)).catch((err) => log("warn", "Link ließ sich nicht öffnen", `${a.href} · ${err}`));
+  });
+}
 // Im Programm kein Browser-Kontextmenü (außer in Eingabefeldern: Kopieren/Einfügen)
 if (isTauri && !import.meta.env.DEV) {
   document.addEventListener("contextmenu", (e) => { if (!e.target.closest?.("input, textarea, [contenteditable]")) e.preventDefault(); });
@@ -92,6 +103,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", a
 initEngine();
 initLocalRoutines();
 initDiscord();
+initReadiness();
 on("conn", live);
 on("devices", live);
 on("log", live);

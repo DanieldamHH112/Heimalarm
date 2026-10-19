@@ -3,7 +3,7 @@
 // Läuft beim Start, nach jedem Verbindungsabbruch und auf Knopfdruck.
 import { emit, on } from "./events.js";
 import { settings } from "./settings.js";
-import { state, mqttLastError, explainMqttError, connect } from "./mqtt.js";
+import { state, mqttLastError, explainMqttError, connect, offlineSince } from "./mqtt.js";
 import { log } from "./log.js";
 import { restartDivera } from "./divera.js";
 import { startReceiver } from "./direct.js";
@@ -81,11 +81,16 @@ export async function runCheckup({ reason = "" } = {}) {
 }
 
 /** Beim Start und bei Verbindungsabbruch automatisch prüfen. */
+let downTimer = 0;
 export function initCheckup() {
   runCheckup({ reason: "Start" });
   let was = state.connected;
   on("conn", () => {
-    if (was && !state.connected && !checkup.running) runCheckup({ reason: "Verbindung getrennt" });
+    // Kurze Wackler (Neuverbindung in wenigen Sekunden) nicht prüfen und nicht als „Verbindet“ zeigen
+    if (was && !state.connected) {
+      clearTimeout(downTimer);
+      downTimer = setTimeout(() => { if (!state.connected && !checkup.running) runCheckup({ reason: "Verbindung seit 10 s getrennt" }); }, 10e3);
+    }
     if (!was && state.connected && checkup.failed.length && !checkup.running) runCheckup({ reason: "wieder verbunden" });
     was = state.connected;
   });
@@ -109,7 +114,7 @@ export const statusKind = (vacation) => (checkup.running ? "wait" : vacation ? "
  *  „Verbunden“ zeigt die Pille nur, wenn wirklich alles steht. */
 export function failedNow() {
   const live = [];
-  if (has.pi() && checkup.done && !state.connected) live.push("Zentrale");
+  if (has.pi() && checkup.done && !state.connected && (!offlineSince() || Date.now() - offlineSince() > 10e3)) live.push("Zentrale");
   if (has.diveraApi() && divera.ok === false) live.push("Divera");
   return [...new Set([...checkup.failed.map((n) => n.split(" ")[0]), ...live])];
 }

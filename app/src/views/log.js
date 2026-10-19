@@ -11,7 +11,7 @@ import {
 } from "../core/stats.js";
 
 const FILTERS = [
-  ["einsaetze", "Einsätze", () => has.logbuch()], ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
+  ["", "Alle"], ["alarm", "Alarme"], ["action", "Aktionen"], ["warn", "Warnungen"], ["zentrale", "Zentrale", () => has.pi()],
 ];
 let filter = null;
 let reviewYear = null;
@@ -19,6 +19,9 @@ let shown = 20;
 
 const fmtDay = (ts) => new Date(ts).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
 const fmtHm = (ts) => new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+const SRC = { ESP32: "Melder" };
+/** Quellen mit Zeitversatz zum ersten Signal: „Melder → aPager +6 s → Divera +9 s“. */
+const srcLine = (e) => (e.sources || [e.source]).filter(Boolean).map((k, i) => (SRC[k] || k) + (i && e.srcAt?.[k] != null ? ` +${e.srcAt[k]} s` : "")).join(" → ");
 const fmtSec = (s) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`);
 
 // ── Einsatz-Detail ──────────────────────────────────────────────────────────
@@ -38,9 +41,9 @@ function detailPane(id, rerender) {
   const note = h("textarea.input", { rows: 4, placeholder: "Was war los, was ist aufgefallen …" });
   note.value = e.note || "";
   const reaction = e.answerTs ? Math.round((e.answerTs - e.ts) / 1000) : null;
-  const sources = (e.sources || [e.source]).filter(Boolean).join(", ");
+  const sources = srcLine(e);
   return [
-    h("a.split-back", { href: "#/protokoll" }, icon("back"), "Protokoll"),
+    h("a.split-back", { href: "#/einsaetze" }, icon("back"), "Einsätze"),
     h("div.split-head", {},
       h("span.ico.big", { style: "--a:var(--c-alarm)" }, icon("bell")),
       h("div", { style: "min-width:0;flex:1" }, h("p.crumb", {}, `${fmtDay(e.ts)} · ${fmtTime(e.ts)}${e.address ? " · " + e.address : ""}`), h("h2", {}, e.keyword || "Einsatz")),
@@ -159,7 +162,7 @@ function einsaetzeList(rerender) {
     out.push(h("button.einsatz-row", { type: "button", onclick: () => openEinsatz(e.id, rerender) },
       h("span.ico", { style: `--a:var(${e.recall ? "--warn" : e.answer && e.answer !== "go" ? "--text-2" : "--c-alarm"})` }, icon("bell")),
       h("span.einsatz-main", {}, h("b", {}, e.keyword || "Alarm"),
-        h("small", {}, [category(e), e.address, (e.sources || [e.source]).filter(Boolean).join(", ")].filter(Boolean).join(" · ")),
+        h("small", {}, [category(e), e.address, srcLine(e)].filter(Boolean).join(" · ")),
         (e.note || e.vehicle) && h("small.einsatz-note", {}, [e.vehicle, e.role, e.note].filter(Boolean).join(" · "))),
       e.recall ? h("span.chip.warn", {}, "Rückalarm") : e.answer ? h("span.chip" + (e.answer === "go" ? ".ok" : ""), {}, ANSWER_TEXT[e.answer]) : h("span"),
       h("time.mono", {}, `${fmtHm(e.ts)}`)));
@@ -178,24 +181,21 @@ function openEinsatz(id, rerender) {
 
 // ── Seite ──────────────────────────────────────────────────────────────────
 
+/** Eigene Seite „Einsätze“ (Hauptmenü): Liste, Statistik, Rückblick, Export. */
+export function einsaetzeView(rerender) {
+  const any = statsEntries().some((e) => !e.deleted);
+  return h("div.page", {},
+    h("header.page-head", {}, h("div", {}, h("h1", {}, "Einsätze"), h("p", {}, has.stats() ? "Jede Alarmierung mit allen Infos, Quellen, Notizen und Statistik." : "Jede Alarmierung mit allen Infos und Notizen.")),
+      any && h("button.btn.small", { onclick: () => exportCsv() }, "CSV exportieren")),
+    h("section.card", {}, einsaetzeList(rerender)),
+    any && has.stats() && statsCard(rerender),
+    any && has.stats() && reviewCard(rerender));
+}
+
 export function logView(rerender) {
-  if (filter === null) filter = has.logbuch() ? "einsaetze" : "";   // erster Besuch: Einsätze, wenn das Logbuch an ist
-  if (filter === "einsaetze" && !has.logbuch()) filter = "";
+  if (filter === null || filter === "einsaetze") filter = "";
   const tabs = h("div.segmented.scroll", { role: "group", "aria-label": "Filter" },
     FILTERS.filter(([, , show]) => !show || show()).map(([k, label]) => h("button", { "aria-pressed": String(filter === k), onclick: () => { filter = k; shown = 20; rerender(); } }, label)));
-
-  if (filter === "einsaetze") {
-    const any = statsEntries().some((e) => !e.deleted);
-    return h("div.page", {},
-      head(has.stats() ? "Jede Alarmierung mit allen Infos, Notizen und Statistik." : "Jede Alarmierung mit allen Infos und Notizen."),
-      tabs,
-      h("section.card", {}, einsaetzeList(rerender)),
-      any && has.stats() && statsCard(rerender),
-      any && has.stats() && reviewCard(rerender),
-      any && !has.stats() && h("section.card", {}, h("div.card-head", {}, h("h2", {}, "Export")),
-        h("p.hint", {}, "Alle Einsätze als Tabelle für Excel. Statistik und Jahresrückblick lassen sich unter Einstellungen → Alarm & Quellen → Funktionen einschalten."),
-        h("div.row", {}, h("button.btn.small", { onclick: () => exportCsv() }, "CSV exportieren"))));
-  }
 
   const items = filter === "zentrale" ? state.zlog.filter(Boolean) : getLog(filter);
   let day = "";
@@ -206,7 +206,7 @@ export function logView(rerender) {
     list.append(h("li." + e.kind, {}, h("time", {}, fmtTime(e.ts)), h("span.ico", {}), h("div", {}, e.text, e.detail && h("small", {}, e.detail))));
   }
   return h("div.page", {},
-    head(filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : "Was wann passiert ist, gemacht oder ausgeführt wurde.",
+    head(filter === "zentrale" ? "Protokoll der Zentrale: Routinen, Webhooks, Selbsttest." : "Technik zum Fehlersuchen: Verbindungen, Aktionen, Warnungen. Einsätze stehen unter Einsätze.",
       h("button.btn.small", { onclick: async () => { if (await ask("Protokoll wirklich leeren? Die Einsätze bleiben erhalten.")) { clearLog(); rerender(); } } }, "Leeren")),
     tabs,
     h("section.card", {}, items.length ? list : h("p.empty", {}, "Noch keine Einträge.")),

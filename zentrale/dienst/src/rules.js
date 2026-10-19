@@ -120,7 +120,7 @@ export function createRules(ctx, log) {
 
   function fire(routine, event = {}) {
     if (!routine.enabled) return;
-    if (ctx.config.vacation && routine.trigger?.type !== "manual") return log.info("Urlaubsmodus: Routine übersprungen", routine.name); // B9
+    if (ctx.config.vacation && !(ctx.config.readiness?.until && ctx.config.readiness.until <= Date.now()) && routine.trigger?.type !== "manual") return log.info("Nicht verfügbar: Routine übersprungen", routine.name); // B9
     // Per Knopf ausgeführt: Bedingungen gelten nicht
     if (!event.manual && !allowed(routine, event)) return log.info("Bedingungen nicht erfüllt", routine.name);
     const dry = Boolean(event.test);

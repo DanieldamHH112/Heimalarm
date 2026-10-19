@@ -12,16 +12,23 @@ import { publish, state } from "./mqtt.js";
 import { fmtTime } from "../ui/dom.js";
 import { answerDivera } from "./divera.js";
 import { answerApager } from "./apager.js";
-import { shared } from "./shared.js";
 import { presenceSettled } from "./discord.js";
 import { runHotkeys } from "./hotkeys.js";
 import { recordAlarm, recordAnswer, addSignal, markEvent } from "./stats.js";
+import { readiness } from "./readiness.js";
+const offDuty = () => readiness().mode !== "ready";
 
 const lastByWho = new Map();
 export const engine = { last: null };
 
 export function init() {
   on("alarm-in", (a) => handleAlarm(a));
+  // Nachgereichte Einsatzinfos: Meldung mit Stichwort und Ort nachschicken (nur wenn vorher eine Meldung kam)
+  on("alarm-update", (a) => {
+    if (!a.notified) return;
+    const extra = [a.keyword, a.unit].filter(Boolean).join(" · ");
+    notify(a.own ? `Heimalarm: ${a.keyword || "Einsatz"}` : `Heimalarm: Alarm von ${a.who}`, [fmtTime(a.ts), a.keyword ? a.unit : extra, a.address].filter(Boolean).join(" · "));
+  });
   on("divera-alarm", (data) => forward(data));
   on("webhook-alarm", (data) => forward(data));   // aPager-Webhook direkt am PC
   on("test-request", () => testAlarm());   // Testalarm an dieses Gerät (von einem anderen Gerät)
@@ -55,6 +62,22 @@ function inQuietTime() {
   return a <= b ? n >= a && n < b : n >= a || n < b;
 }
 
+/** Der Melder meldet nur „Alarm“, Stichwort und Ort kommen Sekunden später aus aPager, Divera oder SYBOS.
+ *  Fehlendes beim laufenden Einsatz ergänzen und „alarm-update“ senden: Vollbild, Meldung und Discord ziehen nach. */
+const INFO = ["keyword", "unit", "address", "text", "diveraId"];
+function mergeInfo(a) {
+  const last = engine.last;
+  if (!last || last.who !== a.who || last.test) return;
+  let changed = false;
+  for (const k of INFO) {
+    if (!a[k]) continue;
+    const better = k === "keyword" && last.keyword && a.keyword.length > last.keyword.length && a.keyword.toLowerCase().includes(last.keyword.toLowerCase());
+    if (!last[k] || better) { last[k] = a[k]; changed = true; }
+  }
+  if (a.source && !(last.sources ||= [last.source]).includes(a.source)) last.sources.push(a.source);
+  if (changed) emit("alarm-update", last);
+}
+
 function handleAlarm(a) {
   const s = settings().alarm;
   const test = Boolean(a.test || s.testMode);
@@ -64,6 +87,7 @@ function handleAlarm(a) {
   if (!test && !probe && a.ts - (lastByWho.get(a.who) || 0) < s.lockoutSec * 1000) {
     log("info", "Weiteres Signal zusammengeführt (Sperrzeit)", `${a.source} · ${a.who}`);
     if (a.who === s.me) addSignal(a);   // Quelle und weitere Infos beim Einsatz ergänzen
+    mergeInfo(a);
     return;
   }
   if (!test && !probe) lastByWho.set(a.who, a.ts);
@@ -79,8 +103,8 @@ function handleAlarm(a) {
   emit("alarm", engine.last);
   if (own && !test && !probe) recordAlarm(a);   // Einsatz-Statistik
 
-  // Inaktiv (Urlaubsmodus, Start → „Inaktiv schalten“): verbunden, aber bei Alarm passiert nichts
-  if (shared().vacation && !test && !probe) { log("info", "Inaktiv (Urlaubsmodus) – keine Abfrage, kein Ton"); return; }
+  // Nicht verfügbar / Abwesend (Start → Bereitschaft): verbunden, aber bei Alarm passiert nichts
+  if (offDuty() && !test && !probe) { log("info", "Nicht verfügbar – keine Abfrage, kein Ton"); return; }
   if (forThisPc && hasPcFeatures) {
     if (settings().pc?.silent && !test && !probe) { log("info", "PC bei Alarm aus – keine Abfrage"); return; }
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
@@ -89,7 +113,8 @@ function handleAlarm(a) {
     if (settings().phone?.silent && !probe) { log("info", "Handy bei Alarm aus – nichts angezeigt"); return; }
     emit("takeover", engine.last);   // Handy: groß anzeigen, Ton/Vibration (AlarmSound.kt), Rückmeldung per Knopf
   } else if (!test) {
-    notify(own ? "Heimalarm: Einsatz" : `Heimalarm: Alarm von ${a.who}`, `${fmtTime(a.ts)}${extra ? " · " + extra : ""}`);
+    engine.last.notified = true;
+    notify(own ? "Heimalarm: Einsatz" : `Heimalarm: Alarm von ${a.who}`, `${fmtTime(a.ts)}${extra ? " · " + extra : " · Einsatzinfos folgen"}`);
   }
 }
 

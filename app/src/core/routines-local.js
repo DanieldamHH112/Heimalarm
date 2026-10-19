@@ -7,6 +7,8 @@ import { shared } from "./shared.js";
 import { log } from "./log.js";
 import { isTauri, hasPcFeatures } from "./platform.js";
 import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
+import { readiness } from "./readiness.js";
+const offDuty = () => readiness().mode !== "ready";
 
 const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-http")).fetch : fetch)(...a);
 
@@ -63,7 +65,7 @@ function runActions(r, dry, ev = {}) {
 
 export function fireLocal(r, ev = {}) {
   if (!r.enabled && !ev.manual) return;
-  if (shared().vacation && r.trigger?.type !== "manual") return log("info", "Urlaubsmodus: Routine übersprungen", r.name);
+  if (offDuty() && r.trigger?.type !== "manual") return log("info", "Nicht verfügbar: Routine übersprungen", r.name);
   const items = r.conditions?.items || [];
   const okConds = ev.manual || !items.length || (r.conditions.mode === "or" ? items.some((c) => check(c, ev)) : items.every((c) => check(c, ev)));
   if (!okConds) return log("info", "Bedingungen nicht erfüllt", r.name);

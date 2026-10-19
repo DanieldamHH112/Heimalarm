@@ -473,7 +473,7 @@ function androidSection(rerender) {
 function funktionen(rerender) {
   const f = settings().features || {};
   return section("funktionen", "Funktionen", "Zusätzliche Funktionen. Alle sind aus, bis du sie einschaltest – gilt für alle abgeglichenen Geräte.",
-    toggle("features.logbuch", "Einsatz-Logbuch", "Speichert jede echte Alarmierung mit allen Infos (Stichwort, Einheiten, Adresse, Text, Antwort). Mit Notizen, Fahrzeug und Funktion. Unter Protokoll → Einsätze.", () => rerender()),
+    toggle("features.logbuch", "Einsatz-Logbuch", "Speichert jede echte Alarmierung mit allen Infos (Stichwort, Einheiten, Adresse, Text, Antwort). Mit Notizen, Fahrzeug und Funktion. Eigene Seite „Einsätze“ im Menü.", () => rerender()),
     f.logbuch
       ? toggle("features.stats", "Statistik und Jahresrückblick", "Zahlen, Verlauf, Verteilung nach Art und Rückblick je Jahr – aus dem Logbuch.", () => rerender())
       : h("p.meta", {}, "Statistik und Jahresrückblick gibt es, sobald das Logbuch an ist."),

@@ -11,7 +11,8 @@ export const sharedDefaults = {
   persons: [{ id: "ich", name: "Ich" }],          // G1
   routines: [],                                   // B
   location: { lat: 51.16, lon: 10.45 },           // F6 – für Sonnenauf-/-untergang (Standard: Mitte Deutschlands, unter Zentrale anpassen)
-  vacation: false,                                // B9
+  vacation: false,                                // B9 – nicht verfügbar/abwesend (aus readiness abgeleitet)
+  readiness: { mode: "ready", until: null },      // Bereitschaft: ready | away | absent, endet zu „until“ (ms)
   lockoutSec: 60,                                 // A4 (Zentrale)
   webhookSecret: "",                              // H2
   adminPinHash: "",                               // G3

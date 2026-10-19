@@ -20,7 +20,7 @@ const client = mqtt.connect(URL, {
   will: { topic: "heimalarm/dienst/status", payload: JSON.stringify({ online: false }), retain: true, qos: 1 },
 });
 
-const DEFAULTS = { voice: { enabled: true, openSec: 30, tests: false }, persons: [], routines: [], location: { lat: 51.16, lon: 10.45 }, vacation: false, lockoutSec: 60, webhookSecret: "", hass: { enabled: false, prefix: "homeassistant", activeMin: 30, tests: false, buttons: true } };
+const DEFAULTS = { voice: { enabled: true, openSec: 30, tests: false }, persons: [], routines: [], location: { lat: 51.16, lon: 10.45 }, vacation: false, readiness: { mode: "ready", until: null }, lockoutSec: 60, webhookSecret: "", hass: { enabled: false, prefix: "homeassistant", activeMin: 30, tests: false, buttons: true } };
 
 /** Gemeinsamer Zustand, den alle Module lesen. */
 export const ctx = {

@@ -48,6 +48,11 @@ export function explainMqttError(msg = "") {
 
 let lastError = "";
 let attempts = 0;
+// Feste Sitzung: nach dem Wiederverbinden liefert die Zentrale verpasste Nachrichten nach.
+// Alarme aus einer kurzen Lücke zählen, alte (PC war lange aus) nur ins Protokoll.
+const REPLAY_MAX_GAP = 120e3;
+let downSince = 0;          // seit wann getrennt (0 = verbunden oder unbekannt, z. B. nach App-Start)
+let replayUntil = 0, replayGap = Infinity;
 
 export function connect() {
   disconnect();
@@ -59,20 +64,28 @@ export function connect() {
   client = mqtt.connect(url, {
     username: b.user || undefined,
     password: b.pass || undefined,
-    clientId: `heimalarm-${settings().device.id}-${Math.random().toString(16).slice(2, 6)}`,
+    // Feste ID + clean: false = feste Sitzung: Mosquitto hebt QoS-1-Alarme während einer Lücke auf und liefert sie nach.
+    clientId: `heimalarm-${settings().device.id}`,
+    clean: false,
     reconnectPeriod: 3000,
     connectTimeout: 8000,
-    // Großzügiger Takt: Windows bremst Timer versteckter Fenster; die Zentrale trennt erst nach 1,5 × keepalive.
-    keepalive: 120,
+    // Ping-Takt mit normalen Timern. Standard („auto“) nutzt im Browser einen Worker aus einer blob:-URL –
+    // den blockiert unsere CSP (script-src 'self'), der Ping kam nie an und die Zentrale trennte alle 1,5 × keepalive.
+    timerVariant: "native",
+    keepalive: 60,
     will: { topic: clientTopic(), payload: presence(false), retain: true, qos: 1 },
   });
   bindPublisher((t, m, o) => client?.publish(t, m, o));
 
-  client.on("connect", () => {
+  client.on("connect", (ack) => {
     state.connected = true;
+    replayGap = downSince ? Date.now() - downSince : Infinity;
+    replayUntil = ack?.sessionPresent ? Date.now() + 2000 : 0;
+    const gap = downSince ? Math.round((Date.now() - downSince) / 1000) : 0;
+    downSince = 0;
     client.subscribe(["alarm/#", "heimalarm/#", "zigbee2mqtt/#"], { qos: 1 });
     client.publish(clientTopic(), presence(true), { retain: true, qos: 1 });
-    log("ok", "Mit Zentrale verbunden", attempts > 0 ? `${url} · nach ${attempts} Versuch${attempts === 1 ? "" : "en"}` : url);
+    log("ok", gap ? `Wieder verbunden nach ${gap} s` : "Mit Zentrale verbunden", attempts > 1 ? `${url} · nach ${attempts} Versuchen` : url);
     lastError = ""; attempts = 0;
     emit("conn", state);
   });
@@ -81,9 +94,9 @@ export function connect() {
     // Nicht jeden Versuch protokollieren: erster, dann jeder zehnte
     if (attempts === 1 || attempts % 10 === 0) log("info", `Neuer Verbindungsversuch zur Zentrale (${attempts})`, url);
   });
-  client.on("offline", () => { if (state.connected) log("warn", "Zentrale nicht mehr erreichbar", "Netzwerk weg oder Zentrale aus – verbinde neu, sobald sie wieder da ist."); });
   client.on("close", () => {
     if (state.connected) {
+      downSince = Date.now();
       const [why, hint] = lastError ? explainMqttError(lastError) : ["Verbindung beendet", "Kurze Trennung, Heimalarm verbindet automatisch neu. Häufig? Unter Test & Diagnose prüfen."];
       log("warn", "Verbindung zur Zentrale getrennt", `${why} · ${hint}`);
     }
@@ -105,6 +118,9 @@ export function connect() {
   });
 }
 
+/** Seit wann die Zentrale getrennt ist (0 = verbunden oder unbekannt). */
+export const offlineSince = () => downSince;
+
 /** Letzter Fehler der Zentrale-Verbindung (für Status und Check). */
 export const mqttLastError = () => lastError;
 
@@ -120,6 +136,10 @@ function handle(topic, msg, retained) {
   if (p.length === 2) {
     if (retained) return; // alte Alarme beim Verbinden nicht erneut auslösen
     const data = parseAlarm(msg);
+    if (data && Date.now() < replayUntil) {   // aus der Lücke nachgeliefert
+      if (replayGap > REPLAY_MAX_GAP) { log("info", "Alter Alarm aus der Verbindungslücke – nicht ausgelöst", `alarm/${who} · Lücke ${Number.isFinite(replayGap) ? Math.round(replayGap / 1000) + " s" : "unbekannt (App neu gestartet)"}`); return; }
+      log("warn", "Alarm aus der Verbindungslücke nachgeliefert", `alarm/${who} · ${Math.round(replayGap / 1000)} s getrennt`);
+    }
     if (data) emit("alarm-in", { who, ts: Date.now(), ...data });
     return;
   }

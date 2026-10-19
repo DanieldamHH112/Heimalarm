@@ -222,22 +222,22 @@ export function routinesView(rerender) {
       h("button.btn.small", { onclick: () => startEdit(template(), true) }, "Vorlage Licht"),
       h("button.btn.small", { onclick: () => startEdit(templateAnnounce(), true) }, "Vorlage Ansage")),
     has.pi() && !state.dienst?.online && h("p.split-warn", {}, "Zentrale-Programm nicht erreichbar – Routinen laufen erst, wenn es läuft."),
+
     h("nav.split-nav", { "aria-label": "Routinen" },
       all.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, "Noch keine Routine. Tipp: „Vorlage Licht“ oder „Vorlage Ansage“ legt eine fertige Routine an.") : all.map(item),
       h("div.split-grp", {}, "Allgemein"),
       h("a.split-item", { href: "#/routinen/allgemein", "aria-current": current === "allgemein" ? "page" : null },
         h("span.ico", { style: "--a:var(--c-app)" }, icon("home")),
-        h("span.split-item-text", {}, h("b", {}, "Urlaubsmodus & Export"), h("small" + (s.vacation ? ".warn" : ""), {}, s.vacation ? "Urlaubsmodus an" : "Wieder da, Sichern, Laden")),
+        h("span.split-item-text", {}, h("b", {}, "Wieder da & Export"), h("small" + (s.vacation ? ".warn" : ""), {}, s.vacation ? "Wieder da, Sichern, Laden" : "Wieder da, Sichern, Laden")),
         h("span.chev", {}, icon("chev")))));
 
   let detail = null;
   if (current === "allgemein") {
     detail = h("section.split-detail", { style: "--a:var(--c-app)" },
       h("a.split-back", { href: "#/routinen" }, icon("back"), "Routinen"),
-      h("div.split-head", {}, h("span.ico.big", { style: "--a:var(--c-app)" }, icon("home")), h("div", {}, h("p.crumb", {}, "Routinen"), h("h2", {}, "Urlaubsmodus & Export"))),
+      h("div.split-head", {}, h("span.ico.big", { style: "--a:var(--c-app)" }, icon("home")), h("div", {}, h("p.crumb", {}, "Routinen"), h("h2", {}, "Wieder da & Export"))),
       h("p.split-sub", {}, `Routinen laufen ${has.pi() ? "auf der Zentrale" : "auf dem Handy"}.`),
       h("section.card", {},
-        switchRow("Urlaubsmodus", "Pausiert alle Routinen außer „Nur per Knopf“ – und die Abfrage bei Alarm (wie „Inaktiv“ auf Start).", s.vacation, async (v) => { if (await requireAdmin()) updateShared({ vacation: v }); else rerender(); }),
         has.pi() && h("div.row", {}, h("button.btn", { onclick: () => { emit("restore"); publish("heimalarm/cmd/restore", {}); toast("Vorheriger Zustand wird wiederhergestellt"); } }, "Wieder da – Zustand zurück"))),
       h("section.card", {}, h("h3", {}, "Sichern und laden"),
         h("p.hint", {}, "Alle Routinen als Text – zum Sichern oder für eine andere Zentrale."),

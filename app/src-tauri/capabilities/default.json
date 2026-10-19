@@ -15,6 +15,7 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-fullscreen",
     "notification:default",
+    "opener:default",
     "heimalarm:default",
     {
       "identifier": "http:default",

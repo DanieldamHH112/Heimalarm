@@ -24,3 +24,6 @@
 @keyframes to-in { from { opacity: 0; transform: scale(1.02); } }
 .takeover .meta-big { font-size: 1.25rem; color: #fff; font-weight: 600; }
 .takeover .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* Melder zuerst: Platzhalter, bis Stichwort und Ort aus der Alarm-App kommen */
+.takeover .meta-big.pending { opacity: .7; font-style: italic; }

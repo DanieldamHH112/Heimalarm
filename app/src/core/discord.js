@@ -7,7 +7,8 @@ import { settings, set } from "./settings.js";
 import { hasPcFeatures } from "./platform.js";
 import { log } from "./log.js";
 import { fillTemplate } from "./wifi.js";
-import { shared } from "./shared.js";
+import { readiness } from "./readiness.js";
+const offDuty = () => readiness().mode !== "ready";
 
 const KEY = "heimalarm.discord.active";
 export const ACTIVITY_TYPES = [[0, "Spielt"], [3, "Schaut"], [2, "Hört"], [5, "Tritt an bei"]];
@@ -146,7 +147,7 @@ export function initDiscord() {
   discord.active = loadActive();
   on("alarm", (a) => {
     const c = cfg();
-    if (!enabled() || !a?.own || (shared().vacation && !a.test)) return;
+    if (!enabled() || !a?.own || (offDuty() && !a.test)) return;
     if (a.test && !a.probe && !c.tests) return;
     if (c.start === "alarm") show(a, { test: a.test && !a.probe });
   });
@@ -156,6 +157,15 @@ export function initDiscord() {
     if (test && !c.tests) return;
     if (going && c.start === "go") show(alarm || {}, { test });
     if (!going && !timeout && c.onStay === "clear" && loadActive()) endPresence("„Ich fahre nicht“");
+  });
+  // Stichwort/Ort kommen nach dem Melder: laufende Anzeige ergänzen
+  on("alarm-update", (a) => {
+    const act = loadActive();
+    if (!enabled() || !act || act.test || !a?.own) return;
+    act.ev = { ...act.ev, keyword: a.keyword, unit: a.unit, address: a.address };
+    saveActive(act);
+    discord.active = act;
+    push(buildActivity(cfg(), act.ev, act.start));
   });
   on("restore", () => { if (loadActive() && cfg().clearOnRestore !== false) endPresence("„Wieder da“"); });
   on("settings", ({ path }) => {
