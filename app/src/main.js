@@ -17,6 +17,8 @@ import { showTakeover } from "./views/takeover.js";
 import { devicesView } from "./views/devices.js";
 import { routinesView } from "./views/routines.js";
 import { diagnoseView } from "./views/diagnose.js";
+import { wizardView, wizardKeys } from "./views/wizard.js";
+import { needsWizard, startWizard, refreshAndroid } from "./core/wizard.js";
 import { initAndroid } from "./core/android.js";
 import { appLock } from "./core/admin.js";
 import { restartDivera } from "./core/divera.js";
@@ -28,9 +30,9 @@ import { initCheckup } from "./core/checkup.js";
 
 const routes = {
   uebersicht: overview, geraete: devicesView, routinen: routinesView,
-  protokoll: logView, einstellungen: settingsView, diagnose: diagnoseView,
+  protokoll: logView, einstellungen: settingsView, diagnose: diagnoseView, einrichtung: wizardView,
 };
-const NAV_OF = { diagnose: "einstellungen" };
+const NAV_OF = { diagnose: "einstellungen", einrichtung: "einstellungen" };
 const view = document.getElementById("view");
 
 function current() {
@@ -42,6 +44,8 @@ const anchor = () => location.hash.replace("#/", "").split("/")[1];
 function render() {
   const name = current();
   const y = window.scrollY;
+  // Einrichtung: am Handy Vollbild ohne Leiste unten, am PC Hauptmenü gedimmt
+  document.body.classList.toggle("wizard-on", name === "einrichtung");
   view.replaceChildren(routes[name](render));
   const sub = anchor();
   if (sub) document.getElementById(sub)?.scrollIntoView({ block: "start" });
@@ -95,6 +99,10 @@ on("shared", live);
 on("divera", live);
 on("direct", live);
 on("update", live);
+on("wizard", live);
+document.addEventListener("keydown", wizardKeys);
+// Zurück aus den Android-Einstellungen (Benachrichtigungszugriff, Akku): Haken sofort prüfen
+document.addEventListener("visibilitychange", () => { if (!document.hidden && current() === "einrichtung") refreshAndroid(); });
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
@@ -127,6 +135,12 @@ initAndroid().catch((e) => log("warn", "Android-Funktionen nicht verfügbar", St
 initUpdates();
 // Nur im Entwicklungsmodus: Beispieldaten mit ?demo, um die Übersicht ohne Zentrale zu prüfen
 if (import.meta.env.DEV && location.search.includes("demo")) (await import("./dev/demo.js")).fillDemo(state);
+// Erster Start: Einrichtung Schritt für Schritt (nicht beim versteckten Autostart-Start in den Infobereich)
+if (needsWizard() && !location.hash.startsWith("#/einrichtung")) {
+  if (settings().wizard.step === 0) startWizard();
+  location.hash = "#/einrichtung";
+}
+if (isAndroid) refreshAndroid();
 render();
 syncAutostart(settings().pc.autostart).catch(() => log("warn", "Autostart konnte nicht gesetzt werden"));
 if (isAndroid) ensurePermission();

@@ -18,6 +18,7 @@ import { recordAnswer } from "../core/stats.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { on } from "../core/events.js";
+import { startWizard, inProgress } from "../core/wizard.js";
 import { updateShared } from "../core/shared.js";
 import { testAlarm } from "../core/engine.js";
 import { statsEntries } from "../core/stats.js";
@@ -46,7 +47,9 @@ function setupCard() {
   return h("section.card.span-all.setup", {},
     h("div.card-head", {},
       h("div", {}, h("h2", {}, "Einrichtung"), h("p.meta", {}, z ? "Mit Zentrale – ein Gerät, das immer läuft, gibt den Alarm weiter." : "Ohne Zentrale – Handy und PC arbeiten direkt zusammen.")),
-      h("a.btn.small", { href: "#/einstellungen/betrieb" }, "Betriebsart ändern")),
+      h("div.row", {},
+        h("button.btn.small.primary", { type: "button", onclick: () => { if (!inProgress()) startWizard(); location.hash = "#/einrichtung"; } }, inProgress() ? "Einrichtung fortsetzen" : "Schritt für Schritt"),
+        h("a.btn.small", { href: "#/einstellungen/betrieb" }, "Betriebsart ändern"))),
     setupSteps(),
     h("details.flow-details", {}, h("summary", {}, "So läuft ein Alarm"), setupFlow()),
   );

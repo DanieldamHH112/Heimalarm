@@ -1,5 +1,6 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
 import { modeChoice, setupFlow } from "../ui/setup.js";
+import { startWizard } from "../core/wizard.js";
 import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
 import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog, ask } from "../ui/form.js";
@@ -716,6 +717,9 @@ export function settingsView(rerender) {
       groups.filter((g) => !g.app).map(item),
       h("div.split-grp", {}, "App"),
       groups.filter((g) => g.app).map(item),
+      h("a.split-item", { href: "#/einrichtung", onclick: () => startWizard() }, h("span.ico", { style: "--a:var(--c-alarm)" }, icon("home")),
+        h("span.split-item-text", {}, h("b", {}, "Einrichtung"), h("small", {}, "Schritt für Schritt neu durchgehen")),
+        h("span.chev", {}, icon("chev"))),
       h("a.split-item", { href: "#/diagnose" }, h("span.ico", { style: "--a:var(--c-app)" }, icon("tool")),
         h("span.split-item-text", {}, h("b", {}, "Test & Diagnose"), h("small", {}, "Testalarm, Probe, Verbindungstest")),
         h("span.chev", {}, icon("chev")))));

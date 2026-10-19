@@ -128,6 +128,8 @@ export const defaults = {
   },
   // Zusatzfunktionen – bewusst aus, bis man sie einschaltet
   features: { logbuch: false, stats: false },
+  // Einrichtungs-Assistent (nur dieses Gerät): Fortschritt, Antworten, von Hand abgehakte Schritte. core/wizard.js
+  wizard: { done: false, step: 0, answers: { src: [], act: [], always: "nein" }, ok: {} },
 };
 
 /** Diese Bereiche werden zwischen Handy und PC abgeglichen (pc.* nur zwischen PCs). */

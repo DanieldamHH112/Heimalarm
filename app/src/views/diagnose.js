@@ -1,4 +1,5 @@
 // I – Test & Diagnose.
+import { startWizard } from "../core/wizard.js";
 import { ask } from "../ui/form.js";
 import { h, toast, fmtAgo, fmtTime, fmtDate } from "../ui/dom.js";
 import { state, publish, testDevice } from "../core/mqtt.js";
@@ -82,6 +83,10 @@ export function diagnoseView(rerender) {
         h("h2", {}, "Testalarm"),
         h("p.hint", {}, "Nur diese App: zeigt die Abfrage, es passiert nichts. Routinen laufen nicht."),
         h("div.row", {}, h("button.btn.primary", { onclick: testAlarm }, "Testalarm"))),
+      h("section.card", {},
+        h("h2", {}, "Einrichtung"),
+        h("p.hint", {}, "Schritt für Schritt neu durchgehen: Fragen, persönlicher Plan, Anleitung mit Bildern."),
+        h("div.row", {}, h("button.btn", { type: "button", onclick: () => { startWizard(); location.hash = "#/einrichtung"; } }, "Einrichtung starten"))),
       has.esp() && h("section.card", {},
         h("h2", {}, "Melder-Alarm nachspielen"),
         h("p.hint", {}, "Wie ein echter Melder-Alarm – alle Geräte zeigen die Abfrage. Licht und PC-Aktion bleiben aus."),

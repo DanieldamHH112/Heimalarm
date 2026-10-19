@@ -122,9 +122,10 @@ Heimalarm/
 | `pc.js` | PC-Funktionen (Rust-Befehle) |
 | `android.js` | Android-Plugin (Dienst, Akku, Benachrichtigungen) |
 | `admin.js` | Admin-PIN (G3), App-Sperre (H4) |
+| `wizard.js` | Einrichtungs-Assistent: Fragen → Plan → Anleitung, Live-Prüfung je Schritt, Fortschritt in `settings().wizard` (nur lokal) |
 | `notify.js`, `log.js`, `platform.js`, `events.js` | Systemmeldung, Geräte-Protokoll, Plattform, Ereignisse |
-| **views/** | `overview` (Übersicht), `devices` + `wifi` (Geräte), `routines`, `log`, `settings`, `diagnose`, `takeover` („Fährst du?“) |
-| **ui/** | `dom.js` (`h()`, toast), `form.js` (Felder, Schalter, Dialog, `ask()` statt `confirm()`), `theme.js`, `sound.js` (Ton abspielen/stoppen, eigene Töne, Geräte-Lautstärke), `tone.js` (Einstellungs-Bausteine Ton + Lautstärke für `pc`/`phone`) |
+| **views/** | `wizard` (Einrichtung, Route `#/einrichtung`), `overview` (Übersicht), `devices` + `wifi` (Geräte), `routines`, `log`, `settings`, `diagnose`, `takeover` („Fährst du?“) |
+| **ui/** | `guide-shots.js` (nachgezeichnete Bildschirme fremder Apps für die Einrichtung), `dom.js` (`h()`, toast), `form.js` (Felder, Schalter, Dialog, `ask()` statt `confirm()`), `theme.js`, `sound.js` (Ton abspielen/stoppen, eigene Töne, Geräte-Lautstärke), `tone.js` (Einstellungs-Bausteine Ton + Lautstärke für `pc`/`phone`) |
 | **styles/** | `tokens.css` (Farben, Schrift, Radien), `base`, `layout`, `components`, `takeover` |
 | `dev/demo.js` | Beispieldaten (nur `npm run dev` mit `?demo`) |
 
@@ -268,6 +269,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Rust-Befehle** müssen in `lib.rs` → `generate_handler!` stehen; Namen in JS (`invoke("…")`) gleich halten.
 - **Android-Plugin:** Kotlin-Name `heimalarm`, Event `notification` `{app, title, text}` – wird in `core/android.js` abgehört.
 - **Sperrzeit** prüft `engine.js` (App) und `rules.js` (Dienst) getrennt; `routines-local.js` verlässt sich auf `engine.js`.
+- **Einrichtung:** Erster Start springt auf `#/einrichtung`, außer es ist schon etwas eingerichtet (dann `wizard.done` automatisch). Neue Funktion mit eigener Einrichtung → Schritt in `core/wizard.js` (`plan()`, `check()`) und Anleitung in `views/wizard.js` (`guide()`) ergänzen. Klickwege fremder Apps stehen als Nachbau in `ui/guide-shots.js` – bei App-Updates prüfen (aPager-Pfad noch unbestätigt).
 - **Sichtbarkeit:** Neue Karten/Seiten über `has.*` in `features.js` freischalten, sonst erscheinen sie auch bei Nutzern ohne diese Ausstattung.
 - **Betriebsart:** `isConfigured()` ist nur im Zentrale-Betrieb wahr. Code, der „ist eine Zentrale da?“ fragt, nutzt `has.pi()` bzw. `isConfigured()`, nicht nur `broker.host`.
 - **Windows-Update:** `install_update` startet das Setup direkt mit `/P /UPDATE /R` (früher über eine abgelöste PowerShell, die beim Beenden verloren ging; ab 0.1.7).
