@@ -3,6 +3,7 @@
 // Weitere Bildschirme zeigen dieselbe Abfrage (mirror.html), die Antwort kommt per Ereignis zurück.
 import { h, fmtTime } from "../ui/dom.js";
 import { settings } from "../core/settings.js";
+import { shared } from "../core/shared.js";
 import { on } from "../core/events.js";
 import { decide } from "../core/engine.js";
 import { ACTIONS, takeoverWindow } from "../core/pc.js";
@@ -25,6 +26,20 @@ async function raiseVolume(p) {
   } catch { return null; }
 }
 
+const SRC = { ESP32: "Melder", apager: "aPager", divera: "Divera", sybos: "SYBOS" };
+
+/** Seitenleiste „Lagebild“: wann kam welche Quelle, welche Routinen laufen beim Alarm. */
+function sideInfo(alarm) {
+  const srcs = (alarm.sources || [alarm.source]).filter(Boolean);
+  const routines = (shared().routines || []).filter((r) => r.enabled !== false && r.trigger?.type === "alarm" && (!r.who?.length || r.who.includes(alarm.who)));
+  const rows = srcs.map((k, i) => h("li", {}, h("span", {}, SRC[k] || k),
+    h("span.mono", {}, i === 0 ? fmtTime(alarm.ts) : alarm.srcAt?.[k] != null ? `+${alarm.srcAt[k]} s` : "")));
+  return [
+    rows.length > 0 && h("section", {}, h("h2", {}, "Eingang"), h("ul", {}, rows)),
+    routines.length > 0 && h("section", {}, h("h2", {}, "Zuhause"), h("ul", {}, routines.map((r) => h("li.run", {}, h("span", {}, r.name || "Routine"))))),
+  ];
+}
+
 export function showTakeover(alarm) {
   active?.finish(null);   // eine neue Abfrage ersetzt eine noch offene
   const root = document.getElementById("takeover");
@@ -38,8 +53,12 @@ export function showTakeover(alarm) {
   let restore = null;
   const unlisten = [];
 
-  const num = h("span", { "aria-hidden": "true" }, String(left));
-  const ring = h("div.ring", { style: "--p:1", role: "img", "aria-label": `Noch ${left} Sekunden` }, num);
+  const num = h("span.count-num", { "aria-hidden": "true" }, String(left));
+  const fill = h("i", { style: "width:100%" });
+  const ring = h("div.count", { role: "img", "aria-label": `Noch ${left} Sekunden` }, num,
+    h("div.count-bar", {}, h("div.count-track", {}, fill), h("small", {}, onPhone ? "Sekunden" : p.onTimeout === "run" ? `Sekunden bis ${ACTIONS[p.action]?.label || p.action}` : "Sekunden")));
+  const side = h("aside.side");
+  const showSide = () => { const c = sideInfo(alarm).filter(Boolean); side.replaceChildren(...c); side.hidden = !c.length; };
   const live = h("p.sr-only", { "aria-live": "assertive", "aria-atomic": "true" });
   const label = ACTIONS[p.action]?.label || p.action;
   let extra = [alarm.keyword, alarm.unit].filter(Boolean).join(" · ");
@@ -52,6 +71,7 @@ export function showTakeover(alarm) {
     extraEl.textContent = extra || (waiting() ? (Date.now() - alarm.ts > 90e3 ? "Keine Einsatzinfos" : "Einsatzinfos folgen …") : "");
     extraEl.classList.toggle("pending", !extra && waiting());
     addrEl.textContent = alarm.address || "";
+    showSide();
     extraEl.hidden = !extraEl.textContent; addrEl.hidden = !addrEl.textContent;
   };
   const tag = alarm.probe ? "Generalprobe · PC-Aktion nur angezeigt" : test ? "Testalarm · es passiert nichts" : `Einsatz · ${fmtTime(alarm.ts)}`;
@@ -98,18 +118,18 @@ export function showTakeover(alarm) {
     }).catch(() => {});
   }
 
-  root.replaceChildren(h("div.box", {},
-    h("div.tag", {}, tag),
-    h("h1", {}, p.title || "Fährst du?"),
-    extraEl,
-    addrEl,
-    ring, live,
-    h("div.actions", {},
-      h("button.btn.primary", { type: "button", onclick: () => finish(true) }, p.goText || "Ich fahre"),
-      h("button.btn.secondary", { type: "button", onclick: () => finish(false) }, p.stayText || "Ich fahre nicht")),
-    h("p.note", {}, note),
-    !onPhone && h("p.keys", {}, "Enter = fahren · Esc = bleiben"),
-  ));
+  root.replaceChildren(h("div.lage", {},
+    h("div.box", {},
+      h("div.tag", {}, tag),
+      h("h1", {}, p.title || "Fährst du?"),
+      extraEl,
+      addrEl,
+      ring, live,
+      h("div.actions", {},
+        h("button.btn.primary", { type: "button", onclick: () => finish(true) }, p.goText || "Ich fahre", !onPhone && h("kbd", {}, "Enter")),
+        h("button.btn.secondary", { type: "button", onclick: () => finish(false) }, p.stayText || "Ich fahre nicht", !onPhone && h("kbd", {}, "Esc"))),
+      h("p.note", {}, note)),
+    side));
   showInfo();
   root.hidden = false;
   takeoverWindow(true);
@@ -127,7 +147,7 @@ export function showTakeover(alarm) {
     left -= 1;
     const l = Math.max(left, 0);
     num.textContent = String(l);
-    ring.style.setProperty("--p", String(l / total));
+    fill.style.width = `${(l / total) * 100}%`;
     ring.setAttribute("aria-label", `Noch ${l} Sekunden`);
     if (l > 0 && (l % 10 === 0 || l <= 5)) live.textContent = `Noch ${l} Sekunden`;
     if (extraEl.classList.contains("pending")) showInfo();

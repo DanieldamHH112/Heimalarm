@@ -163,11 +163,28 @@ async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> 
         let setup = dir.join("Heimalarm-setup.exe");
         let sha = dir.join("Heimalarm-setup.exe.sha256");
 
-        // Laden und prüfen mit Bordmitteln (PowerShell). Werte nur über Umgebungsvariablen, nie im Skripttext.
-        let script = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; \
-            [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; \
-            Invoke-WebRequest -UseBasicParsing -Uri $env:HA_URL -OutFile $env:HA_SETUP; \
-            Invoke-WebRequest -UseBasicParsing -Uri $env:HA_SHA_URL -OutFile $env:HA_SHA; \
+        // Laden in Rust (Fortschritt als Ereignis „update-progress“), Prüfsumme mit Bordmitteln (PowerShell).
+        use tauri::Emitter;
+        let prog = |stage: &str, loaded: u64, total: u64| {
+            let _ = app.emit("update-progress", serde_json::json!({ "stage": stage, "loaded": loaded, "total": total }));
+        };
+        let client = tauri_plugin_http::reqwest::Client::builder().user_agent("Heimalarm-Updater").build().map_err(|e| e.to_string())?;
+        let sha_text = client.get(&sha_url).send().await.and_then(|r| r.error_for_status()).map_err(|e| format!("Download fehlgeschlagen: {e}"))?
+            .text().await.map_err(|e| e.to_string())?;
+        std::fs::write(&sha, sha_text).map_err(|e| e.to_string())?;
+        let mut resp = client.get(&url).send().await.and_then(|r| r.error_for_status()).map_err(|e| format!("Download fehlgeschlagen: {e}"))?;
+        let total = resp.content_length().unwrap_or(0);
+        let mut file = std::fs::File::create(&setup).map_err(|e| e.to_string())?;
+        let (mut loaded, mut last) = (0u64, std::time::Instant::now());
+        prog("download", 0, total);
+        while let Some(chunk) = resp.chunk().await.map_err(|e| format!("Download fehlgeschlagen: {e}"))? {
+            std::io::Write::write_all(&mut file, &chunk).map_err(|e| e.to_string())?;
+            loaded += chunk.len() as u64;
+            if last.elapsed().as_millis() >= 200 { prog("download", loaded, total); last = std::time::Instant::now(); }
+        }
+        drop(file);
+        prog("verify", loaded, total);
+        let script = "$ErrorActionPreference='Stop'; \
             $exp=((Get-Content -Raw $env:HA_SHA).Trim() -split '\\s+')[0]; \
             $act=(Get-FileHash -Algorithm SHA256 $env:HA_SETUP).Hash; \
             if ($act -ne $exp) { Remove-Item $env:HA_SETUP -Force; exit 3 }";
@@ -176,7 +193,6 @@ async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> 
             move || {
                 Command::new("powershell")
                     .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
-                    .env("HA_URL", &url).env("HA_SHA_URL", &sha_url)
                     .env("HA_SETUP", &setup).env("HA_SHA", &sha)
                     .creation_flags(NO_WINDOW)
                     .output()
@@ -189,9 +205,10 @@ async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> 
             return Err(if out.status.code() == Some(3) {
                 "Prüfsumme stimmt nicht – Download verworfen".into()
             } else {
-                format!("Download fehlgeschlagen: {}", String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("unbekannt"))
+                format!("Prüfung fehlgeschlagen: {}", String::from_utf8_lossy(&out.stderr).lines().next().unwrap_or("unbekannt"))
             });
         }
+        prog("install", loaded, total);
 
         // Setup direkt starten (ohne Zwischenschritt über PowerShell, der beim Beenden der App
         // verloren ging): /P = ohne Fragen mit Fortschrittsfenster, /UPDATE = über die vorhandene

@@ -103,7 +103,11 @@ function mergeInfo(a) {
     const better = k === "keyword" && last.keyword && a.keyword.length > last.keyword.length && a.keyword.toLowerCase().includes(last.keyword.toLowerCase());
     if (!last[k] || better) { last[k] = a[k]; changed = true; }
   }
-  if (a.source && !(last.sources ||= [last.source]).includes(a.source)) last.sources.push(a.source);
+  if (a.source && !(last.sources ||= [last.source]).includes(a.source)) {
+    last.sources.push(a.source);
+    (last.srcAt ||= {})[a.source] = Math.max(0, Math.round((a.ts - last.ts) / 1000));   // Vollbild: „aPager +6 s“
+    changed = true;
+  }
   if (changed) emit("alarm-update", last);
 }
 

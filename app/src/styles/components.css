@@ -545,3 +545,24 @@ pre.code-block { margin: 0; padding: var(--s3) var(--s4); background: var(--surf
 .led-table td { vertical-align: top; }
 .led-table td small { display: block; color: var(--text-2); font-size: var(--fs-xs); margin-top: 2px; }
 .led-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--a); margin-right: 8px; vertical-align: 1px; }
+
+/* Update-Fortschritt: Balken mit laufenden Streifen, MB/Restzeit, drei Schritte */
+.update-body { display: grid; gap: var(--s3); flex: 1; min-width: 0; }
+.upd { display: grid; gap: 8px; }
+.upd-head, .upd-meta { display: flex; justify-content: space-between; gap: var(--s3); color: var(--text-2); font-size: var(--fs-sm); }
+.upd-head .mono { color: var(--text); }
+.upd-meta { font-size: var(--fs-xs); }
+.upd-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.upd-bar i { display: block; height: 100%; border-radius: inherit; background-color: var(--ok); transition: width .25s ease-out;
+  background-image: repeating-linear-gradient(-45deg, rgb(255 255 255 / 18%) 0 7px, transparent 7px 14px); background-size: 28px 100%;
+  animation: upd-stripe .8s linear infinite; }
+.upd-bar.indet i { background-color: var(--info); }
+@keyframes upd-stripe { to { background-position: 28px 0; } }
+.upd-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+.upd-steps li { display: flex; align-items: center; gap: 10px; }
+.upd-steps li::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; box-sizing: border-box; }
+.upd-steps li.done::before { background: var(--ok); border-color: var(--ok); }
+.upd-steps li.now { color: var(--text); font-weight: 600; }
+.upd-steps li.now::before { border-color: var(--ok); border-right-color: transparent; animation: upd-spin 1s linear infinite; }
+@keyframes upd-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .upd-bar i, .upd-steps li.now::before { animation: none; } }

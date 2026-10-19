@@ -659,6 +659,24 @@ function backup(rerender) {
   );
 }
 
+const MB = (b) => (b / 1048576).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const STEPS = [["download", "Herunterladen"], ["verify", "Prüfsumme prüfen"], ["install", "Installieren"]];
+
+/** Fortschritt: Balken (läuft auch ohne Größe), MB, Restzeit, drei Schritte. */
+function updateProgress(d) {
+  const pct = d.total ? Math.min(100, Math.round((d.loaded / d.total) * 100)) : null;
+  const secs = (Date.now() - d.startedAt) / 1000;
+  const rest = d.stage === "download" && d.total && d.loaded > 0 && secs > 2 ? Math.max(1, Math.round(((d.total - d.loaded) / d.loaded) * secs)) : null;
+  const label = { download: "Wird heruntergeladen …", verify: "Prüfsumme wird geprüft …", install: isAndroid ? "Fertig – Android fragt gleich „Installieren?“, dort bestätigen." : "Setup läuft – Heimalarm startet gleich neu." }[d.stage];
+  const at = STEPS.findIndex(([k]) => k === d.stage);
+  return h("div.upd", {},
+    h("div.upd-head", {}, h("span", {}, label), pct != null && d.stage === "download" && h("span.mono", {}, `${pct} %`)),
+    d.stage !== "install" && h("div.upd-bar" + (pct == null || d.stage === "verify" ? ".indet" : ""), { role: "progressbar", "aria-label": "Update", "aria-valuemin": "0", "aria-valuemax": "100", ...(pct != null ? { "aria-valuenow": String(pct) } : {}) },
+      h("i", { style: `width:${d.stage === "verify" || pct == null ? 100 : pct}%` })),
+    d.stage === "download" && h("div.upd-meta.mono", {}, h("span", {}, d.total ? `${MB(d.loaded)} von ${MB(d.total)} MB` : `${MB(d.loaded)} MB geladen`), rest && h("span", {}, `noch ca. ${rest} s`)),
+    h("ol.upd-steps", {}, STEPS.map(([, t], i) => h("li" + (i < at ? ".done" : i === at ? ".now" : ""), {}, t))));
+}
+
 function updates(rerender) {
   const u = update;
   const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
@@ -666,9 +684,12 @@ function updates(rerender) {
     h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Zentrale " + state.dienst.version : ""}`),
     toggle("update.auto", "Automatisch nach Updates suchen", "Beim Start und alle 6 Stunden eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
     u.available
-      ? h("div.banner.update", {}, h("div", {}, h("b", {}, `Version ${u.available.version} verfügbar`), u.progress || noteLine(u.available.notes)),
+      ? h("div.banner.update", {}, h("div.update-body", {}, h("b", {}, `Version ${u.available.version} verfügbar`),
+            u.dl ? updateProgress(u.dl) : (u.progress || noteLine(u.available.notes))),
           h("div.row", {},
-            h("button.btn.primary.small", { onclick: () => installUpdate().then(rerender), disabled: u.installing }, u.installing ? "Lädt …" : "Installieren"),
+            u.dl?.stage === "install" && isAndroid && !u.installing
+              ? h("button.btn.primary.small", { onclick: () => installUpdate().then(rerender) }, "Installationsdialog öffnen")
+              : !u.dl && h("button.btn.primary.small", { onclick: () => installUpdate().then(rerender), disabled: u.installing }, "Installieren"),
             h("a.btn.small", { href: u.available.page, target: "_blank", rel: "noopener" }, "Änderungen")))
       : h("p.meta", {}, (u.message || "Noch nicht geprüft.") + when),
     h("div.row", {},

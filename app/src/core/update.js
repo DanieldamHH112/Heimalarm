@@ -12,7 +12,9 @@ export const LATEST_API = "https://api.github.com/repos/DanieldamHH112/Heimalarm
 export const RELEASES_URL = "https://github.com/DanieldamHH112/Heimalarm/releases";
 
 /** Zustand für die Oberfläche. available: { version, tag, notes, url, sha256Url, page } */
-export const update = { checking: false, installing: false, available: null, message: "", checkedAt: 0, progress: "" };
+export const update = { checking: false, installing: false, available: null, message: "", checkedAt: 0, progress: "",
+  /** Laufender Download: { stage: download|verify|install, loaded, total, startedAt } */
+  dl: null };
 
 const changed = () => emit("update", update);
 
@@ -76,9 +78,11 @@ export async function installUpdate() {
   const u = update.available;
   if (!u || update.installing) return;
   if (!isTauri) { window.open(u.page, "_blank"); return; }
-  update.installing = true; update.progress = `Lade ${u.version} …`; changed();
+  update.installing = true; update.progress = ""; update.dl = { stage: "download", loaded: 0, total: 0, startedAt: Date.now() }; changed();
+  let stop = NOOP;
   try {
     const core = await import("@tauri-apps/api/core");
+    stop = await listenProgress(core);
     if (hasPcFeatures) {
       // Lädt, prüft, startet das Setup still und beendet die App – sie startet danach von selbst neu.
       await core.invoke("install_update", { url: u.url, shaUrl: u.sha256Url || "" });
@@ -92,8 +96,33 @@ export async function installUpdate() {
     update.progress = `Update fehlgeschlagen: ${e.message || e}`;
     log("warn", "Update fehlgeschlagen", String(e.message || e));
   } finally {
-    update.installing = false; changed();
+    stop();
+    update.installing = false;
+    if (update.dl?.stage !== "install" || update.progress.startsWith("Update fehlgeschlagen")) update.dl = null;
+    changed();
   }
+}
+
+/** Fortschritt vom Rust-Befehl (PC) bzw. Android-Plugin – höchstens 5× pro Sekunde. */
+function onProgress(p) {
+  if (!p || !update.dl) return;
+  update.dl = { ...update.dl, stage: p.stage, loaded: Number(p.loaded) || 0, total: Number(p.total) || 0 };
+  changed();
+}
+const NOOP = () => {};
+async function listenProgress(core) {
+  const onP = onProgress;
+  try {
+    if (hasPcFeatures) {
+      const { listen } = await import("@tauri-apps/api/event");
+      return await listen("update-progress", ({ payload }) => onP(payload));
+    }
+    if (isAndroid) {
+      const l = await core.addPluginListener("heimalarm", "update-progress", onP);
+      return () => l.unregister?.();
+    }
+  } catch { /* ohne Fortschritt geht es trotzdem */ }
+  return NOOP;
 }
 
 /** Beim Start und danach alle 6 Stunden prüfen (abschaltbar), kurz verzögert, damit der Start nicht wartet. */

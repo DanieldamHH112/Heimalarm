@@ -211,6 +211,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
                 val dir = java.io.File(activity.cacheDir, "update").apply { mkdirs() }
                 val apk = java.io.File(dir, "Heimalarm-update.apk")
                 download(args.url, apk)
+                progress("verify", apk.length(), apk.length())
                 val expected = String(fetchBytes(args.shaUrl)).trim().split(Regex("\\s+"))[0]
                 val actual = sha256(apk)
                 if (!actual.equals(expected, ignoreCase = true)) {
@@ -223,6 +224,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
                     setDataAndType(uri, "application/vnd.android.package-archive")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                progress("install", apk.length(), apk.length())
                 activity.runOnUiThread { activity.startActivity(intent) }
                 val ret = JSObject(); ret.put("needsPermission", false); invoke.resolve(ret)
             } catch (e: Exception) {
@@ -243,8 +245,27 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
 
     private fun fetchBytes(url: String): ByteArray = open(url).inputStream.use { it.readBytes() }
 
+    /** Fortschritt an die Oberfläche (core/update.js): stage download | verify | install */
+    private fun progress(stage: String, loaded: Long, total: Long) {
+        val d = JSObject(); d.put("stage", stage); d.put("loaded", loaded); d.put("total", total)
+        trigger("update-progress", d)
+    }
+
     private fun download(url: String, target: java.io.File) {
-        open(url).inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
+        val c = open(url)
+        val total = c.contentLengthLong.coerceAtLeast(0)
+        var loaded = 0L
+        var last = 0L
+        progress("download", 0, total)
+        c.inputStream.use { input -> target.outputStream().use { out ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf); if (n <= 0) break
+                out.write(buf, 0, n); loaded += n
+                val now = System.currentTimeMillis()
+                if (now - last >= 200) { progress("download", loaded, total); last = now }
+            }
+        } }
     }
 
     private fun sha256(file: java.io.File): String {
