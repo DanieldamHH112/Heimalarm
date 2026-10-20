@@ -19,11 +19,11 @@ docker compose up -d --build dienst
 
 > Nie löschen: `dienst/data`. Dort liegen die Alexa-Kopplungen (`data/matter`) und ab jetzt die Matter-Geräte (`data/matter-ctl`).
 
-**Geklappt, wenn:** die App unter *Einstellungen → Zentrale* das Zentrale-Programm **0.2.7** zeigt.
+**Geklappt, wenn:** die App unter *Einstellungen → Zentrale* das Zentrale-Programm **0.2.8** zeigt.
 
 ## 2. App aktualisieren
 
-Kommt mit dem nächsten Release (noch nicht erstellt). Danach wie immer auf **Installieren** tippen, auf PC und Handy.
+Ab Version 0.1.24: auf **Installieren** tippen, auf PC und Handy.
 
 Solange die App alt ist, siehst du die Matter-Geräte nicht. Die Zentrale läuft trotzdem normal weiter.
 
