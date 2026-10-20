@@ -41,6 +41,9 @@ class ConfigArgs {
     var dnd: Boolean = false
     var torch: Boolean = false
     var wake: Boolean = false
+    var dndMin: Int = 15
+    var torchSec: Int = 30
+    var wakeSec: Int = 30
 }
 
 @InvokeArg
@@ -49,6 +52,9 @@ class OpenAppArgs {
     var dnd: Boolean = false
     var torch: Boolean = false
     var wake: Boolean = false
+    var dndMin: Int = 15
+    var torchSec: Int = 30
+    var wakeSec: Int = 30
 }
 
 @InvokeArg
@@ -69,6 +75,9 @@ class AlarmArgs {
     var dnd: Boolean = false
     var torch: Boolean = false
     var wake: Boolean = false
+    var dndMin: Int = 15
+    var torchSec: Int = 30
+    var wakeSec: Int = 30
 }
 
 @InvokeArg
@@ -306,7 +315,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun configure(invoke: Invoke) {
         val a = invoke.parseArgs(ConfigArgs::class.java)
-        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service, a.silent, a.mode, a.dnd, a.torch, a.wake)
+        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service, a.silent, a.mode, a.dnd, a.torch, a.wake, a.dndMin, a.torchSec, a.wakeSec)
         invoke.resolve(JSObject())
     }
 
@@ -329,7 +338,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         AlarmSound.notifyAlarm(activity, a.title, a.text, a.fullscreen)
         if (a.sound) AlarmSound.play(activity, a.tone, a.volume, a.ms)
         if (a.vibrate) AlarmSound.vibrate(activity)
-        PhoneActions.extras(activity, a.dnd, a.torch, a.wake)
+        PhoneActions.extras(activity, a.dnd, a.torch, a.wake, a.dndMin, a.torchSec, a.wakeSec)
         invoke.resolve(JSObject())
     }
 
@@ -440,7 +449,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun openAlarmApp(invoke: Invoke) {
         val a = invoke.parseArgs(OpenAppArgs::class.java)
-        PhoneActions.extras(activity, a.dnd, a.torch, a.wake)
+        PhoneActions.extras(activity, a.dnd, a.torch, a.wake, a.dndMin, a.torchSec, a.wakeSec)
         val ret = JSObject()
         if (PhoneActions.openApp(activity, a.app)) {
             ret.put("opened", true)

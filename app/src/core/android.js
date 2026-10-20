@@ -35,7 +35,10 @@ export function phoneAlarm({ title, text, test = false }) {
 /** Zusatzaktionen bei Alarm: „Nicht stören“ aufheben, Taschenlampe, Bildschirm an */
 function extras() {
   const ph = settings().phone || {};
-  return { dnd: Boolean(ph.dnd), torch: Boolean(ph.torch), wake: Boolean(ph.wake) };
+  return {
+    dnd: Boolean(ph.dnd), torch: Boolean(ph.torch), wake: Boolean(ph.wake),
+    dndMin: Number(ph.dndMin) || 15, torchSec: Number(ph.torchSec) || 30, wakeSec: Number(ph.wakeSec) || 30,
+  };
 }
 
 /** Paketname der Alarm-App, die geöffnet werden soll: die, deren Benachrichtigung den Alarm ausgelöst hat,

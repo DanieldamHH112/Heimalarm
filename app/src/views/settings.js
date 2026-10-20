@@ -529,6 +529,10 @@ const PHONE_MODES = {
   off: "Das Handy zeigt nichts, klingelt und vibriert nicht. Weiterleiten an den PC, Routinen und Protokoll laufen weiter.",
 };
 
+/** Auswahl einer Dauer für eine Zusatzaktion (Zahl im Einstellungs-Pfad). */
+const duration = (path, label, options) =>
+  field(label, select(options.map(([k, t]) => [String(k), t]), String(get(path)), (val) => set(path, Number(val))));
+
 /** Was das Handy bei Alarm tut: Modus, Ton/Anzeige und Zusatzaktionen. */
 function phoneAlarmSettings(s, rerender) {
   const ph = settings().phone;
@@ -556,12 +560,15 @@ function phoneAlarmSettings(s, rerender) {
         "Spielt als Wecker – auch im Lautlos-Modus hörbar, solange die Wecker-Lautstärke nicht auf 0 steht.")),
 
     pm !== "off" && h("h3.group-title", {}, "Zusätzlich bei Alarm"),
-    pm !== "off" && toggle("phone.dnd", "„Nicht stören“ durchbrechen", "Schaltet „Nicht stören“ für 15 Minuten aus, damit die Alarm-App hörbar klingelt. Danach wieder wie vorher.", () => rerender()),
+    pm !== "off" && toggle("phone.dnd", "„Nicht stören“ durchbrechen", "Schaltet „Nicht stören“ aus, damit die Alarm-App hörbar klingelt. Danach wieder wie vorher.", () => rerender()),
+    pm !== "off" && ph.dnd && duration("phone.dndMin", "Aus für", [[5, "5 Minuten"], [15, "15 Minuten"], [30, "30 Minuten"], [60, "1 Stunde"]]),
     pm !== "off" && ph.dnd && s.dndAccess === false && needs("Zugriff auf „Nicht stören“",
       "Ohne diese Erlaubnis darf Heimalarm „Nicht stören“ nicht ausschalten.", "Erlauben", openDndSettings),
-    pm !== "off" && s.torch !== false && toggle("phone.torch", "Taschenlampe blinken", "30 Sekunden – gut zu sehen, wenn das Handy im Dunkeln liegt.", () => rerender()),
+    pm !== "off" && s.torch !== false && toggle("phone.torch", "Taschenlampe blinken", "Gut zu sehen, wenn das Handy im Dunkeln liegt.", () => rerender()),
+    pm !== "off" && s.torch !== false && ph.torch && duration("phone.torchSec", "Blinkt", [[10, "10 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]]),
     pm !== "off" && s.torch !== false && ph.torch && h("button.btn.small", { onclick: () => testTorch().catch((e) => toast(String(e))) }, "Blinken testen"),
-    pm !== "off" && toggle("phone.wake", "Bildschirm einschalten", "Das Display geht bei Alarm an, auch ohne Vollbild-Meldung."),
+    pm !== "off" && toggle("phone.wake", "Bildschirm einschalten", "Das Display geht bei Alarm an, auch ohne Vollbild-Meldung.", () => rerender()),
+    pm !== "off" && ph.wake && duration("phone.wakeSec", "Bleibt an", [[15, "15 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [180, "3 Minuten"]]),
 
     pm === "heimalarm" && h("h3.group-title", {}, "Navigation"),
     pm === "heimalarm" && switchRow("Bei „Ich fahre“ zum Gerätehaus navigieren", "Startet Google Maps oder deine Karten-App mit dem Gerätehaus als Ziel.",

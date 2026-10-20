@@ -67,9 +67,12 @@ export const defaults = {
   phone: {
     mode: "",               // Bei Alarm: heimalarm (Vollbild wie am PC) · app (Alarm-App öffnen) · off (nichts). "" = alt: aus silent abgeleitet
     silent: false,          // „Aus“ (alt, = mode off): bei Alarm nichts anzeigen, kein Ton, keine Vibration (Weiterleiten, Routinen, Protokoll laufen weiter)
-    dnd: false,             // „Nicht stören“ für 15 Minuten aufheben
-    torch: false,           // Taschenlampe 30 s blinken
-    wake: false,            // Bildschirm einschalten
+    dnd: false,             // „Nicht stören“ aufheben …
+    dndMin: 15,             // … für so viele Minuten, danach wie vorher
+    torch: false,           // Taschenlampe blinken …
+    torchSec: 30,           // … so viele Sekunden
+    wake: false,            // Bildschirm einschalten …
+    wakeSec: 30,            // … so viele Sekunden
     navigate: "off",        // off · go = bei „Ich fahre“ Navigation zum Gerätehaus starten
     station: "",            // Ziel der Navigation: Adresse oder „52.12,10.34“
     sound: false,           // eigenen Alarmton spielen (die Alarm-App klingelt meist schon)

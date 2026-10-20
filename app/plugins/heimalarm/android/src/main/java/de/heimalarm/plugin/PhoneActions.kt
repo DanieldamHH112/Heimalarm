@@ -180,7 +180,7 @@ object PhoneActions {
         try {
             val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
             val wl = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE, "heimalarm:wake")
-            wl.acquire(seconds.coerceIn(5, 120) * 1000L)
+            wl.acquire(seconds.coerceIn(5, 300) * 1000L)
         } catch (_: Exception) {}
     }
 
@@ -201,9 +201,9 @@ object PhoneActions {
     }
 
     /** Was bei jedem Alarm am Handy zusätzlich passiert (Einstellungen „Bei Alarm zusätzlich“). */
-    fun extras(ctx: Context, dnd: Boolean, torch: Boolean, wake: Boolean) {
-        if (dnd) breakDnd(ctx, 15)
-        if (wake) wakeScreen(ctx)
-        if (torch) blinkTorch(ctx, 30)
+    fun extras(ctx: Context, dnd: Boolean, torch: Boolean, wake: Boolean, dndMin: Int = 15, torchSec: Int = 30, wakeSec: Int = 30) {
+        if (dnd) breakDnd(ctx, dndMin)
+        if (wake) wakeScreen(ctx, wakeSec)
+        if (torch) blinkTorch(ctx, torchSec)
     }
 }

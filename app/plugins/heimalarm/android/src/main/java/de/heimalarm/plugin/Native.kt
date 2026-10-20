@@ -19,8 +19,12 @@ object Native {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun configure(ctx: Context, packages: List<String>, words: List<String>, service: Boolean, silent: Boolean = false,
-                  mode: String = "heimalarm", dnd: Boolean = false, torch: Boolean = false, wake: Boolean = false) {
+                  mode: String = "heimalarm", dnd: Boolean = false, torch: Boolean = false, wake: Boolean = false,
+                  dndMin: Int = 15, torchSec: Int = 30, wakeSec: Int = 30) {
         prefs(ctx).edit()
+            .putInt("dndMin", dndMin)
+            .putInt("torchSec", torchSec)
+            .putInt("wakeSec", wakeSec)
             .putString("mode", mode)
             .putBoolean("dnd", dnd)
             .putBoolean("torch", torch)
@@ -41,7 +45,8 @@ object Native {
     fun runExtras(ctx: Context) {
         if (mode(ctx) == "off") return
         val p = prefs(ctx)
-        PhoneActions.extras(ctx, p.getBoolean("dnd", false), p.getBoolean("torch", false), p.getBoolean("wake", false))
+        PhoneActions.extras(ctx, p.getBoolean("dnd", false), p.getBoolean("torch", false), p.getBoolean("wake", false),
+            p.getInt("dndMin", 15), p.getInt("torchSec", 30), p.getInt("wakeSec", 30))
     }
 
     fun serviceWanted(ctx: Context) = prefs(ctx).getBoolean("service", true)
