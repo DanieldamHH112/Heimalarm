@@ -7,6 +7,9 @@ export function fillDemo(state) {
   import("../core/update.js").then(({ update }) => { update.available = { version: "0.2.0", page: "#", url: "#", notes: "Updates direkt in der App" }; });
   import("../core/divera.js").then(({ divera }) => { divera.ok = true; divera.current = "1"; divera.loading = true; });
   state.voice = { enabled: true, running: true, commissioned: false, qr: "MT:Y.K90SO527NHQL71V00", manual: "36360023599", fabrics: [], sensors: ["Heimalarm Einsatz", "Einsatz Daniel", "Einsatz Kollege"] };
+  state.matter = [{ id: "1-1", node: "1", name: "Wohnzimmer Stehlampe", vendor: "Nanoleaf", product: "Essentials A19", online: true, caps: { onoff: true, level: true, ct: true } }, { id: "2-1", node: "2", name: "Kaffeemaschine", vendor: "Eve", product: "Energy", online: true, caps: { onoff: true } }];
+  state.mstate = { "1-1": { state: "ON", brightness: 180, color_temp: 320 }, "2-1": { state: "OFF" } };
+  state.matterStatus = { running: true, error: "", pairing: { busy: false } };
   state.devices = {
     ich: { online: true, since: now - 3 * 3600e3, ledType: "rgb", ledOn: true, ledLevel: 40, ledMode: "Alles", rssi: -58, uptime: 3 * 86400 + 4 * 3600, ip: "192.168.1.42", version: "2026.10.0" },
     kollege: { online: false, since: now - 25 * 60e3, rssi: -81, uptime: 5400, ip: "192.168.1.57", version: "2026.10.0" },

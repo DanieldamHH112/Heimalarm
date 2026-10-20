@@ -9,6 +9,7 @@ export const has = {
   zigbee: () => isConfigured() && state.zigbee !== null,                // Zigbee2MQTT meldet sich
   direct: () => mode() === "direkt",
   wifi: () => (shared().wifi || []).length > 0,
+  matter: () => isConfigured() && (state.matter || []).length > 0,     // Matter-Geräte an der Zentrale
   /** Routinen und Geräte gibt es in beiden Betriebsarten – auch bevor die Zentrale-Adresse eingetragen ist
    *  (sonst fehlen nach „Betriebsart ändern“ die Tabs Geräte und Routinen). */
   routines: () => mode() === "zentrale" || mode() === "direkt",

@@ -280,7 +280,16 @@ function deviceTiles() {
       h("span.dev-h", {}, h("span.ico", { style: `--a:var(${isOn ? "--warn" : "--text-2"})` }, icon("bulb")), h("span.sw" + (isOn ? ".on" : ""), { "aria-hidden": "true" })),
       h("b", {}, name), h("small", {}, isOn ? `an${bri}` : "aus")));
   }
-  for (const d of (shared().wifi || []).slice(0, 6 - tiles.length)) {
+  for (const d of (state.matter || []).slice(0, Math.max(0, 6 - tiles.length))) {
+    const st = state.mstate[d.id] || {};
+    if (!("state" in st)) continue;
+    const isOn = st.state === "ON";
+    const bri = Number.isFinite(st.brightness) ? ` · ${Math.round((st.brightness / 254) * 100)} %` : "";
+    tiles.push(h("button.dev" + (isOn ? ".on" : ""), { type: "button", "aria-pressed": String(isOn), onclick: () => setDevice(d.name, { state: isOn ? "OFF" : "ON", transition: 1 }) },
+      h("span.dev-h", {}, h("span.ico", { style: `--a:var(${isOn ? "--warn" : "--text-2"})` }, icon("bulb")), h("span.sw" + (isOn ? ".on" : ""), { "aria-hidden": "true" })),
+      h("b", {}, d.name), h("small", {}, d.online ? (isOn ? `an${bri}` : "aus") : "nicht erreichbar")));
+  }
+  for (const d of (shared().wifi || []).slice(0, Math.max(0, 6 - tiles.length))) {
     tiles.push(h("div.dev", {},
       h("span.dev-h", {}, h("span.ico", { style: "--a:var(--c-net)" }, icon("bulb")),
         h("span.row", { style: "gap:6px" },
@@ -299,9 +308,9 @@ function quickActions() {
   return [
     ...manual.map((r) => q("--c-routine", "flow", r.name, () => { if (has.pi()) publish("heimalarm/cmd/run", { id: r.id }); else fireLocal(r, { manual: true }); toast(`„${r.name}“ läuft`); })),
     ...wakeable.map((c) => q("--c-net", "pc", `${c.name} wecken`, () => wake(c))),
-    has.zigbee() && q("--ok", "home", "Wieder da", () => { emit("restore"); if (publish("heimalarm/cmd/restore", {})) toast("Vorheriger Zustand wird wiederhergestellt"); }),
+    (has.zigbee() || has.matter()) && q("--ok", "home", "Wieder da", () => { emit("restore"); if (publish("heimalarm/cmd/restore", {})) toast("Vorheriger Zustand wird wiederhergestellt"); }),
     // Discord-Status läuft, aber kein „Wieder da“ (ohne Zigbee): eigener Knopf
-    !has.zigbee() && discord.active && discord.active.end > Date.now() && q("--c-discord", "chat", "Einsatz beenden", () => { emit("restore"); endPresence("von Hand"); toast("Discord-Status entfernt"); }),
+    !has.zigbee() && !has.matter() && discord.active && discord.active.end > Date.now() && q("--c-discord", "chat", "Einsatz beenden", () => { emit("restore"); endPresence("von Hand"); toast("Discord-Status entfernt"); }),
   ].filter(Boolean);
 }
 
@@ -318,7 +327,7 @@ function recentPanel() {
 }
 
 function devicesPanel() {
-  const tiles = has.zigbee() || has.wifi() ? deviceTiles() : [];
+  const tiles = has.zigbee() || has.wifi() || has.matter() ? deviceTiles() : [];
   const quick = quickActions();
   if (!tiles.length && !quick.length) return null;
   return h("section.panel", {},

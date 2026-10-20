@@ -3,7 +3,7 @@
 // Routine = { id, name, enabled, who: [kennung] (leer = alle),
 //   trigger: { type: "alarm" | "time" | "device" | "manual" | "readiness", at, device, property, value, to },
 //   conditions: { mode: "and" | "or", items: [ { type, ... } ] },
-//   actions: [ { type: "device" | "group" | "delay" | "restore" | "publish" | "divera" | "readiness" | "webhook", ... } ],
+//   actions: [ { type: "device" (Zigbee, WLAN oder Matter) | "group" | "delay" | "restore" | "publish" | "divera" | "readiness" | "webhook", ... } ],
 //   restoreAfterMin }  // B8: vorherigen Zustand nach X min wiederherstellen (0 = aus)
 //
 // Bedingungen: time {from,to} · weekday {days:[1..7]} · sun {is:"dark"|"light"} ·
@@ -35,10 +35,12 @@ export function createRules(ctx, log) {
     on: String(payload.state || "ON").toUpperCase() !== "OFF",
     bri: payload.brightness != null ? (Number(payload.brightness) / 254) * 100 : null,
   }, fetch).catch((e) => log.warn(`WLAN-Gerät ${dev.name}`, e.message));
-  /** Gerät oder Gruppe schalten – Zigbee über MQTT, WLAN direkt. */
+  /** Gerät oder Gruppe schalten – Zigbee über MQTT, WLAN direkt, Matter über den Controller. */
   const switchDevice = (name, payload) => {
     const w = wifiDev(name);
-    if (w) setWifi(w, payload); else pub(`zigbee2mqtt/${name}/set`, payload);
+    if (w) setWifi(w, payload);
+    else if (ctx.matter?.byName(name)) ctx.matter.switchByName(name, payload).catch((e) => log.warn(`Matter-Gerät ${name}`, e.message));
+    else pub(`zigbee2mqtt/${name}/set`, payload);
   };
   const later = (ms, fn) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); };
 
@@ -91,7 +93,7 @@ export function createRules(ctx, log) {
 
   function restore() {
     if (!snapshot) return log.info("Nichts wiederherzustellen");
-    for (const [n, s] of Object.entries(snapshot)) pub(`zigbee2mqtt/${n}/set`, s);
+    for (const [n, s] of Object.entries(snapshot)) switchDevice(n, s);
     log.action("Vorheriger Zustand wiederhergestellt", Object.keys(snapshot).join(", "));
     snapshot = null;
   }

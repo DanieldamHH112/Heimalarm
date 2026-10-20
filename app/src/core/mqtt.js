@@ -29,6 +29,9 @@ export const state = {
   zlog: [],        // F5 – Protokoll der Zentrale
   pong: null,      // I3 – Antwort auf Verbindungstest
   voice: null,     // Matter-Bridge für Alexa / Google Home: { running, qr, manual, commissioned, fabrics, sensors, error }
+  matter: null,    // Matter-Geräte der Zentrale: [{ id, node, name, vendor, product, online, caps }] (null = Dienst meldet nichts)
+  mstate: {},      // Matter: id -> { state, brightness 0–254, color_temp }
+  matterStatus: null, // Matter-Steuerung: { running, error, pairing: { busy, ok, error, at } }
 };
 
 const clientTopic = () => `heimalarm/clients/${settings().device.id}`;
@@ -211,6 +214,9 @@ function handleHeimalarm(p, msg) {
   else if (p[1] === "dienst" && p[2] === "status") state.dienst = json();
   else if (p[1] === "report") state.report = json();
   else if (p[1] === "voice" && p[2] === "status") state.voice = json();
+  else if (p[1] === "matter" && p[2] === "devices") state.matter = json() || [];
+  else if (p[1] === "matter" && p[2] === "state") state.mstate = json() || {};
+  else if (p[1] === "matter" && p[2] === "status") state.matterStatus = json();
   else if (p[1] === "divera" && p[2] === "keys") { state.diveraKeys = json() || {}; emit("divera", null); }
   else if (p[1] === "pong") state.pong = { ...json(), at: Date.now() };
   else if (p[1] === "log" && p[2] === "recent") state.zlog = json() || [];
@@ -290,5 +296,11 @@ export function publish(topic, message, opts = {}) {
 
 /** Zigbee2MQTT-Befehl, z. B. z2m("device/rename", { from, to }) */
 export const z2m = (cmd, payload = {}) => publish(`zigbee2mqtt/bridge/request/${cmd}`, payload);
-/** Gerät/Gruppe schalten, z. B. setDevice("Flur", { state: "ON", brightness: 3 }) */
-export const setDevice = (name, payload) => publish(`zigbee2mqtt/${name}/set`, payload);
+/** Matter-Steuerung der Zentrale, z. B. matterCmd("pair", { code }) */
+export const matterCmd = (cmd, data = {}) => publish(`heimalarm/cmd/matter/${cmd}`, data);
+export const matterByName = (name) => (state.matter || []).find((d) => d.name === name);
+/** Gerät/Gruppe schalten, z. B. setDevice("Flur", { state: "ON", brightness: 3 }) – Zigbee oder Matter. */
+export const setDevice = (name, payload) => {
+  const m = matterByName(name);
+  return m ? matterCmd("set", { id: m.id, payload }) : publish(`zigbee2mqtt/${name}/set`, payload);
+};
