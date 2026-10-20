@@ -10,6 +10,7 @@ import { startSelftest, SELFTEST_DEFAULTS } from "./selftest.js";
 import { startVoice } from "./voice.js";
 import { startHass } from "./hass.js";
 import { startDivera } from "./divera.js";
+import { startMatterCtl } from "./matterctl.js";
 
 export const VERSION = "0.2.7";
 const URL = process.env.MQTT_URL || "mqtt://mosquitto:1883";
@@ -38,6 +39,7 @@ export const ctx = {
 const log = createLog(client);
 const rules = createRules(ctx, log);
 const voice = startVoice(ctx, log);
+ctx.matter = startMatterCtl(ctx, log, (name, s) => rules.onDevice(name, s));
 const hass = startHass(ctx, log);
 ctx.divera = startDivera(ctx, log);
 let rawShared = {};
@@ -55,7 +57,7 @@ client.on("connect", () => {
     "alarm/+", "alarm/+/status", "zigbee2mqtt/bridge/devices", "zigbee2mqtt/bridge/state", "zigbee2mqtt/+",
   ], { qos: 1 });
   log.info("Dienst gestartet", `Version ${VERSION}`);
-  setTimeout(() => { voice.onConfig(); hass.sync(); }, 1500); // ohne gespeicherte Konfiguration trotzdem starten
+  setTimeout(() => { voice.onConfig(); hass.sync(); ctx.matter.boot(); }, 1500); // ohne gespeicherte Konfiguration trotzdem starten
 });
 
 client.on("message", (topic, buf, packet) => {
@@ -76,6 +78,7 @@ client.on("message", (topic, buf, packet) => {
     } else if (parts[0] === "heimalarm" && parts[1] === "cmd") {
       const cmd = parts.slice(2).join("/"), data = msg ? JSON.parse(msg) : {};
       if (parts[2] === "voice") voice.command(parts.slice(3).join("/"), data);
+      else if (parts[2] === "matter") ctx.matter.command(parts.slice(3).join("/"), data);
       else if (parts[2] === "divera") ctx.divera.command(parts.slice(3).join("/"), data);
       else rules.command(cmd, data);
       if (cmd === "restore") hass.onRestore();

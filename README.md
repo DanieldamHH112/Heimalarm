@@ -52,6 +52,7 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 | Zigbee-Lampen | ✅ | nur über eine Hue Bridge |
 | Alexa | ✅ Matter (lokal) oder Voice Monkey | ✅ Voice Monkey |
 | Google Home | ✅ Matter (lokal) | – |
+| Matter-Geräte aus Alexa, Google & Co. steuern | ✅ Matter (lokal) | – |
 | Routinen | ✅ laufen auf der Zentrale | ✅ laufen auf dem Handy |
 | Läuft, wenn Handy aus oder unterwegs | ✅ | – |
 

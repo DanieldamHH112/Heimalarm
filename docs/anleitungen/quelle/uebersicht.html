@@ -131,6 +131,7 @@
     <tr><td>Zigbee-Geräte</td><td class="yes">ja</td><td class="no">nur über eine Hue Bridge</td></tr>
     <tr><td>Alexa-Routinen</td><td class="yes">ja (Matter oder Voice Monkey)</td><td class="yes">ja (Voice Monkey)</td></tr>
     <tr><td>Google Home</td><td class="yes">ja (Matter)</td><td class="no">nein</td></tr>
+    <tr><td>Matter-Geräte aus Alexa, Google &amp; Co. steuern</td><td class="yes">ja</td><td class="no">nein</td></tr>
     <tr><td>Divera, aPager-Rückmeldung</td><td class="yes">ja</td><td class="yes">ja</td></tr>
     <tr><td>Webhook, automatischer Selbsttest</td><td class="yes">ja</td><td class="no">nein</td></tr>
     <tr><td>„Jemand zuhause“, „Vorher-Zustand“ zurück</td><td class="yes">ja</td><td class="no">nein</td></tr>
@@ -260,7 +261,7 @@
   <div class="grid2">
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-net)">{{i:bulb}}</span>WLAN-Geräte</div><p>Shelly, Philips Hue (über die Hue Bridge), WLED und Tasmota. Funktionieren mit und ohne Zentrale.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-pc)">{{i:bulb}}</span>Zigbee-Geräte</div><p>Lampen, Steckdosen und Sensoren mit Zigbee-Funk. Brauchen die Zentrale mit Zigbee-USB-Stick. Anlernen direkt in der App unter „Geräte“.</p></div>
-    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-voice)">{{i:voice}}</span>Alexa und Google Home</div><p>Die Zentrale meldet sich bei Alexa und Google als Sensor, der bei Alarm „auslöst“. Darauf baust du in der Alexa- bzw. Google-App deine Routine.</p></div>
+    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-voice)">{{i:voice}}</span>Alexa und Google Home</div><p>Die Zentrale meldet sich als Sensor, der bei Alarm „auslöst“ – Start für deine Routine dort. Umgekehrt schaltet sie Matter-Lampen aus Alexa &amp; Co.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-voice)">{{i:cloud}}</span>Voice Monkey</div><p>Kostenloser Dienst im Internet, der Alexa-Routinen auf Zuruf startet. Der einfache Weg für Alexa – auch ohne Zentrale.</p></div>
   </div>
   <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Wer führt Routinen aus?</b> Mit Zentrale immer die Zentrale – auch wenn Handy und PC aus sind. Ohne Zentrale das Handy, und zwar nur eines (einstellbar).</div></div>
@@ -332,7 +333,7 @@
   </div>
   <p class="muted small">Darunter: Kennzahlen aus dem Logbuch, Licht &amp; Geräte zum Schalten, Schnellaktionen und „Zuletzt“ als Zeitleiste. Rote Pille „Verbindung fehlgeschlagen“: antippen prüft erneut.</p>
   <div class="grid2">
-    <div class="card"><div class="t"><span class="ico" style="--a:var(--warn)">{{i:bulb}}</span>Geräte</div><p>WLAN- und Zigbee-Geräte: links die Liste mit Zustand, rechts das gewählte Gerät mit Reglern. Anlernen, Gruppen, Netzwerkkarte.</p></div>
+    <div class="card"><div class="t"><span class="ico" style="--a:var(--warn)">{{i:bulb}}</span>Geräte</div><p>WLAN-, Zigbee- und Matter-Geräte: links die Liste mit Zustand, rechts das gewählte Gerät mit Reglern. Anlernen, Gruppen, Netzwerkkarte.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-routine)">{{i:flow}}</span>Routinen</div><p>Wenn-dann-Rezepte anlegen, testen, ein- und ausschalten. Dazu Urlaubsmodus, Sichern und Laden.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-net)">{{i:log}}</span>Protokoll</div><p>Einsätze mit allen Infos und Statistik, dazu alles, was passiert ist, und das Protokoll der Zentrale.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-app)">{{i:gear}}</span>Einstellungen</div><p>Am Handy „Mehr“. Bereiche links, rechts immer nur eine Seite – siehe nächste Seite.</p></div>
@@ -441,7 +442,7 @@
     <div class="card"><h3 class="h4">Gekoppelt</h3><p>Handy und PC kennen sich und dürfen sich Alarme und Einstellungen schicken.</p></div>
     <div class="card"><h3 class="h4">Kennung</h3><p>Dein Kürzel im System, z. B. „ich“ oder „daniel“. Damit weiß jedes Gerät, für wen ein Alarm ist.</p></div>
     <div class="card"><h3 class="h4">Generalprobe</h3><p>Probelauf, bei dem Routinen wirklich schalten, der PC aber wach bleibt.</p></div>
-    <div class="card"><h3 class="h4">Matter</h3><p>Gemeinsame Sprache für Smart-Home-Geräte. Darüber sprechen Alexa und Google mit der Zentrale.</p></div>
+    <div class="card"><h3 class="h4">Matter</h3><p>Gemeinsame Sprache für Smart-Home-Geräte. Darüber sprechen Alexa und Google mit der Zentrale – und die Zentrale schaltet Matter-Lampen und -Steckdosen.</p></div>
     <div class="card"><h3 class="h4">Routine</h3><p>Wenn-dann-Rezept: Auslöser, Bedingungen, Aktionen.</p></div>
     <div class="card"><h3 class="h4">Rückalarm</h3><p>Der Einsatz wird zurückgenommen. Heimalarm vermerkt ihn am Einsatz.</p></div>
     <div class="card"><h3 class="h4">Ruhezustand</h3><p>PC speichert alles und schaltet sich stromlos ab. Beim Einschalten ist alles wie vorher.</p></div>

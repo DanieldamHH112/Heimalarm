@@ -90,6 +90,7 @@ const save = (routines) => updateShared({ routines });
 const devNames = () => [["", "– Gerät wählen –"],
   ...(has.pi() ? (state.zigbee || []).map((d) => [d.friendly_name, d.friendly_name]) : []),
   ...(has.pi() ? state.groups.map((g) => [g.friendly_name, `Gruppe: ${g.friendly_name}`]) : []),
+  ...(has.pi() ? (state.matter || []).map((d) => [d.name, `${d.name} (Matter)`]) : []),
   ...(shared().wifi || []).map((d) => [d.name, `${d.name} (WLAN)`])];
 
 /** Routine ausführen – mit Zentrale dort, ohne Zentrale hier. */

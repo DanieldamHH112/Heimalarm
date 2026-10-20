@@ -390,6 +390,11 @@ function sprache(rerender) {
         h("li", {}, "Oberfläche öffnen, Plugin ", h("code", {}, "matterbridge-zigbee2mqtt"), " hinzufügen."),
         h("li", {}, "Den dort gezeigten QR-Code in Alexa bzw. Google Home scannen.")),
       h("div.row", {}, h("a.btn.small", { href: `http://${host}:8283`, target: "_blank", rel: "noopener" }, "Matterbridge öffnen"))),
+    h("div.item", {},
+      h("div.item-head", {}, h("b", {}, "Matter-Geräte in Heimalarm"),
+        state.matter?.length ? h("span.chip.ok", {}, `${state.matter.length} Gerät${state.matter.length === 1 ? "" : "e"}`) : h("span.chip", {}, "keine")),
+      h("p.meta", {}, "Umgekehrter Weg: Lampen und Steckdosen, die schon in Alexa, Google Home, SmartThings oder Smart Life sind, steuert auch Heimalarm – in Routinen und unter Licht & Geräte. Alexa und Google behalten sie."),
+      h("div.row", {}, h("a.btn.small", { href: "#/geraete/matter" }, "Matter-Gerät hinzufügen"))),
     h("p.meta", {}, "Nötig: ein Echo mit Matter-Unterstützung bzw. ein Nest-Lautsprecher, Nest Hub oder Google TV im selben WLAN."),
   );
 }

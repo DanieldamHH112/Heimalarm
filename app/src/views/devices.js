@@ -1,8 +1,9 @@
 // C – Licht & Geräte über Zigbee2MQTT: anlernen, umbenennen, entfernen, steuern,
 // Gruppen, Direktverknüpfung, Erreichbarkeit, Firmware, Netzwerkkarte.
+// Dazu WLAN-Geräte (wifi.js) und Matter-Geräte, die die Zentrale steuert (zentrale/dienst/src/matterctl.js).
 import { h, toast, fmtAgo } from "../ui/dom.js";
 import { dialog, field, select, ask } from "../ui/form.js";
-import { state, z2m, setDevice } from "../core/mqtt.js";
+import { state, z2m, setDevice, matterCmd } from "../core/mqtt.js";
 import { requireAdmin } from "../core/admin.js";
 import { log } from "../core/log.js";
 import { has } from "../core/features.js";
@@ -88,6 +89,57 @@ function deviceCard(dev) {
   );
 }
 
+// ── Matter: Geräte, die schon in Alexa, Google Home & Co. sind, zusätzlich in Heimalarm ──
+const MATTER_PROPS = { onoff: "state", level: "brightness", ct: "color_temp" };
+const matterProps = (d) => new Set(Object.entries(d.caps || {}).filter(([, v]) => v).map(([k]) => MATTER_PROPS[k]));
+
+function matterCard(d) {
+  const s = state.mstate[d.id] || {};
+  const rename = asked(() => {
+    const input = h("input.input", { value: d.name });
+    const close = dialog("Gerät umbenennen", field("Neuer Name", input, "Z. B. „Flur Decke“. Routinen mit dem alten Namen bitte anpassen."),
+      h("div.row", {}, h("button.btn.primary", { onclick: () => { matterCmd("rename", { id: d.id, name: input.value.trim() }); close(); toast("Wird umbenannt …"); } }, "Speichern")));
+  });
+  const remove = asked(async () => {
+    if (await ask(`„${d.name}“ aus Heimalarm entfernen? In Alexa bzw. Google Home bleibt es.`)) { matterCmd("remove", { node: d.node }); log("action", `Matter-Gerät entfernt: ${d.name}`); }
+  });
+  return h("div.item", {},
+    h("div.item-head", {},
+      h("div", {}, h("b", {}, d.name), h("div.meta", {}, [d.vendor, d.product].filter(Boolean).join(" · ") || "Matter")),
+      d.online ? h("span.chip.ok", {}, "erreichbar") : h("span.chip.bad", {}, "nicht erreichbar")),
+    ...controls(d.name, matterProps(d), s),
+    h("div.row", {},
+      h("button.btn.small.ghost", { onclick: rename }, "Umbenennen"),
+      h("button.btn.small.ghost.danger", { onclick: remove }, "Entfernen")),
+    h("p.meta", {}, "Gesteuert von der Zentrale, lokal über Matter. Alexa bzw. Google Home können das Gerät weiter schalten."));
+}
+
+let pairCode = "";
+function matterAddCard() {
+  const st = state.matterStatus, p = st?.pairing || {};
+  const tooOld = state.connected && state.dienst?.online !== false && !st;
+  const code = h("input.input.mono", { value: pairCode, placeholder: "1234-567-8901 oder MT:…", autocomplete: "off", inputmode: "text",
+    oninput: (e) => (pairCode = e.target.value) });
+  const pair = asked(() => {
+    if (!pairCode.trim()) return toast("Erst den Kopplungscode eintragen");
+    if (matterCmd("pair", { code: pairCode.trim() })) { toast("Wird gekoppelt – das dauert bis zu einer Minute"); pairCode = ""; }
+  });
+  return h("section.card", {},
+    h("ol.pair-steps", {},
+      h("li", {}, h("b", {}, "Alexa: "), "Geräte → Gerät öffnen → Zahnrad → „Andere Assistenten und Apps“ → „Neu hinzufügen“."),
+      h("li", {}, h("b", {}, "Google Home: "), "Gerät öffnen → Zahnrad → „Verknüpfte Matter-Apps und -Dienste“ → „App verknüpfen“."),
+      h("li", {}, "Andere Apps (SmartThings, Smart Life, Eve …): beim Gerät „Mit anderer App teilen“ bzw. „Kopplungsmodus“."),
+      h("li", {}, "Den angezeigten Code hier eintragen:")),
+    h("div.fields", {}, field("Kopplungscode", code, "11 Ziffern oder QR-Text. Gilt meist 15 Minuten.")),
+    h("div.row", {},
+      p.busy ? h("button.btn.primary", { disabled: true }, "Wird gekoppelt …") : h("button.btn.primary", { onclick: pair, disabled: !state.connected || tooOld }, "Koppeln")),
+    p.ok && !p.busy && h("div.banner.ok", {}, h("div", {}, h("b", {}, "Gekoppelt"), `${p.ok} – steht jetzt in der Geräteliste.`)),
+    p.error && !p.busy && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Nicht gekoppelt"), p.error)),
+    st?.error && !st.running && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Matter-Steuerung startet nicht"), st.error)),
+    tooOld && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zentrale aktualisieren"), "Das Zentrale-Programm kennt Matter-Geräte noch nicht. Auf der Zentrale: ", h("code", {}, "docker compose up -d --build dienst"))),
+    h("p.hint", {}, "Neue Geräte zuerst in Alexa oder Google Home einrichten – Heimalarm koppelt nicht über Bluetooth. Thread-Geräte brauchen einen Thread-Router im Haus (z. B. Echo 4, Nest Hub, HomePod)."));
+}
+
 function groupsSection() {
   const add = asked(() => {
     const input = h("input.input", { placeholder: "z. B. Flur + Küche" });
@@ -150,14 +202,17 @@ const pane = (title, ico, color, ...body) => h("section.split-detail", { style: 
 export function devicesView(rerender) {
   const zig = has.pi() && state.zigbee ? state.zigbee.filter((d) => d.type !== "Coordinator").toSorted((a, b) => a.friendly_name.localeCompare(b.friendly_name)) : [];
   const wifi = (shared().wifi || []).toSorted((a, b) => a.name.localeCompare(b.name));
+  const mat = has.pi() ? (state.matter || []).toSorted((a, b) => a.name.localeCompare(b.name)) : [];
   const entries = [
     ...zig.map((d) => ({ key: `z:${d.friendly_name}`, kind: "zigbee", d })),
+    ...mat.map((d) => ({ key: `m:${d.id}`, kind: "matter", d })),
     ...wifi.map((d) => ({ key: `w:${d.id}`, kind: "wifi", d })),
   ];
   const extra = [
     has.pi() && state.zigbee && { key: "gruppen", label: "Gruppen", sub: `${state.groups.length} Gruppen`, ico: "flow" },
     has.pi() && state.zigbee && { key: "netz", label: "Netzwerkkarte", sub: "Wer funkt über wen", ico: "net" },
     has.pi() && !state.zigbee && { key: "zigbee", label: "Zigbee einrichten", sub: "Stick an der Zentrale", ico: "tool" },
+    has.pi() && { key: "matter", label: "Matter-Gerät hinzufügen", sub: "Aus Alexa, Google Home & Co.", ico: "link" },
   ].filter(Boolean);
   const key = keyOf();
   const all = [...entries.map((e) => e.key), ...extra.map((e) => e.key)];
@@ -174,6 +229,11 @@ export function devicesView(rerender) {
       on = st.state === "ON";
       sub = av === "offline" ? "nicht erreichbar" : "state" in st ? (on ? "an" : "aus") : e.d.definition?.description || e.d.type;
       color = av === "offline" ? "--signal" : on ? "--warn" : "--c-pc";
+    } else if (e.kind === "matter") {
+      const st = state.mstate[e.d.id] || {};
+      on = st.state === "ON";
+      sub = !e.d.online ? "nicht erreichbar" : "state" in st ? `${on ? "an" : "aus"} · Matter` : "Matter";
+      color = !e.d.online ? "--signal" : on ? "--warn" : "--c-voice";
     } else { sub = `${WIFI_TYPES[e.d.type]?.label || e.d.type} · ${e.d.host}`; }
     const name = e.kind === "zigbee" ? e.d.friendly_name : e.d.name;
     return h("a.split-item", { href: link(e.key), "aria-current": current === e.key ? "page" : null },
@@ -191,7 +251,7 @@ export function devicesView(rerender) {
       h("button.btn.small", { onclick: addW }, "WLAN-Gerät")),
     has.pi() && state.bridge === "offline" && h("p.split-warn", {}, "Zigbee2MQTT ist offline – Stick und Container auf der Zentrale prüfen."),
     h("nav.split-nav", { "aria-label": "Geräte" },
-      entries.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, has.pi() ? "Noch kein Gerät. Zigbee anlernen oder ein WLAN-Gerät (Shelly, Hue, WLED, Tasmota) hinzufügen." : "Shelly, Philips Hue, WLED oder Tasmota direkt im Heimnetz hinzufügen. Zigbee gibt es mit Zentrale.")
+      entries.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, has.pi() ? "Noch kein Gerät. Zigbee anlernen, ein WLAN-Gerät (Shelly, Hue, WLED, Tasmota) oder ein Matter-Gerät aus Alexa bzw. Google Home hinzufügen." : "Shelly, Philips Hue, WLED oder Tasmota direkt im Heimnetz hinzufügen. Zigbee gibt es mit Zentrale.")
         : entries.map(item),
       extra.length > 0 && h("div.split-grp", {}, "Mehr"),
       extra.map((x) => h("a.split-item", { href: link(x.key), "aria-current": current === x.key ? "page" : null },
@@ -202,9 +262,11 @@ export function devicesView(rerender) {
   let detail = null;
   const e = entries.find((x) => x.key === current);
   if (e?.kind === "zigbee") detail = pane(e.d.friendly_name, "bulb", "--c-pc", h("section.card", {}, deviceCard(e.d)));
+  else if (e?.kind === "matter") detail = pane(e.d.name, "bulb", "--c-voice", h("section.card", {}, matterCard(e.d)));
   else if (e?.kind === "wifi") detail = pane(e.d.name, "bulb", "--c-net", h("section.card", {}, h("ul.rows", {}, wifiRow(e.d, shared().wifi || [], rerender))));
   else if (current === "gruppen") detail = pane("Gruppen", "flow", "--c-app", groupsSection());
   else if (current === "netz") detail = pane("Netzwerkkarte", "net", "--c-app", networkSection());
+  else if (current === "matter") detail = pane("Matter-Gerät hinzufügen", "link", "--c-voice", matterAddCard());
   else if (current === "zigbee") detail = pane("Zigbee einrichten", "tool", "--c-app", zigbeeSetupCard());
   return h("div.split" + (detail ? ".has-detail" : ""), {}, listPane, detail || h("section.split-detail.empty-pane", {}, h("p.empty", {}, "Gerät links auswählen.")));
 }

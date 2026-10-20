@@ -95,9 +95,10 @@ Heimalarm/
 │     ├─ src/hass.js       Home Assistant (MQTT-Discovery)
 │     ├─ src/divera.js     Divera-Status per Routine (Schlüssel in data/divera.json)
 │     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5540 (Alexa koppelt nur über 5540)
+│     ├─ src/matterctl.js  Matter-Steuerung: Geräte aus Alexa/Google/SmartThings mitsteuern (Speicher data/matter-ctl, freier Port)
 │     ├─ src/wifi.js       WLAN-Geräte + Voice Monkey (KOPIE von app/src/core/wifi.js)
 │     ├─ src/log.js        Protokoll der Zentrale
-│     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator)
+│     └─ tools/            devbroker.js (Test-Broker), sim.js (ESP32/Zigbee-Simulator), matter-selftest.mjs (Matter-Test am Pi)
 ├─ esp32/                  ESPHome (Status-LED als Paket in esp32/led/: logik.yaml + Hardware rgb-gpio48/38, einfarbig-esp32/-d1mini): alarm-ich.yaml (ESP32, GPIO27), alarm-ich-s3.yaml (ESP32-S3, GPIO4), alarm-ich-d1mini.yaml (ESP8266, D5/GPIO14), secrets.example.yaml
 └─ docs/                   Einrichtung-NAS.md, logo.svg, ablauf.svg, ohne-pi.svg, screenshots/,
                            anleitungen/*.pdf (gebaut aus anleitungen/quelle/*.html mit build.py)
@@ -157,6 +158,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | **Zigbee2MQTT** | Zigbee-USB-Stick, Mosquitto, Profil `zigbee` | Seite Geräte (Zigbee), Routinen mit Zigbee-Geräten, Matterbridge |
 | **Matterbridge** | Zigbee2MQTT, Profil `matter`, Port 8283 | Zigbee-Licht in Alexa/Google |
 | **Matter-Sensoren** (`voice.js`) | IPv6 + mDNS im Heimnetz, Dienst | Alexa/Google-Routinen bei Alarm |
+| **Matter-Steuerung** (`matterctl.js`) | IPv6 + mDNS, Dienst; Gerät per „Mit anderer App teilen“-Code; Thread-Geräte zusätzlich ein Thread-Router | Geräte-Seite (Matter), Routinen, „Wieder da“ |
 | **App (Zentrale)** | Adresse der Zentrale, Port 9001 | – |
 | **App (direkt), PC** | `direct.rs`, freier Port 8765, Firewall „Private Netzwerke“ | Handy sendet Alarme |
 | **App (direkt), Handy** | Android-Plugin (Benachrichtigungen, Hintergrund-Dienst), gekoppelte PCs | Routinen ohne Zentrale |
@@ -190,6 +192,10 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/cmd/voice/test\|reset` | Matter-Sensor testen, Kopplungen löschen | App → Dienst |
 | `heimalarm/cmd/divera/key` | `{who, key}` Divera-Schlüssel hinterlegen (leer = löschen), nicht retained | App → Dienst |
 | `heimalarm/divera/keys` | `{<kennung>: {ok, error, ts}}` wer einen Schlüssel hinterlegt hat – ohne Schlüssel (retained) | Dienst |
+| `heimalarm/cmd/matter/pair\|set\|rename\|remove` | `{code}` · `{id, payload}` (Zigbee-Format) · `{id, name}` · `{node}` | App → Dienst |
+| `heimalarm/matter/status` | `{running, error, pairing: {busy, ok, error, at}}` (retained) | Dienst |
+| `heimalarm/matter/devices` | `[{id, node, name, vendor, product, online, caps: {onoff, level, ct}}]` (retained) | Dienst |
+| `heimalarm/matter/state` | `{<id>: {state, brightness 0–254, color_temp}}` (retained) | Dienst |
 | `heimalarm/voice/status` | `{enabled, running, qr, manual, commissioned, fabrics, sensors, error}` (retained) | Dienst |
 | `heimalarm/log`, `heimalarm/log/recent` | Protokoll der Zentrale | Dienst |
 | `heimalarm/report` | Selbsttest-Bericht `{ts, ok, checks, manual}` (retained) | Dienst |
@@ -207,6 +213,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | 8080 | Pi | aPager-Webhook `/alarm/<schlüssel>?who=<kennung>&keyword=&unit=[&event=recall\|clear]` |
 | 8081 | Pi | Zigbee2MQTT-Oberfläche |
 | 5540 | Pi | Matter-Sensoren (Dienst) – Alexa koppelt nur über 5540 |
+| frei (UDP) | Pi | Matter-Steuerung (`matterctl.js`) – vom System gewählt, kein fester Port, keine Freigabe nötig |
 | 5540, 8283 | Pi | Matterbridge (Matter, Oberfläche) – belegt dann 5540, nicht zusammen mit den Sensoren für Alexa |
 | 8765 | PC | Empfänger: Handy-Kopplung, Abgleich, Alarme vom Handy; `/apager/<schlüssel>` = aPager-Webhook direkt an den PC |
 
@@ -297,6 +304,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **ESP32-Neustart:** sinkt `uptime`, schreibt `mqtt.js` „ESP32 neu gestartet“ ins Protokoll (Hinweis auf Kabel an RST beim S3).
 - **ESP32-S3-Log:** `logger: hardware_uart: UART0` in `alarm-ich-s3.yaml`, damit das Log an der Buchse COM/UART erscheint.
 - **Matter-Speicher** (`zentrale/dienst/data/matter`) enthält die Kopplungen. Löschen = alle Alexa/Google-Kopplungen weg.
+- **Matter-Steuerung** (`zentrale/dienst/src/matterctl.js`): eigene `Environment` mit eigenem `StorageService` → `data/matter-ctl` (getrennt von `voice.js`; „Kopplungen löschen“ für die Sensoren berührt die gesteuerten Geräte nicht und umgekehrt). Startet nur, wenn dort schon etwas liegt oder gekoppelt wird. Namen in `data/matter-ctl/heimalarm.json`. Geräte heißen wie Zigbee-Geräte über den Namen (eindeutig gegen Zigbee/WLAN) und melden Zustand im Zigbee-Format in `ctx.devices` → Routinen (`switchDevice`), „Wieder da“ und Geräte-Auslöser brauchen keinen Sonderfall. App: `setDevice()` schickt an Matter, wenn der Name ein Matter-Gerät ist. Eigene Bridges (Heimalarm, Matterbridge) werden beim Koppeln abgewiesen (Schleife). Braucht `@project-chip/matter.js` (gleiche Version wie `@matter/main`). Kein Bluetooth-Koppeln: neue Geräte erst in Alexa/Google einrichten. Live-Test nur am Pi (`docker compose exec dienst node tools/matter-selftest.mjs /tmp/mt`).
 - **Alarmton:** `ui/sound.js` ist die einzige Stelle, die Töne startet. Windows → Rust `sound_*` (spielt auch bei verstecktem Fenster), Android → Plugin `play_sound`/`show_alarm` (Wecker-Lautstärke, `USAGE_ALARM`), Browser → Web Audio. Ton `""` = eingebauter Melder-Ton (in `sound.rs` und `AlarmSound.kt` gleich erzeugt – beide ändern). Eigene Töne liegen nur auf dem Gerät (PC: `<AppData>/sounds`, nur mp3/wav/ogg/flac; Handy: `files/sounds`), werden nicht synchronisiert.
 - **„Fährst du?“ auf mehreren Monitoren:** `takeover.js` sendet jede Sekunde `takeover-state`, `mirror.js` antwortet mit `takeover-answer`. Fensterlabels `takeover-<n>` müssen in `capabilities/default.json` → `windows` stehen. `finish()` läuft genau einmal (Sperre `done`).
 - **Alarm am Handy:** eigener Alarm → `emit("takeover")` auch am Handy (Rückmeldung per Knopf), dazu `phoneAlarm()` → Vollbild-Meldung, Vibration, optional Ton. Laufzeit = `phone.durationSec`. Ohne Antwort keine Rückmeldung.
@@ -353,6 +361,7 @@ Schrift: **Archivo** (Text, Titel), **JetBrains Mono** (Topics, Uhrzeiten, Codes
 | 4 | Handy: Geräte anlernen, steuern, Routinen | ✅ erste Version |
 | 5 | Android: Benachrichtigungen mitlesen, Hintergrund-Dienst, Webhook | ✅ auf echtem Gerät zu prüfen |
 | 6 | Alexa & Google über Matter (Sensoren + Matterbridge) | ✅ Kopplung am Pi zu prüfen |
+| 6b | Matter-Geräte aus Alexa/Google/SmartThings in Heimalarm steuern (`matterctl.js`) | ✅ am Pi mit echtem Gerät zu prüfen |
 | 7 | Alarmquellen wählbar, Divera-API, aPager-Rückmeldung | ✅ mit echtem Zugang zu prüfen |
 | 8 | Nur zeigen, was eingerichtet ist | ✅ |
 | 9 | Ohne Zentrale: Handy↔PC, WLAN-Geräte, Routinen auf dem Handy, Voice Monkey | ✅ mit echten Geräten zu prüfen |
