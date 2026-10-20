@@ -85,6 +85,8 @@ on("settings", ({ path, silent }) => {
 });
 
 export const newId = () => Math.random().toString(36).slice(2, 9);
+/** Geheimer Schlüssel (Webhooks): 128 Bit aus dem sicheren Zufallsgenerator, 32 Hex-Zeichen. */
+export const secretKey = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
 
 export async function sha256(text) {
   if (!globalThis.crypto?.subtle) {

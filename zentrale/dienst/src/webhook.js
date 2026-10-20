@@ -3,15 +3,32 @@
 // aPager sendet Stichwort und Einheit als Query oder JSON ({ keyword, unit }) – ab Android 6.9 einmal je Einheit
 // (die Sperrzeit fasst sie zu einem Einsatz zusammen). event=recall|clear = Rückalarm / Alarmende.
 import { createServer } from "node:http";
+import { timingSafeEqual, createHash } from "node:crypto";
+
+// Nach 10 falschen Schlüsseln ist eine Adresse 5 Minuten gesperrt (wie der PC-Empfänger).
+const MAX_FAILS = 10, LOCK_MS = 5 * 60e3;
+const fails = new Map(); // ip -> { n, at }
+const lockedOut = (ip) => {
+  const f = fails.get(ip);
+  if (!f) return false;
+  if (Date.now() - f.at > LOCK_MS) { fails.delete(ip); return false; }
+  return f.n >= MAX_FAILS;
+};
+const recordFail = (ip) => { const f = fails.get(ip) || { n: 0, at: 0 }; fails.set(ip, { n: f.n + 1, at: Date.now() }); };
+/** Vergleich in fester Zeit (über Hashes, damit auch die Länge nichts verrät). */
+const sameSecret = (a, b) => timingSafeEqual(createHash("sha256").update(String(a)).digest(), createHash("sha256").update(String(b)).digest());
 
 export function startWebhook(ctx, log) {
   const port = Number(process.env.WEBHOOK_PORT || 8080);
   createServer((req, res) => {
+    const ip = req.socket.remoteAddress || "";
+    if (lockedOut(ip)) return end(res, 429, "zu viele falsche Versuche – 5 Minuten warten");
     const url = new URL(req.url, "http://x");
     const [, route, secret] = url.pathname.split("/");
     if (route !== "alarm") return end(res, 404, "nicht gefunden");
-    if (!ctx.config.webhookSecret || secret !== ctx.config.webhookSecret) {
-      log.warn("Webhook mit falschem Schlüssel abgelehnt");
+    if (!ctx.config.webhookSecret || !sameSecret(secret || "", ctx.config.webhookSecret)) {
+      recordFail(ip);
+      log.warn("Webhook mit falschem Schlüssel abgelehnt", lockedOut(ip) ? `${ip} für 5 Minuten gesperrt` : ip);
       return end(res, 403, "falscher Schlüssel");
     }
     let body = "";

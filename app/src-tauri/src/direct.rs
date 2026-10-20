@@ -121,6 +121,11 @@ fn locked(ip: IpAddr) -> bool {
     }
     n >= MAX_FAILS
 }
+/// Vergleich in fester Zeit: Die Antwortzeit verrät nicht, wie viele Zeichen eines Schlüssels stimmen.
+fn same(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
+}
 fn record_fail(ip: IpAddr) {
     if let Ok(mut f) = fails().lock() {
         let e = f.entry(ip).or_insert((0, Instant::now()));
@@ -171,7 +176,7 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
     if let Some(rest) = path.strip_prefix("/apager/") {
         let (key, query) = rest.split_once('?').unwrap_or((rest, ""));
         let hook = keys().lock().map(|k| k.hook.clone()).unwrap_or_default();
-        if hook.is_empty() || key != hook {
+        if hook.is_empty() || !same(key, &hook) {
             record_fail(ip);
             return reply(&mut stream, "403 Forbidden", r#"{"ok":false,"error":"Schlüssel falsch"}"#);
         }
@@ -184,8 +189,8 @@ fn handle(app: &AppHandle, mut stream: TcpStream) {
             Ok(k) => k,
             Err(_) => return,
         };
-        let pairing = !got_key.is_empty() && got_key == k.pairing;
-        let phone = !got_key.is_empty() && k.phones.iter().any(|c| c == &got_key);
+        let pairing = !got_key.is_empty() && same(&got_key, &k.pairing);
+        let phone = !got_key.is_empty() && k.phones.iter().any(|c| same(&got_key, c));
         (pairing, phone, k.name.clone(), k.config.clone())
     };
     if !pairing && !phone {

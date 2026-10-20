@@ -6,7 +6,11 @@ plugins {
 android {
     namespace = "de.heimalarm.plugin"
     compileSdk = 34
-    defaultConfig { minSdk = 24 }
+    defaultConfig {
+        minSdk = 24
+        // Release-APK wird mit R8 verkleinert: Plugin-Klassen bleiben ganz erhalten (Befehle und Argumente per Reflection)
+        consumerProguardFiles("consumer-rules.pro")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8

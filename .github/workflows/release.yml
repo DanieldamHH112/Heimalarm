@@ -99,23 +99,30 @@ jobs:
           # Die Abfrage ist eingebaut (request_local_network) – Wert erst anheben, wenn auf einem Android-17-Gerät geprüft.
           sed -i -E 's/targetSdk *= *[0-9]+/targetSdk = 36/' src-tauri/gen/android/app/build.gradle.kts
           grep -n "targetSdk" src-tauri/gen/android/app/build.gradle.kts
-      # Fester Signierschlüssel aus dem Secret – sonst lehnt Android Updates ab (neuer Zufallsschlüssel je Build)
+      # Fester Signierschlüssel aus dem Secret – derselbe wie bei den bisherigen Versionen, sonst lehnt Android Updates ab.
+      # Ohne Secret kein Release: eine APK mit anderem Schlüssel ließe sich nicht über die installierte App spielen.
       - name: Signierschlüssel
         env: { KEYSTORE: "${{ secrets.ANDROID_DEBUG_KEYSTORE }}" }
         run: |
-          if [ -n "$KEYSTORE" ]; then
-            mkdir -p ~/.android && echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
-          else
-            echo "::warning::Secret ANDROID_DEBUG_KEYSTORE fehlt – APK bekommt einen Zufallsschlüssel, Updates gehen nicht drüber."
-          fi
-      - name: APK bauen (nur arm64, Debug-signiert)
+          if [ -z "$KEYSTORE" ]; then echo "::error::Secret ANDROID_DEBUG_KEYSTORE fehlt – ohne festen Schlüssel gehen Updates nicht drüber."; exit 1; fi
+          mkdir -p ~/.android && echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+      # Release-Build: nicht debugbar (App-Daten lassen sich per USB nicht auslesen), verkleinert, ohne Web-Entwicklertools
+      - name: APK bauen (nur arm64, Release)
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"   # auf dem Runner vorinstalliert
-          npx tauri android build --apk --debug --target aarch64
-      - run: |
-          find src-tauri/gen/android -name "*.apk" -path "*debug*" -exec cp {} "Heimalarm-${VERSION}.apk" \; -quit
-          sha256sum "Heimalarm-${VERSION}.apk" > "Heimalarm-${VERSION}.apk.sha256"
+          npx tauri android build --apk --target aarch64
+      # Mit demselben Schlüssel wie bisher signieren (Alias/Passwörter wie beim Debug-Keystore) → Updates gehen drüber
+      - name: APK signieren
         env: { VERSION: "${{ inputs.version || github.ref_name }}" }
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          UNSIGNED=$(find src-tauri/gen/android -name "*release-unsigned.apk" | head -1)
+          [ -n "$UNSIGNED" ] || { echo "::error::Keine unsignierte Release-APK gefunden"; exit 1; }
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" aligned.apk
+          "$BT/apksigner" sign --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey \
+            --ks-pass pass:android --key-pass pass:android --out "Heimalarm-${VERSION}.apk" aligned.apk
+          rm aligned.apk
+          sha256sum "Heimalarm-${VERSION}.apk" > "Heimalarm-${VERSION}.apk.sha256"
       - uses: actions/upload-artifact@v7
         with: { name: android, path: "app/Heimalarm-*.apk*" }
 

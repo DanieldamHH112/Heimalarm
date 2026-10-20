@@ -9,7 +9,7 @@ import { has } from "../core/features.js";
 import { on as onEvent } from "../core/events.js";
 import { direct, startReceiver, renewCode, openPairing, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
-import { shared, updateShared, sha256, newId } from "../core/shared.js";
+import { shared, updateShared, sha256, secretKey } from "../core/shared.js";
 import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
 import { ACTIONS, setAutostart, hibernateEnabled, enableHibernate, macAddress } from "../core/pc.js";
 import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
@@ -638,7 +638,7 @@ function zentrale(rerender) {
     h("div.field", {}, h("span", {}, "Webhook für aPager PRO"),
       hook ? h("code", { style: "overflow-wrap:anywhere" }, hook) : h("small", {}, "Noch kein Schlüssel – ohne Schlüssel nimmt die Zentrale keine Webhooks an."),
       h("div.row", {},
-        h("button.btn.small", { onclick: async () => { if (await requireAdmin()) { updateShared({ webhookSecret: newId() + newId() }); rerender(); } } }, hook ? "Neuen Schlüssel" : "Schlüssel erzeugen"),
+        h("button.btn.small", { onclick: async () => { if (await requireAdmin()) { updateShared({ webhookSecret: secretKey() }); rerender(); } } }, hook ? "Neuen Schlüssel" : "Schlüssel erzeugen"),
         hook && h("button.btn.small.ghost", { onclick: () => copyText(hook).then(() => toast("Kopiert")) }, "Kopieren")),
       h("small", {}, "In aPager PRO unter Einstellungen → Labor → Webhooks eintragen (Smart-Home-Paket nötig) und in der Einheit „Webhooks aktivieren“. aPager liefert nur Stichwort und Einheit – mehrere Einheiten werden zu einem Einsatz zusammengefasst, Rückalarm wird vermerkt.")),
   );

@@ -9,6 +9,7 @@ import { log } from "./log.js";
 import { emit, on } from "./events.js";
 import { isTauri, hasPcFeatures, platformName } from "./platform.js";
 import { bundle, applyBundle, syncEnabled, SYNC_LABELS } from "./sync.js";
+import { secretKey } from "./shared.js";
 
 export const direct = { ip: "", error: "", peers: {}, lastSync: 0 };   // peers: id -> { ok, error, at }
 
@@ -23,7 +24,7 @@ const deviceName = () => settings().device.name || platformName;
 export async function startReceiver() {
   if (!hasPcFeatures || !isTauri) return;
   if (!settings().direct.code) set("direct.code", newCode());
-  if (!settings().direct.hookKey) set("direct.hookKey", newCode() + newCode());
+  if (!settings().direct.hookKey) set("direct.hookKey", secretKey());
   const d = settings().direct;
   try {
     direct.ip = await invoke("direct_server", {
@@ -101,7 +102,7 @@ function receiveWebhook(query, body) {
 
 /** PC: Adresse für den aPager-Webhook (in aPager unter Labor → Webhooks eintragen). */
 export const webhookUrl = () => (direct.ip && settings().direct.hookKey ? `http://${direct.ip}:${settings().direct.port}/apager/${settings().direct.hookKey}` : "");
-export async function renewHookKey() { set("direct.hookKey", newCode() + newCode()); await startReceiver(); }
+export async function renewHookKey() { set("direct.hookKey", secretKey()); await startReceiver(); }
 
 /** PC: aktuellen Stand für GET /config hinterlegen und wartende Handys sofort wecken. */
 async function publishConfig({ notify = true } = {}) {
