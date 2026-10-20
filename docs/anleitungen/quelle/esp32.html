@@ -147,7 +147,7 @@ exit</pre><span class="note">Danach mit <code>ssh benutzer@heimalarm.local</code
       <pre class="code">sudo apt install -y git
 git clone https://github.com/DanieldamHH112/Heimalarm.git
 cd Heimalarm/zentrale
-cp -r ../esp32 ./esp32</pre></div></li>
+cp -r ../esp32 ./esp32</pre><span class="note">ESPHome baut aus dieser Kopie. Bei jedem Update neu kopieren (siehe „Pflege und Fehler“), sonst bleibt die Firmware alt.</span></div></li>
     <li><div><b>Passwort festlegen:</b>
       <pre class="code">cp .env.example .env
 nano .env</pre><span class="note">Bei <code>MQTT_PASSWORD=</code> dein Passwort eintragen. Speichern: <code>Strg</code> + <code>O</code>, <code>Enter</code>, Beenden: <code>Strg</code> + <code>X</code>.</span></div></li>
@@ -244,7 +244,9 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
   <h3>Updates</h3>
   <ul class="list" style="--a:var(--c-net)">
     <li><b>Apps:</b> PC und Handy melden neue Versionen beim Start → <span class="btn red">Installieren</span></li>
-    <li><b>Zentrale auf dem Pi:</b><pre class="code" style="margin-top:1.5mm">cd Heimalarm &amp;&amp; git pull &amp;&amp; cd zentrale &amp;&amp; docker compose up -d --build</pre></li>
+    <li><b>Zentrale auf dem Pi:</b><pre class="code" style="margin-top:1.5mm">cd ~/Heimalarm &amp;&amp; git pull &amp;&amp; cd zentrale
+cp -r ../esp32/* esp32/
+docker compose up -d --build</pre><span class="note"><code>cp</code> holt die neue ESP32-Vorlage in <code>zentrale/esp32</code> – daraus baut ESPHome. Ohne den Schritt spielt ESPHome weiter die alte Firmware auf. <code>secrets.yaml</code> bleibt erhalten; eine eigene Kennung (nicht <code>ich</code>) danach in der Board-Datei wieder eintragen.</span></li>
     <li><b>Zentrale auf der NAS:</b> genaue Schritte in der Anleitung <b>Heimalarm-Update.pdf</b>. Kurz: Inhalt von <code>zentrale</code> und den Ordner <code>esp32</code> hochladen und vorhandene Dateien <b>ersetzen</b> (nicht <code>.env</code>, die <code>data</code>-Ordner, <code>secrets.yaml</code>), in <code>docker-compose.yml</code> wieder <code>profiles: ["esphome"]</code> löschen, Container und Image von <code>dienst</code> löschen, <span class="btn">Neu bereitstellen</span>.</li>
     <li><b>ESP32:</b> nur nötig, wenn es eine neue Firmware gibt – ESPHome starten, auf deiner Karte ⋮ → <span class="btn">Validieren</span>, dann <span class="btn">Installieren</span> → <span class="btn">Im Netzwerk</span>. Ohne Kabel.</li>
   </ul>
@@ -255,6 +257,7 @@ mqtt_pw: "dein MQTT_PASSWORD"</pre>
     <tr><td>Drei Karten „alarm-ich“, alle „Online“</td><td class="muted">Normal – sie heißen gleich wie dein ESP32. Nur die Karte zu deinem Board nutzen, die anderen löschen.</td></tr>
     <tr><td>Im Netzwerk: „Host not found“</td><td class="muted">Docker findet <code>alarm-….local</code> nicht. <span class="btn">Installieren</span> → <span class="btn">Erweiterte Optionen</span> → <span class="btn">Geräte-IP</span>, IP aus der App (Start → ESP32) eintragen.</td></tr>
     <tr><td>Log: „mqtt took a long time“</td><td class="muted">Harmlos, kommt kurz nach dem Neustart.</td></tr>
+    <tr><td>Pi: App zeigt „ältere Firmware“ nach dem Flashen</td><td class="muted">Kopie in <code>zentrale/esp32</code> ist alt: <code>cp -r ../esp32/* esp32/</code>, Kennung prüfen, neu aufspielen.</td></tr>
     <tr><td>Bauen bricht ab</td><td class="muted">Fehlermeldung lesen – meist fehlt ein Eintrag in den Secrets.</td></tr>
     <tr><td>web.esphome.io findet den ESP32 nicht</td><td class="muted">Datenkabel, andere USB-Buchse, BOOT-Taste beim Einstecken halten.</td></tr>
     <tr><td>ESP32 verbindet sich nicht mit dem WLAN</td><td class="muted">Nur 2,4 GHz. WLAN-Name genau wie im Router (Groß-/Kleinschreibung).</td></tr>

@@ -84,7 +84,7 @@ function guide(key, rerender) {
     case "zentrale": return {
       lead: "Die Zentrale läuft in Docker auf deinem Gerät, das immer an ist.",
       steps: steps("Ordner <code>zentrale</code> aus dem Repository auf das Gerät kopieren, dazu den Ordner <code>esp32</code>.",
-        ["Raspberry Pi: <code>docker compose up -d</code> ausführen. UGREEN-NAS: in der Docker-App Projekt <code>heimalarm</code> erstellen und bereitstellen.", "docker"],
+        ["Raspberry Pi: <code>docker compose up -d</code> ausführen. Nach jedem <code>git pull</code> auch <code>cp -r ../esp32/* esp32/</code>, sonst baut ESPHome die alte Firmware. UGREEN-NAS: in der Docker-App Projekt <code>heimalarm</code> erstellen und bereitstellen.", "docker"],
         "Mit Zigbee-Stick zusätzlich <code>--profile zigbee</code>. Auf der NAS für ESPHome in <code>docker-compose.yml</code> die Zeile <code>profiles: [\"esphome\"]</code> löschen – die Docker-App beachtet Profile aus <code>.env</code> nicht.",
         "Im WLAN-Router dem Gerät eine feste IP-Adresse geben und sie notieren, z. B. <code>192.168.178.5</code>."),
       body: [row(manual(key, rerender, "Zentrale läuft"))], ok: "Zentrale läuft",
