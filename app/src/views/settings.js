@@ -54,7 +54,7 @@ function peerDialog(rerender, peer) {
   const code = h("input.input", { placeholder: peer ? "nur zum Neu-Koppeln" : "8-stelliger Code", inputmode: "numeric" });
   const name = h("input.input", { placeholder: "z. B. PC Arbeitszimmer", value: peer?.nameSet ? peer.name : "" });
   const close = dialog(peer ? `„${peer.name}“ bearbeiten` : "PC koppeln",
-    field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb."),
+    field("Adresse", host, "Steht am PC unter Einstellungen → Betrieb & Koppeln."),
     field("Kopplungscode", code, peer ? "Leer lassen, außer der PC wurde entkoppelt." : "Steht am PC daneben. Vorher am PC „Koppeln erlauben“ drücken. Danach bekommt dieses Handy einen eigenen Code."),
     field("Name", name, "Leer = Name des PCs übernehmen."),
     field("Port", port),
@@ -83,13 +83,13 @@ function betrieb(rerender) {
   const m = mode();
   const d = settings().direct;
   const syncHint = h("small.meta", {}, settings().sync?.enabled === false
-    ? "Abgleich ist aus (Einstellungen → Dieses Gerät)."
+    ? `Abgleich ist aus (Einstellungen → ${hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät"}).`
     : "Gekoppelte Geräte gleichen Betriebsart, Alarm-, PC- und Darstellungs-Einstellungen ab – ohne Zentrale auch Routinen und WLAN-Geräte. Divera-/aPager-Schlüssel bleiben auf dem Gerät.");
   const pcPart = () => {
     const phones = d.phones || [];
     return h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Handy koppeln"), direct.error ? h("span.chip.bad", {}, "Fehler") : direct.ip ? h("span.chip.ok", {}, "bereit") : h("span.chip", {}, "startet …")),
-      h("p.meta", {}, "„Koppeln erlauben“ drücken, dann am Handy unter Einstellungen → Betrieb → „PC koppeln“ eintragen:"),
+      h("p.meta", {}, "„Koppeln erlauben“ drücken, dann am Handy unter Einstellungen → Betrieb & Koppeln → „PC koppeln“ eintragen:"),
       h("div.pair-big", {},
         h("div", {}, h("small", {}, "Adresse"), h("code", {}, direct.ip ? `${direct.ip}` : "–")),
         h("div", {}, h("small", {}, "Kopplungscode"), h("code", {}, (d.code || "–").replace(/(\d{4})(\d{4})/u, "$1 $2")))),
@@ -289,7 +289,7 @@ function apagerSource(rerender) {
             webhookUrl() && h("button.btn.small.ghost", { onclick: () => copyText(webhookUrl()).then(() => toast("Kopiert")) }, "Kopieren"),
             h("button.btn.small.ghost", { onclick: async () => { if (await ask("Neuen Schlüssel erzeugen? Die alte Adresse in aPager funktioniert dann nicht mehr.")) { await renewHookKey(); rerender(); } } }, "Neuer Schlüssel")),
           h("small", {}, "Funktioniert, solange das Handy mit aPager im selben WLAN ist wie der PC."))
-          : h("p.meta", {}, "Direkt an einen PC geht auch: Die Adresse steht am PC unter Alarmquellen → aPager PRO.")),
+          : h("p.meta", {}, "Direkt an einen PC geht auch: Die Adresse steht am PC unter Einstellungen → Alarmquellen → aPager PRO.")),
       group("Rückmeldung bei Antwort (optional)",
         h("div.inline", {},
           field("API-Schlüssel", h("input.input", { type: "password", autocomplete: "off", value: a.key, onchange: (e) => { set("apager.key", e.target.value.trim()); rerender(); } }),
@@ -408,7 +408,7 @@ function esp32() {
   const d = state.devices[me];
   const url = h("input.input", { placeholder: "http://192.168.1.10/alarm-ich.ota.bin", inputmode: "url" });
   const md5 = h("input.input", { placeholder: "MD5-Prüfsumme (zeigt ESPHome beim Bauen)", autocomplete: "off" });
-  return section("esp32", "ESP32", "Einstellungen, die an den ESP32 gesendet werden.",
+  return section("esp32", "Kontakt & Überwachung", null,
     h("div.fields", {},
       field("Mindestdauer Kontakt (ms)", text("alarm.minDurationMs", { type: "number", min: 10, max: 5000 }, {
         onSave: (v) => { if (publish(`alarm/${me}/number/min_duration/command`, String(v))) toast("An den ESP32 gesendet"); },
@@ -517,10 +517,14 @@ function androidSection(rerender) {
     s.fullScreenAllowed === false && h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vollbild-Meldungen"), h("span.chip.bad", {}, "nicht erlaubt")),
       h("small", {}, "Ohne diese Erlaubnis erscheint der Alarm nur als Mitteilung, nicht über dem Sperrbildschirm."),
       h("button.btn.small", { onclick: () => openFullScreenSettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Erlauben")),
-    h("h3.group-title", {}, "Alarm auf diesem Handy"),
-    ...phoneAlarmSettings(s, rerender),
     h("p.meta", {}, "Nach einem Neustart des Handys startet Heimalarm von selbst. Erkennt es einen Alarm, öffnet sich die App."),
   );
+}
+
+/** Was dieses Handy bei Alarm tut (eigene Seite „Handy bei Alarm“). */
+function handyAlarm(rerender) {
+  if (android === null) androidStatus().then((s) => { android = s; rerender(); }).catch(() => (android = { supported: false }));
+  return section("handyalarm", "Handy bei Alarm", null, ...phoneAlarmSettings(android || {}, rerender));
 }
 
 const PHONE_MODES = {
@@ -768,33 +772,129 @@ function darstellung() {
     h("div.field", {}, h("span", {}, "Farbschema"), segmented([["dark", "Dunkel"], ["light", "Hell"]], get("ui.theme"), (v) => { set("ui.theme", v); applyTheme(); })));
 }
 
-/* ── Gruppen: links die Liste, rechts genau eine Seite (Handy: Liste → Unterseite) ── */
-const GROUPS = () => [
-  { id: "alarm", label: "Alarm & Quellen", icon: "bell", color: "--c-alarm", sections: ["quellen", "alarm", "esp32", "led", "funktionen"],
-    sub: () => activeSources().join(", ") || "Noch keine Quelle" },
-  { id: "betrieb", label: "Betrieb & Verbindung", icon: "net", color: "--c-net", sections: ["betrieb", "verbindung", "zentrale"],
-    sub: () => (mode() === "direkt" ? "Ohne Zentrale" : mode() === "zentrale" ? (state.connected ? "Mit Zentrale · verbunden" : isConfigured() ? "Mit Zentrale · getrennt" : "Mit Zentrale · nicht eingerichtet") : "Noch nicht gewählt"),
+/* ── Bereiche: links die Liste (nach Fragen gruppiert), rechts genau eine Seite (Handy: Liste → Unterseite).
+   Jeder Bereich sagt in der Liste, was drinsteht (desc), und rechts kurz, wie es gerade steht (status). ── */
+const ok = (t) => ({ t, c: "ok" }), warn = (t) => ({ t, c: "warn" }), off = (t) => ({ t, c: "off" }), plain = (t) => ({ t, c: "plain" });
+const ONLY_HERE = () => (hasPcFeatures ? ["pc", "Nur dieser PC"] : ["phone", isAndroid ? "Nur dieses Handy" : "Nur dieses Gerät"]);
+const ALL_MINE = ["net", "Für alle deine Geräte"];
+const ADMIN = ["lock", "Admin", "admin"];
+
+const PAGES = () => [
+  // Alarm – wie er ankommt
+  { grp: "alarm", id: "quellen", label: "Alarmquellen", icon: "bell", color: "--c-alarm", sections: ["quellen"],
+    desc: "Melder, SYBOS, aPager, Divera",
+    lead: "Woher Heimalarm von einem Einsatz erfährt. Mehrere Quellen gleichzeitig sind normal – kommt derselbe Alarm doppelt, zählt er als ein Einsatz.",
+    scope: [ALL_MINE, ["lock", "Zugangsschlüssel bleiben auf diesem Gerät"]],
+    status: () => { const n = activeSources().length; return n ? ok(`${n} aktiv`) : warn("keine"); } },
+  { grp: "alarm", id: "melder", label: "Melder (ESP32)", icon: "hub", color: "--c-alarm", sections: ["esp32", "led"],
+    desc: "Kontakt, Lebenszeichen, LED, Firmware",
+    lead: "Der ESP32 an der Ladeschale. Diese Werte gehen direkt an ihn – neu flashen ist nicht nötig.",
+    scope: [["hub", "Wird an den ESP32 gesendet"]],
+    status: () => { const d = state.devices[settings().alarm.me]; return !d ? off("nicht gemeldet") : d.online ? ok("online") : warn("offline"); },
+    warn: () => state.devices[settings().alarm.me]?.online === false },
+  { grp: "alarm", id: "kennung", label: "Kennung & Sperrzeit", icon: "people", color: "--c-alarm", sections: ["alarm"],
+    desc: "Wer du bist, doppelte Alarme, Testmodus",
+    lead: "Wer du bist und wie Heimalarm doppelte Alarme zu einem Einsatz zusammenfasst – egal aus welcher Quelle.",
+    scope: [ALL_MINE],
+    status: () => { const me = settings().alarm.me; return settings().alarm.testMode ? warn("Testmodus") : me === "ich" ? warn("„ich“") : plain(me); } },
+  // Bei Alarm – auf diesem Gerät
+  { grp: "bei", id: "faehrst", label: "„Fährst du?“", icon: "pc", color: "--c-pc", sections: ["pc"],
+    desc: "Abfrage, Aktion, Countdown, Ton",
+    lead: "Was dieser PC bei deinem Alarm tut. Jeder PC mit Heimalarm fragt selbst – mehrere PCs gehen also gleichzeitig.",
+    scope: [["pc", "Nur dieser PC"]],
+    status: () => (settings().pc.silent ? off("aus") : plain(`${ACTIONS[settings().pc.action]?.label} · ${settings().pc.countdownSec} s`)),
+    warn: () => settings().pc.action === "hibernate" && hibernateOn === false },
+  { grp: "bei", id: "tasten", label: "Vor dem Ruhezustand", icon: "tool", color: "--c-pc", sections: ["hotkeys"],
+    desc: "Offene Arbeit speichern, Tasten senden",
+    lead: "Speichert offene Arbeit, bevor der PC schläft – zum Beispiel Strg+S in Blender.",
+    scope: [["pc", "Nur dieser PC"]],
+    status: () => (settings().pc.hotkeys?.enabled ? ok("an") : off("aus")) },
+  { grp: "bei", id: "discord", label: "Discord", icon: "chat", color: "--c-discord", sections: ["discord"],
+    desc: "Status „Im Einsatz“ im Profil",
+    lead: "Zeigt Freunden „Im Einsatz“ im Discord-Profil, solange du unterwegs bist.",
+    scope: [["pc", "Nur dieser PC"]],
+    status: () => (discord.active && discord.active.end > Date.now() ? ok("im Einsatz") : settings().discord.enabled ? ok("an") : off("aus")) },
+  { grp: "bei", id: "handy", label: "Handy bei Alarm", icon: "phone", color: "--c-phone", sections: ["handyalarm"],
+    desc: "Anzeige, Ton, Taschenlampe, Navigation",
+    lead: "Was dieses Handy tut, wenn du alarmiert wirst.",
+    scope: [["phone", "Nur dieses Handy"]],
+    status: () => ({ heimalarm: plain("Heimalarm"), app: plain("Alarm-App"), off: off("aus") })[phoneMode()] },
+  { grp: "bei", id: "hintergrund", label: "Hintergrund & Rechte", icon: "check", color: "--c-phone", sections: ["android"],
+    desc: "Akku, Mitlesen, Vollbild",
+    lead: "Damit Alarme auch ankommen, wenn die App im Hintergrund ist oder das Handy neu startet.",
+    scope: [["phone", "Nur dieses Handy"]],
+    status: () => { if (!android) return plain(""); const n = [android.batteryOptimized, !android.notificationAccess, android.fullScreenAllowed === false].filter(Boolean).length; return n ? warn(`${n} fehlt`) : ok("alles erlaubt"); },
+    warn: () => Boolean(android?.batteryOptimized) },
+  // Zuhause
+  { grp: "zuhause", id: "personen", label: "Personen", icon: "people", color: "--c-people", sections: ["personen"],
+    desc: "Wer an der Zentrale alarmiert wird",
+    lead: "Wer an dieser Zentrale alarmiert wird. Routinen können für einzelne Personen gelten.",
+    scope: [["hub", "Für alle an der Zentrale"], ADMIN],
+    status: () => { const n = (shared().persons || []).length; return plain(n ? String(n) : "nur du"); } },
+  { grp: "zuhause", id: "sprache", label: "Alexa, Google & HA", icon: "voice", color: "--c-voice", sections: ["sprache", "hass"],
+    desc: "Ansagen, Alarm-Sensor, Home Assistant",
+    lead: "Lass Alexa den Einsatz ansagen oder starte Routinen in Alexa, Google Home oder Home Assistant.",
+    scope: [["hub", "Für alle Geräte"], ADMIN],
+    status: () => { const on = [state.voice?.commissioned && "Matter", shared().voicemonkey?.token && "Voice Monkey", shared().hass?.enabled && "HA"].filter(Boolean); return on.length ? ok(on.join(" · ")) : off("aus"); } },
+  // Verbindung
+  { grp: "verbindung", id: "betrieb", label: "Betrieb & Koppeln", icon: "net", color: "--c-net", sections: ["betrieb"],
+    desc: "Mit oder ohne Zentrale, Geräte koppeln",
+    lead: "Wie der Alarm zu deinen Geräten kommt. Gekoppelte Geräte übernehmen die Einstellung beim nächsten Abgleich.",
+    scope: [["net", "Für alle gekoppelten Geräte"]],
+    status: () => (mode() === "direkt" ? plain("Ohne Zentrale") : mode() === "zentrale" ? plain("Mit Zentrale") : warn("nicht gewählt")) },
+  { grp: "verbindung", id: "zentrale", label: "Zentrale", icon: "hub", color: "--c-net", sections: ["verbindung", "zentrale"],
+    desc: "Adresse, Passwort, Standort, Webhook",
+    lead: "Das Gerät, das rund um die Uhr läuft: NAS, Mini-PC oder Raspberry Pi. Ohne sie kommt kein Melder-Alarm an.",
+    scope: [[hasPcFeatures ? "pc" : "phone", "Verbindung: nur dieses Gerät"], ["lock", "Standort & Webhook: Admin", "admin"]],
+    status: () => (state.connected ? ok("verbunden") : isConfigured() ? warn("getrennt") : warn("nicht eingerichtet")),
     warn: () => isConfigured() && !state.connected },
-  { id: "geraet", label: hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät", icon: hasPcFeatures ? "pc" : "phone", color: hasPcFeatures ? "--c-pc" : "--c-phone",
-    sections: ["pc", "hotkeys", "android", "geraet"],
-    sub: () => (hasPcFeatures ? `${ACTIONS[settings().pc.action]?.label} nach ${settings().pc.countdownSec} s` : android?.batteryOptimized ? "Akku-Optimierung aktiv" : settings().device.name || "Name, Benachrichtigung, Abgleich"),
-    warn: () => (hasPcFeatures && settings().pc.action === "hibernate" && hibernateOn === false) || Boolean(android?.batteryOptimized) },
-  { id: "personen", label: "Personen", icon: "people", color: "--c-people", sections: ["personen"],
-    sub: () => { const n = (shared().persons || []).length; return n ? `${n} ${n === 1 ? "Person" : "Personen"}` : "Nur du"; } },
-  { id: "sprache", label: "Alexa, Google & HA", icon: "voice", color: "--c-voice", sections: ["sprache", "hass"],
-    sub: () => [state.voice?.commissioned && "Matter gekoppelt", shared().voicemonkey?.token && "Voice Monkey", shared().hass?.enabled && "Home Assistant"].filter(Boolean).join(" · ") || "Nicht eingerichtet" },
-  ...(hasPcFeatures ? [{ id: "discord", label: "Discord", icon: "chat", color: "--c-discord", sections: ["discord"],
-    sub: () => (discord.active && discord.active.end > Date.now() ? "Gerade „Im Einsatz“" : settings().discord.enabled ? "An bei Alarm" : settings().discord.clientId ? "Eingerichtet, aus" : "Status „Im Einsatz“ zeigen") }] : []),
-  { id: "sicherheit", label: "Sicherheit & Backup", icon: "lock", color: "--c-safe", sections: ["sicherheit", "backup"],
-    sub: () => (settings().lock?.pinHash || settings().lock?.biometric ? "App-Sperre an" : "App-Sperre aus") },
-  { id: "darstellung", label: "Darstellung & Updates", icon: "paint", color: "--c-app", sections: ["darstellung", "updates"], app: true,
-    sub: () => `${get("ui.theme") === "light" ? "Hell" : "Dunkel"} · Version ${APP_VERSION}`, warn: () => Boolean(update.available) },
+  // App
+  { grp: "app", id: "geraet", label: hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät", icon: hasPcFeatures ? "pc" : "phone", color: hasPcFeatures ? "--c-pc" : "--c-phone", sections: ["geraet"],
+    desc: "Name, Benachrichtigung, Abgleich",
+    lead: "So erscheint dieses Gerät bei den anderen – und was es mit ihnen abgleicht.",
+    scope: [ONLY_HERE()],
+    status: () => plain(settings().device.name || "") },
+  { grp: "app", id: "funktionen", label: "Zusatzfunktionen", icon: "chart", color: "--c-app", sections: ["funktionen"],
+    desc: "Einsatz-Logbuch, Statistik",
+    lead: "Alles ist aus, bis du es einschaltest. Gilt für alle abgeglichenen Geräte.",
+    scope: [ALL_MINE],
+    status: () => (settings().features?.logbuch ? ok(settings().features?.stats ? "Logbuch · Statistik" : "Logbuch") : off("aus")) },
+  { grp: "app", id: "sicherheit", label: "Sicherheit & Backup", icon: "lock", color: "--c-safe", sections: ["sicherheit", "backup"],
+    desc: "App-PIN, Admin-PIN, Backup",
+    lead: "Wer die App öffnen und gemeinsame Einstellungen ändern darf – und wie du alles sicherst.",
+    scope: [[ONLY_HERE()[0], "App-PIN: nur hier"], ["lock", "Admin-PIN: für alle", "admin"]],
+    status: () => (settings().lock?.pinHash ? ok("Sperre an") : off("Sperre aus")) },
+  { grp: "app", id: "darstellung", label: "Darstellung & Updates", icon: "paint", color: "--c-app", sections: ["darstellung", "updates"],
+    desc: "Hell oder dunkel, neue Versionen",
+    lead: "Wie die App aussieht und wie sie sich aktuell hält.",
+    scope: [["net", "Farbschema: für alle deine Geräte"]],
+    status: () => (update.available ? warn(`${update.available.version} da`) : plain(APP_VERSION)),
+    warn: () => Boolean(update.available) },
 ];
+const GRP = () => ({
+  alarm: ["Alarm", "Wie er ankommt"],
+  bei: ["Bei Alarm", hasPcFeatures ? "Auf diesem PC" : "Auf diesem Handy"],
+  zuhause: ["Zuhause", "Für alle im Haushalt"],
+  verbindung: ["Verbindung", "Zentrale und Koppeln"],
+  app: ["App", hasPcFeatures ? "Dieser PC" : "Dieses Gerät"],
+});
 
 const isPhone = () => window.matchMedia("(max-width: 760px)").matches;
 
+/** Eintrag in der Liste, der woanders hinführt (Einrichtung, Test & Diagnose). */
+const link = (href, ico, color, title, sub, onclick) => h("a.split-item", { href, onclick }, h("span.ico", { style: `--a:var(${color})` }, icon(ico)),
+  h("span.split-item-text", {}, h("b", {}, title), h("span"), h("small", {}, sub)), h("span.chev", {}, icon("chev")));
+
+// Scroll-Positionen bleiben beim Neuzeichnen und beim Wechsel des Bereichs stehen (nur neue Seiten beginnen oben)
+let lastPage = null;
+let listY = 0;
+
 export function settingsView(rerender) {
   const z = mode() === "zentrale";
+  // Positionen vom alten Stand merken, bevor er ersetzt wird
+  const oldList = document.querySelector(".split-list"), oldDetail = document.querySelector(".split-detail");
+  if (isPhone() ? oldList && !oldDetail : oldList) listY = isPhone() ? window.scrollY : oldList.scrollTop;
+  const detailY = isPhone() ? window.scrollY : oldDetail?.scrollTop ?? 0;
   /** Abschnitt, der sich bei Änderungen allein neu zeichnet: Fokus, Scroll-Position und offene Regler
    *  im Rest der Seite bleiben erhalten. Betrieb, Verbindung, Quellen und Funktionen ändern, was die
    *  ganze Seite zeigt, und zeichnen darum weiter alles neu. */
@@ -809,7 +909,7 @@ export function settingsView(rerender) {
     el = fn(re);
     return el;
   };
-  // Nur die Abschnitte der sichtbaren Gruppe bauen (spart Abfragen beim Öffnen)
+  // Nur die Abschnitte des sichtbaren Bereichs bauen (spart Abfragen beim Öffnen)
   const BUILD = {
     betrieb: () => betrieb(rerender),
     verbindung: () => z && verbindung(rerender),
@@ -821,6 +921,7 @@ export function settingsView(rerender) {
     pc: () => hasPcFeatures && part(pc),
     hotkeys: () => hasPcFeatures && part(hotkeySection),
     android: () => isTauri && isAndroid && part(androidSection),
+    handyalarm: () => isTauri && isAndroid && part(handyAlarm),
     geraet: () => geraet(),
     personen: () => part(personen),
     sprache: () => part(sprache),
@@ -832,9 +933,14 @@ export function settingsView(rerender) {
     updates: () => isTauri && part(updates),
     darstellung: () => darstellung(),
   };
-  const groups = GROUPS();
+  // Welche Bereiche es auf diesem Gerät gibt (gleiche Bedingungen wie BUILD, ohne zu bauen)
+  const AVAILABLE = {
+    melder: isConfigured(), faehrst: hasPcFeatures, tasten: hasPcFeatures, discord: hasPcFeatures,
+    handy: isTauri && isAndroid, hintergrund: isTauri && isAndroid, zentrale: z,
+  };
+  const pages = PAGES().filter((p) => AVAILABLE[p.id] !== false);
   const anchor = location.hash.replace("#/", "").split("/")[1] || "";
-  const current = groups.find((g) => g.id === anchor || g.sections.includes(anchor)) || (isPhone() ? null : groups[0]);
+  const current = pages.find((p) => p.id === anchor) || pages.find((p) => p.sections.includes(anchor)) || (isPhone() ? null : pages[0]);
   const searching = query.trim().length > 0;
 
   const searchField = h("input.input", {
@@ -844,32 +950,41 @@ export function settingsView(rerender) {
     oninput: (e) => { const was = query.trim().length > 0; query = e.target.value; if (was !== query.trim().length > 0) { rerender(); queueMicrotask(() => { const f = document.querySelector(".split-list input[type=search]"); f?.focus(); f?.setSelectionRange(f.value.length, f.value.length); }); } else applySearch(); },
     onkeydown: (e) => { if (e.key === "Escape") { query = ""; rerender(); } },
   });
-  const item = (g) => h("a.split-item", {
-    href: `#/einstellungen/${g.id}`, "aria-current": !searching && current?.id === g.id ? "page" : null,
-    onclick: () => { query = ""; },
-  },
-  h("span.ico", { style: `--a:var(${g.color})` }, icon(g.icon)),
-  h("span.split-item-text", {}, h("b", {}, g.label), h("small" + (g.warn?.() ? ".warn" : ""), {}, g.sub())),
-  g.warn?.() && h("span.dot", { title: "Braucht Aufmerksamkeit" }),
-  h("span.chev", {}, icon("chev")));
-
-  const list = h("aside.split-list", { "aria-label": "Bereiche" },
+  const item = (p) => {
+    const s = p.status();
+    return h("a.split-item", {
+      href: `#/einstellungen/${p.id}`, "aria-current": !searching && current?.id === p.id ? "page" : null,
+      onclick: () => { query = ""; },
+    },
+    h("span.ico", { style: `--a:var(${p.color})` }, icon(p.icon)),
+    h("span.split-item-text", {},
+      h("b", {}, p.label),
+      s?.t ? h("span.st." + (p.warn?.() ? "warn" : s.c), { title: s.t }, s.t) : h("span"),
+      h("small", {}, p.desc)),
+    h("span.chev", {}, icon("chev")));
+  };
+  const grp = GRP();
+  const list = h("aside.split-list", { "aria-label": "Bereiche", onscroll: (e) => { if (!isPhone()) listY = e.target.scrollTop; } },
     h("h1", {}, "Einstellungen"),
     h("label.search", {}, SEARCH_ICON(), searchField),
     h("nav.split-nav", {},
-      groups.filter((g) => !g.app).map(item),
-      h("div.split-grp", {}, "App"),
-      groups.filter((g) => g.app).map(item),
-      h("a.split-item", { href: "#/einrichtung", onclick: () => startWizard() }, h("span.ico", { style: "--a:var(--c-alarm)" }, icon("home")),
-        h("span.split-item-text", {}, h("b", {}, "Einrichtung"), h("small", {}, "Schritt für Schritt neu durchgehen")),
-        h("span.chev", {}, icon("chev"))),
-      h("a.split-item", { href: "#/diagnose" }, h("span.ico", { style: "--a:var(--c-app)" }, icon("tool")),
-        h("span.split-item-text", {}, h("b", {}, "Test & Diagnose"), h("small", {}, "Testalarm, Probe, Verbindungstest")),
-        h("span.chev", {}, icon("chev")))));
+      Object.entries(grp).flatMap(([g, [label, em]]) => {
+        const items = pages.filter((p) => p.grp === g);
+        return items.length ? [h("div.split-grp", {}, label, h("em", {}, em)), h("div.split-sect", {}, items.map(item))] : [];
+      }),
+      h("div.split-grp", {}, "Hilfe"),
+      h("div.split-sect", {},
+        link("#/einrichtung", "home", "--c-alarm", "Einrichtung", "Schritt für Schritt neu durchgehen", () => startWizard()),
+        link("#/diagnose", "tool", "--c-app", "Test & Diagnose", "Testalarm, Generalprobe, Verbindung"))));
 
   let detail = null;
   if (searching) {
-    const all = groups.flatMap((g) => g.sections.map((id) => BUILD[id]())).filter(Boolean);
+    // Jeder Abschnitt zeigt oben, in welchem Bereich er steht
+    const all = pages.flatMap((p) => p.sections.map((id) => {
+      const el = BUILD[id]();
+      if (el) el.querySelector("header")?.prepend(h("a.sec-crumb", { href: `#/einstellungen/${p.id}`, onclick: () => { query = ""; } }, p.label));
+      return el;
+    })).filter(Boolean);
     detail = h("section.split-detail", {},
       h("div.split-head", {}, h("h2", {}, "Suchergebnisse")),
       h("div.settings-body", {}, ...all,
@@ -879,12 +994,31 @@ export function settingsView(rerender) {
     const secs = current.sections.map((id) => BUILD[id]()).filter(Boolean);
     detail = h("section.split-detail", { style: `--a:var(${current.color})` },
       h("a.split-back", { href: "#/einstellungen" }, icon("back"), "Einstellungen"),
-      h("div.split-head", {}, h("span.ico.big", { style: `--a:var(${current.color})` }, icon(current.icon)),
-        h("div", {}, h("p.crumb", {}, "Einstellungen"), h("h2", {}, current.label))),
-      h("p.split-sub", {}, current.sub(), " · Änderungen werden sofort gespeichert."),
+      h("header.pg-head", {},
+        h("div.pg-title", {}, h("span.ico.big", { style: `--a:var(${current.color})` }, icon(current.icon)), h("h2", {}, current.label)),
+        h("p.pg-desc", {}, current.lead),
+        h("div.pg-meta", {}, current.scope.map(([ic, t, c]) => h("span.scope" + (c ? "." + c : ""), {}, icon(ic), t)), h("span.saved", {}, "Wird sofort gespeichert"))),
       h("div.settings-body", {}, ...secs));
     queueMicrotask(() => highlight([], []));
   }
+
+  // Nach dem Einsetzen: Liste bleibt, wo sie war; dieselbe Seite bleibt, wo sie war; eine neue beginnt oben
+  // (oder beim verlinkten Abschnitt, z. B. #/einstellungen/updates).
+  const page = searching ? "?" : current?.id ?? null;
+  const same = page === lastPage;
+  lastPage = page;
+  queueMicrotask(() => {
+    const l = document.querySelector(".split-list"), d = document.querySelector(".split-detail");
+    if (!isPhone() && l) l.scrollTop = listY;
+    const target = !same && anchor && anchor !== current?.id ? document.getElementById(anchor) : null;
+    if (isPhone()) {
+      if (target) target.scrollIntoView({ block: "start" });
+      else window.scrollTo(0, !d ? listY : same ? detailY : 0);
+    } else if (d) {
+      if (target) target.scrollIntoView({ block: "start" });
+      else d.scrollTop = same ? detailY : 0;
+    }
+  });
   return h("div.split" + (searching ? ".searching" : detail ? ".has-detail" : ""), {}, list, detail);
 }
 
@@ -900,7 +1034,8 @@ const KEYWORDS = {
   led: "led lampe licht farbe blinken helligkeit board",
   pc: "ruhezustand herunterfahren sperren autostart windows wake on lan countdown",
   hotkeys: "speichern strg s tastenkombination blender roblox studio programm tasten taste shortcut",
-  android: "akku hintergrund benachrichtigung dienst",
+  android: "akku hintergrund benachrichtigung dienst rechte erlaubnis vollbild sperrbildschirm",
+  handyalarm: "vollbild vibrieren ton wecker nicht stören taschenlampe bildschirm navigation gerätehaus karte alarm-app",
   geraet: "name gerätename benachrichtigung abgleich sync intervall",
   funktionen: "logbuch statistik jahresrückblick einsätze zusatz",
   personen: "kollege kennung person",

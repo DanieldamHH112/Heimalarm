@@ -56,7 +56,7 @@ docker compose up -d --build</pre><span class="note"><code>cp</code> holt die ne
     <li><div><b>Aufräumen:</b> Gibt es noch Container oder Images, die nicht mehr in der <code>docker-compose.yml</code> stehen (z. B. <code>tuya-bruecke</code>), diese und ihren Ordner löschen.</div></li>
   </ol>
   <div class="callout bad"><span class="ico" style="--a:var(--signal)">{{i:warn}}</span><div><b>Nie ersetzen oder löschen:</b> <code>.env</code>, <code>mosquitto/data</code>, <code>dienst/data</code>, <code>esp32/secrets.yaml</code>. Darin stehen Passwörter, Kopplungen und gespeicherte Nachrichten.</div></div>
-  <div class="done"><div><b>Geklappt, wenn</b> die App unter <span class="path">Einstellungen <i>›</i> Betrieb &amp; Verbindung</span> die neue Version des Zentrale-Programms zeigt. Steht dort noch die alte: die App am PC einmal ganz beenden (Rechtsklick auf das Symbol → Beenden) und neu öffnen.</div></div>
+  <div class="done"><div><b>Geklappt, wenn</b> die App unter <span class="path">Einstellungen <i>›</i> Zentrale</span> die neue Version des Zentrale-Programms zeigt. Steht dort noch die alte: die App am PC einmal ganz beenden (Rechtsklick auf das Symbol → Beenden) und neu öffnen.</div></div>
 </section>
 
 <section class="page" data-title="Heimalarm aktualisieren" id="esp">
@@ -70,7 +70,7 @@ docker compose up -d --build</pre><span class="note"><code>cp</code> holt die ne
     <li><div><b>ESPHome wieder stoppen</b> – wird nur zum Bauen gebraucht.</div></li>
   </ol>
   <div class="callout warn"><span class="ico" style="--a:var(--warn)">{{i:info}}</span><div><b>Nie die Datei eines anderen Boards aufspielen.</b> Weil alle gleich heißen, schickt ESPHome sie trotzdem an deinen ESP32 – danach geht er nur noch per Kabel zu retten.</div></div>
-  <div class="done"><div><b>Geklappt, wenn</b> im Protokoll „Connected“ und „Boot seems successful“ stehen. Die LED pulsiert kurz blau, leuchtet 3 s grün und geht aus. In der App <span class="path">Einstellungen <i>›</i> Alarm &amp; Quellen <i>›</i> LED am ESP32</span> steht „Farbige LED erkannt“.</div></div>
+  <div class="done"><div><b>Geklappt, wenn</b> im Protokoll „Connected“ und „Boot seems successful“ stehen. Die LED pulsiert kurz blau, leuchtet 3 s grün und geht aus. In der App <span class="path">Einstellungen <i>›</i> Melder (ESP32) <i>›</i> LED am ESP32</span> steht „Farbige LED erkannt“.</div></div>
 </section>
 
 <section class="page" data-title="Heimalarm aktualisieren" id="fehler">

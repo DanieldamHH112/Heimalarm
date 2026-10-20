@@ -37,7 +37,7 @@ class DiveraError extends Error {
 
 async function api(path, body) {
   const key = settings().divera.key;
-  if (!key) throw new DiveraError("Kein Zugangsschlüssel (Accesskey) eingetragen", { path, hint: "Unter Einstellungen → Alarm & Quellen → Divera eintragen." });
+  if (!key) throw new DiveraError("Kein Zugangsschlüssel (Accesskey) eingetragen", { path, hint: "Unter Einstellungen → Alarmquellen → Divera eintragen." });
   const url = `${BASE}${path}${path.includes("?") ? "&" : "?"}accesskey=${encodeURIComponent(key)}`;
   let r;
   try { r = await http(url, body ? { method: "POST", body: JSON.stringify(body) } : { method: "GET" }); }

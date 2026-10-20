@@ -71,7 +71,7 @@ export function setupSteps() {
     ["Kennung prüfen", `Auf Melder, Handy und jedem PC dieselbe: ${s.alarm.me || "–"}`, Boolean(s.alarm.me), "#/einstellungen/alarm"],
     ["Testen", "Test & Diagnose → Testalarm. Zeigt die Abfrage, ohne dass etwas passiert.", null, "#/diagnose"],
   ] : [
-    [hasPcFeatures ? "Handy koppeln" : "PC koppeln", hasPcFeatures ? "Adresse und Code dieses PCs am Handy eintragen." : "Jeden PC einzeln hinzufügen – Adresse und Code stehen am PC unter Einstellungen → Betrieb.", hasPcFeatures ? null : (s.direct.peers || []).length > 0, "#/einstellungen/betrieb"],
+    [hasPcFeatures ? "Handy koppeln" : "PC koppeln", hasPcFeatures ? "Adresse und Code dieses PCs am Handy eintragen." : "Jeden PC einzeln hinzufügen – Adresse und Code stehen am PC unter Einstellungen → Betrieb & Koppeln.", hasPcFeatures ? null : (s.direct.peers || []).length > 0, "#/einstellungen/betrieb"],
     ["Alarm-App wählen", src ? activeSources().join(" · ") : "SYBOS, aPager oder Divera einschalten (am Handy).", src, "#/einstellungen/quellen"],
     ["Testen", "Test & Diagnose → Testalarm. Zeigt die Abfrage, ohne dass etwas passiert.", null, "#/diagnose"],
   ];

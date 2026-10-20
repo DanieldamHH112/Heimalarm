@@ -107,7 +107,7 @@ function guide(key, rerender) {
         `Nur die Datei für dein Board nehmen (<code>alarm-ich.yaml</code>, <code>-s3</code> oder <code>-d1mini</code>), dort die Kennung „${s.alarm.me}“ eintragen und mit ESPHome flashen. Die anderen beiden in ESPHome löschen – sie heißen gleich, eine falsche Firmware legt den Melder lahm.`,
         "In ESPHome: ⋮ → Validieren, dann Installieren → Im Netzwerk. Findet es den ESP32 nicht: Erweiterte Optionen → Geräte-IP.",
         "Kontakt an GPIO27 und GND (ESP32-S3: GPIO4, direkt neben RST – genau hinsehen).", "Unter Test &amp; Diagnose mit dem Kontakt-Test die Kabel prüfen."),
-      body: [row(btn("Zu „Alarm & Quellen“", () => go("#/einstellungen/alarm")), manual(key, rerender))], ok: "Melder meldet sich",
+      body: [row(btn("Zu „Melder (ESP32)“", () => go("#/einstellungen/melder")), manual(key, rerender))], ok: "Melder meldet sich",
     };
     case "sybos": case "apager": {
       const ap = key === "apager";

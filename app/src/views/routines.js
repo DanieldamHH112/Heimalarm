@@ -21,7 +21,7 @@ const fetchFn = async (...a) => (isTauri ? (await import("@tauri-apps/plugin-htt
 
 async function testAnnounce(a, btn) {
   const token = shared().voicemonkey?.token;
-  if (!token) return toast("Erst den Voice-Monkey-Token eintragen (Einstellungen → Alexa & Google)");
+  if (!token) return toast("Erst den Voice-Monkey-Token eintragen (Einstellungen → Alexa, Google & HA)");
   if (!a.device) return toast("Erst den Lautsprecher eintragen");
   btn.disabled = true;
   try { const t = await voiceMonkeyAnnounce(token, a, SAMPLE, fetchFn); toast(`Alexa sagt: „${t}“`); }
@@ -108,7 +108,7 @@ const condRow = (c, del) => h("div.item", {},
     (c.type === "keyword" || c.type === "unit") && h("input.input", { value: c.contains || "", placeholder: c.type === "keyword" ? "z. B. B3 oder RD" : "z. B. LOHBR", onchange: (e) => (c.contains = e.target.value) }),
   );
 
-/** Aktion „Divera-Status setzen“. Mit Zentrale braucht die Person ihren Schlüssel dort (Einstellungen → Divera). */
+/** Aktion „Divera-Status setzen“. Mit Zentrale braucht die Person ihren Schlüssel dort (Einstellungen → Alarmquellen → Divera). */
 function diveraRow(a, del) {
   const me = settings().alarm.me, list = settings().divera.statuses || [];
   const opts = [["", "– Status wählen –"], ...list.map((x) => [x.id, x.name])];
@@ -117,7 +117,7 @@ function diveraRow(a, del) {
     : field(label, h("input.input", { type: "number", value: a[key] || "", placeholder: "Status-ID", onchange: (e) => (a[key] = e.target.value) }), hint || "Liste erscheint, sobald dein Divera-Schlüssel eingetragen ist.");
   const persons = [[me, `${me} (dieses Gerät)`], ...(shared().persons || []).filter((p) => p.id !== me).map((p) => [p.id, `${p.name} (${p.id})`])];
   const keyInfo = has.pi() && state.diveraKeys?.[a.who];
-  const warn = has.pi() ? (!keyInfo ? "Für diese Person liegt kein Schlüssel auf der Zentrale – unter Einstellungen → Divera „Auf der Zentrale hinterlegen“." : keyInfo.ok === false ? `Schlüssel auf der Zentrale ungültig: ${keyInfo.error}` : "")
+  const warn = has.pi() ? (!keyInfo ? "Für diese Person liegt kein Schlüssel auf der Zentrale – unter Einstellungen → Alarmquellen → Divera „Auf der Zentrale hinterlegen“." : keyInfo.ok === false ? `Schlüssel auf der Zentrale ungültig: ${keyInfo.error}` : "")
     : a.who !== me ? "Ohne Zentrale nur für die eigene Kennung." : !settings().divera.key ? "Erst den Divera-Schlüssel eintragen." : "";
   return h("div.item", {},
     h("div.item-head", {}, h("b", {}, "Divera-Status setzen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),

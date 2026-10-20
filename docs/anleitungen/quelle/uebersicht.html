@@ -105,7 +105,7 @@
 <!-- 4 · Betriebsarten -->
 <section class="page" data-title="Zwei Betriebsarten" id="betriebsarten">
   <div class="head"><h2>Zwei Betriebsarten</h2></div>
-  <p class="lead">Du wählst einmal, wie der Alarm zu deinen Geräten kommt – unter <span class="path">Einstellungen <i>›</i> Betrieb &amp; Verbindung</span>. Gekoppelte Geräte übernehmen die Wahl automatisch.</p>
+  <p class="lead">Du wählst einmal, wie der Alarm zu deinen Geräten kommt – unter <span class="path">Einstellungen <i>›</i> Betrieb &amp; Koppeln</span>. Gekoppelte Geräte übernehmen die Wahl automatisch.</p>
   <div class="grid2">
     <div class="flow" style="grid-template-columns:1fr 5mm 1fr">
       <div class="col" style="grid-column:1/-1"><h3>Mit Zentrale</h3><p class="muted small">Ein Gerät im Haus verteilt alles.</p></div>
@@ -183,13 +183,13 @@
     <li><b>Noch zu bestätigen:</b> Divera-Statusnamen deiner Einheit und ob aPager einen Rückalarm meldet.</li>
   </ul>
   <div class="card"><div class="t"><span class="ico" style="--a:var(--c-phone)">{{i:phone}}</span>Mitlesen am Handy</div>
-    <p>Damit Heimalarm Alarm-Apps mitlesen kann, braucht die App einmalig den <b>Zugriff auf Benachrichtigungen</b>. Heimalarm schaut nur auf die Apps, die du einschaltest, und reagiert nur, wenn eines deiner <b>Schlüsselwörter</b> vorkommt (Standard: „ALARMIERUNG, Alarm, Einsatz“). Für Divera ermittelt der Knopf „Erkennen“ den richtigen App-Namen. Alles unter <span class="path">Einstellungen <i>›</i> Alarm &amp; Quellen</span>.</p></div>
+    <p>Damit Heimalarm Alarm-Apps mitlesen kann, braucht die App einmalig den <b>Zugriff auf Benachrichtigungen</b>. Heimalarm schaut nur auf die Apps, die du einschaltest, und reagiert nur, wenn eines deiner <b>Schlüsselwörter</b> vorkommt (Standard: „ALARMIERUNG, Alarm, Einsatz“). Für Divera ermittelt der Knopf „Erkennen“ den richtigen App-Namen. Alles unter <span class="path">Einstellungen <i>›</i> Alarmquellen</span>.</p></div>
 </section>
 
 <!-- 7 · PC -->
 <section class="page" data-title="Am PC" id="pc">
   <div class="head"><span class="ico big" style="--a:var(--c-pc)">{{i:pc}}</span><h2>Am PC</h2></div>
-  <p class="lead">Der PC fragt einmal, laut und deutlich – und räumt danach für dich auf. Einstellungen unter <span class="path">Einstellungen <i>›</i> Dieser PC</span>.</p>
+  <p class="lead">Der PC fragt einmal, laut und deutlich – und räumt danach für dich auf. Einstellungen unter <span class="path">Einstellungen <i>›</i> „Fährst du?“</span>.</p>
   <div class="row">
     <figure style="flex:1.2"><img class="shot" src="../../screenshots/pc-faehrst-du.png" alt="" style="height:62mm;object-fit:cover"><figcaption>„Fährst du?“ – hier als Testalarm. Erscheint auf jedem angeschlossenen Bildschirm.</figcaption></figure>
     <div class="box" style="flex:1">
@@ -219,7 +219,7 @@
 <!-- 8 · Handy -->
 <section class="page" data-title="Am Handy" id="handy">
   <div class="head"><span class="ico big" style="--a:var(--c-phone)">{{i:phone}}</span><h2>Am Handy</h2></div>
-  <p class="lead">Das Handy ist immer dabei. Es hört mit, meldet sich und gibt deine Antwort weiter. Einstellungen unter <span class="path">Mehr <i>›</i> Dieses Handy</span>.</p>
+  <p class="lead">Das Handy ist immer dabei. Es hört mit, meldet sich und gibt deine Antwort weiter. Einstellungen unter <span class="path">Mehr <i>›</i> Handy bei Alarm</span>.</p>
   <div class="row">
     <img class="phone-shot" src="../../screenshots/handy-uebersicht.png" alt="" style="margin:2mm 2mm 0;width:46mm">
     <div class="grid2" style="flex:1">
@@ -270,7 +270,7 @@
 <section class="page" data-title="Einsatz-Logbuch" id="logbuch">
   <div class="head"><span class="ico big" style="--a:var(--c-net)">{{i:chart}}</span><h2>Einsatz-Logbuch und Statistik</h2></div>
   <p class="lead">Jede echte Alarmierung wird mit allem gespeichert, was bekannt ist – unter <span class="path">Protokoll <i>›</i> Einsätze</span>.</p>
-  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Zusatzfunktion:</b> Logbuch und Statistik sind aus, bis du sie unter <span class="path">Einstellungen <i>›</i> Alarm &amp; Quellen <i>›</i> Funktionen</span> einschaltest.</div></div>
+  <div class="callout info"><span class="ico" style="--a:var(--c-net)">{{i:info}}</span><div><b>Zusatzfunktion:</b> Logbuch und Statistik sind aus, bis du sie unter <span class="path">Einstellungen <i>›</i> Zusatzfunktionen</span> einschaltest.</div></div>
   <figure><img class="shot" src="../../screenshots/pc-protokoll.png" alt="" style="height:58mm;object-fit:cover;object-position:top left"><figcaption>Links die Einsätze nach Tagen, rechts alle Infos und die Notiz. Darüber „Statistik &amp; Rückblick“.</figcaption></figure>
   <div class="grid2">
     <div class="card"><h3 class="h4">Was gespeichert wird</h3>
@@ -296,7 +296,7 @@
   <p class="lead">Damit Handy und PC ohne Zentrale zusammenarbeiten, werden sie einmal <b>gekoppelt</b>. Danach halten sie sich gegenseitig auf dem gleichen Stand.</p>
   <h3>Koppeln in vier Schritten</h3>
   <ol class="steps" style="--a:var(--c-net)">
-    <li><div><b>Am PC: Adresse und Kopplungscode ablesen</b><span class="note"><span class="path">Einstellungen <i>›</i> Betrieb &amp; Verbindung</span> zeigt die Adresse des PCs im WLAN und einen 8-stelligen Kopplungscode.</span></div></li>
+    <li><div><b>Am PC: Adresse und Kopplungscode ablesen</b><span class="note"><span class="path">Einstellungen <i>›</i> Betrieb &amp; Koppeln</span> zeigt die Adresse des PCs im WLAN und einen 8-stelligen Kopplungscode.</span></div></li>
     <li><div><b>Am Handy: „PC koppeln“ und beides eintragen</b><span class="note">Einen Namen kannst du vergeben – leer lassen übernimmt den Namen des PCs.</span></div></li>
     <li><div><b>Am PC: <span class="btn">Koppeln erlauben</span> drücken</b><span class="note">Der PC nimmt 5 Minuten lang ein neues Handy an.</span></div></li>
     <li><div><b>Automatisch: eigener Code für dieses Handy</b><span class="note">Der PC gibt dem Handy einen eigenen, geheimen Code. So lässt sich jedes Handy später einzeln entkoppeln, ohne die anderen zu stören.</span></div></li>
@@ -335,28 +335,26 @@
     <div class="card"><div class="t"><span class="ico" style="--a:var(--warn)">{{i:bulb}}</span>Geräte</div><p>WLAN- und Zigbee-Geräte: links die Liste mit Zustand, rechts das gewählte Gerät mit Reglern. Anlernen, Gruppen, Netzwerkkarte.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-routine)">{{i:flow}}</span>Routinen</div><p>Wenn-dann-Rezepte anlegen, testen, ein- und ausschalten. Dazu Urlaubsmodus, Sichern und Laden.</p></div>
     <div class="card"><div class="t"><span class="ico" style="--a:var(--c-net)">{{i:log}}</span>Protokoll</div><p>Einsätze mit allen Infos und Statistik, dazu alles, was passiert ist, und das Protokoll der Zentrale.</p></div>
-    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-app)">{{i:gear}}</span>Einstellungen</div><p>Am Handy „Mehr“. Gruppen links, rechts immer nur eine Seite – siehe nächste Seite.</p></div>
+    <div class="card"><div class="t"><span class="ico" style="--a:var(--c-app)">{{i:gear}}</span>Einstellungen</div><p>Am Handy „Mehr“. Bereiche links, rechts immer nur eine Seite – siehe nächste Seite.</p></div>
   </div>
 </section>
 
 <!-- 13 · Einstellungen -->
 <section class="page" data-title="Einstellungen" id="einstellungen">
   <div class="head"><span class="ico big" style="--a:var(--c-app)">{{i:gear}}</span><h2>Die Einstellungen</h2></div>
-  <p class="lead">Statt einer langen Liste: <b>sieben Gruppen</b>, jede mit eigener Farbe und einer Zeile, wie es gerade steht. Ein gelber Punkt zeigt, wo etwas fehlt. Die Suche findet jede einzelne Einstellung.</p>
+  <p class="lead">Statt einer langen Liste: <b>fünf Gruppen</b> nach der Frage, um die es geht. Jeder Bereich sagt, was drinsteht, und rechts, wie es gerade steht – gelb, wo etwas fehlt. Oben auf jeder Seite steht, für wen sie gilt. Die Suche findet jede einzelne Einstellung.</p>
   <div class="row">
     <figure style="flex:1"><img class="shot" src="../../screenshots/pc-einstellungen.png" alt=""><figcaption>Am PC: Gruppen links, eine Seite rechts.</figcaption></figure>
     <figure><img class="phone-shot" src="../../screenshots/handy-einstellungen.png" alt="" style="width:40mm"><figcaption>Am Handy: Liste, dann Unterseite.</figcaption></figure>
   </div>
   <div class="box">
   <table class="t">
-    <tr><th style="width:52mm">Gruppe</th><th>Was drin ist</th></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-alarm)">{{i:bell}}</span>Alarm &amp; Quellen</span></td><td class="muted">Melder, SYBOS, aPager, Divera (Schlüssel, Rückmeldung, Status), Schlüsselwörter, Kennung, Sperrzeit, Testmodus, ESP32, Zusatzfunktionen.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-net)">{{i:net}}</span>Betrieb &amp; Verbindung</span></td><td class="muted">Mit oder ohne Zentrale, Geräte koppeln, Adresse der Zentrale, Webhook, Standort, Selbsttest.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>Dieser PC / Dieses Handy</span></td><td class="muted">PC: Aktion, Countdown, Texte, Ton und Lautstärke, Ausnahmen, Ruhezeit, Autostart, Aufwecken. Handy: Hintergrund, Akku, Mitlesen, Alarm groß, Ton. Beide: Gerätename, Meldungen, Abgleich.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-people)">{{i:people}}</span>Personen</span></td><td class="muted">Wer im Haushalt alarmiert wird. Routinen können pro Person gelten.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-voice)">{{i:voice}}</span>Alexa, Google &amp; HA</span></td><td class="muted">Matter-Kopplung über die Zentrale oder Voice Monkey.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-safe)">{{i:lock}}</span>Sicherheit &amp; Backup</span></td><td class="muted">Admin-PIN, App-Sperre, Einstellungen sichern und auf ein anderes Gerät übertragen.</td></tr>
-    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-app)">{{i:paint}}</span>Darstellung &amp; Updates</span></td><td class="muted">Dunkel oder Hell, neue Versionen installieren. Darunter: Test &amp; Diagnose.</td></tr>
+    <tr><th style="width:52mm">Bereich</th><th>Was drin ist</th></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-alarm)">{{i:bell}}</span>Alarm</span></td><td class="muted"><b>Alarmquellen</b> (Melder, SYBOS, aPager, Divera mit Schlüssel, Rückmeldung, Status), <b>Melder (ESP32)</b> (Kontakt, Lebenszeichen, LED, Firmware), <b>Kennung &amp; Sperrzeit</b> (Testmodus).</td></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-pc)">{{i:pc}}</span>Bei Alarm</span></td><td class="muted">PC: <b>„Fährst du?“</b> (Aktion, Countdown, Ton, Ausnahmen, Ruhezeit, Autostart, Aufwecken), <b>Vor dem Ruhezustand</b>, <b>Discord</b>. Handy: <b>Handy bei Alarm</b> (Anzeige, Ton, Taschenlampe, Navigation), <b>Hintergrund &amp; Rechte</b>.</td></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-people)">{{i:people}}</span>Zuhause</span></td><td class="muted"><b>Personen</b> im Haushalt, <b>Alexa, Google &amp; HA</b> (Voice Monkey, Matter, Home Assistant).</td></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-net)">{{i:net}}</span>Verbindung</span></td><td class="muted"><b>Betrieb &amp; Koppeln</b> (mit oder ohne Zentrale), <b>Zentrale</b> (Adresse, Passwort, Standort, Webhook).</td></tr>
+    <tr><td><span class="row" style="gap:2.5mm;align-items:center"><span class="ico" style="--a:var(--c-app)">{{i:paint}}</span>App</span></td><td class="muted"><b>Dieser PC / Dieses Handy</b> (Name, Meldungen, Abgleich), <b>Zusatzfunktionen</b>, <b>Sicherheit &amp; Backup</b>, <b>Darstellung &amp; Updates</b>. Darunter: Einrichtung, Test &amp; Diagnose.</td></tr>
   </table>
   </div>
 </section>

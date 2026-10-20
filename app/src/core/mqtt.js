@@ -40,7 +40,7 @@ const presence = (online) => JSON.stringify({
 /** Fehlertext der Zentrale in verständliche Sprache mit Hinweis übersetzen. */
 export function explainMqttError(msg = "") {
   const m = String(msg);
-  if (/not authori[sz]ed|bad user ?name or password|code 4|code 5/i.test(m)) return ["Benutzer oder Passwort falsch", "Unter Einstellungen → Betrieb & Verbindung Benutzer „heimalarm“ und das MQTT_PASSWORD der Zentrale prüfen."];
+  if (/not authori[sz]ed|bad user ?name or password|code 4|code 5/i.test(m)) return ["Benutzer oder Passwort falsch", "Unter Einstellungen → Zentrale Benutzer „heimalarm“ und das MQTT_PASSWORD der Zentrale prüfen."];
   if (/timeout|timed out/i.test(m)) return ["Zentrale antwortet nicht", "Ist die Zentrale an und im selben WLAN? IP-Adresse und Port 9001 prüfen."];
   if (/refused|ECONNREFUSED|1006|websocket/i.test(m)) return ["Verbindung abgelehnt", "Läuft der Container mosquitto? Stimmt der Port (9001 = WebSocket)?"];
   if (/ENOTFOUND|getaddrinfo|resolve/i.test(m)) return ["Adresse nicht gefunden", "Die Adresse der Zentrale ist falsch geschrieben oder nicht erreichbar."];

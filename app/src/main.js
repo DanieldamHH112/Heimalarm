@@ -49,8 +49,10 @@ function render() {
   // Einrichtung: am Handy Vollbild ohne Leiste unten, am PC Hauptmenü gedimmt
   document.body.classList.toggle("wizard-on", name === "einrichtung");
   view.replaceChildren(routes[name](render));
+  // Einstellungen kümmern sich selbst um die Scroll-Position (Liste und Seite bleiben stehen)
   const sub = anchor();
-  if (sub) document.getElementById(sub)?.scrollIntoView({ block: "start" });
+  if (name === "einstellungen") { /* views/settings.js */ }
+  else if (sub) document.getElementById(sub)?.scrollIntoView({ block: "start" });
   else window.scrollTo(0, y);
   // Geräte und Routinen gibt es nur mit Zentrale
   document.querySelectorAll('.nav-item[data-route="geraete"], .nav-item[data-route="routinen"]').forEach((a) => { a.hidden = !has.routines(); });
@@ -119,7 +121,12 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && cu
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);
-window.addEventListener("hashchange", () => { window.scrollTo(0, 0); render(); });
+// Innerhalb der Einstellungen bleibt die Position stehen (views/settings.js entscheidet selbst)
+const inSettings = (u) => /#\/einstellungen(\/|$)/u.test(u || "");
+window.addEventListener("hashchange", (e) => {
+  if (!(inSettings(e.oldURL) && inSettings(e.newURL))) window.scrollTo(0, 0);
+  render();
+});
 
 // A8 – Offline-Warnung, A9 – fehlendes Lebenszeichen für den eigenen ESP32
 setInterval(() => {

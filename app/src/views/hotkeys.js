@@ -1,4 +1,4 @@
-// Einstellungen → Dieser PC → „Vor dem Ruhezustand speichern“.
+// Einstellungen → Vor dem Ruhezustand („Vor dem Ruhezustand speichern“).
 // Je Programm eine Tastenkombination. Programme wählt man aus den gerade offenen Fenstern (Suchliste),
 // die Tasten nimmt man einfach auf.
 import { h, toast } from "../ui/dom.js";

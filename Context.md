@@ -13,7 +13,7 @@ Eine App für **Windows-PC und Android-Handy**, die einen Einsatz-Alarm zuhause 
 - **Handy:** Meldung, Rückmeldung an Divera/aPager, Divera-Status.
 - **Zuhause:** Routinen schalten Licht (Zigbee, WLAN-Geräte) und starten Alexa/Google-Routinen.
 
-Zwei **Betriebsarten** (Einstellungen → Betrieb):
+Zwei **Betriebsarten** (Einstellungen → Betrieb & Koppeln):
 
 | | Mit Zentrale | Ohne Zentrale („direkt“) |
 |---|---|---|
@@ -36,9 +36,10 @@ Der Melder wird ausschließlich über einen **ESP32** an der Steckklemme der Lad
 - **UI in HTML, CSS und JavaScript** (Tauri 2). Kein Framework, ES-Module, klein und modular.
 - **Texte kurz, informativ, gut lesbar**, auf Deutsch, ohne Fachjargon. Keine bestimmte Router-Marke voraussetzen („im WLAN-Router“ statt „FRITZ!Box“). Jede Einstellung hat einen Satz Erklärung.
 - **Nur zeigen, was eingerichtet ist:** Übersicht, Diagnose, Navigation und Protokoll blenden alles aus, was der Nutzer nicht nutzt (`core/features.js`). **Einstellungen zeigen immer alles.**
-- **Tests nicht im Dashboard:** Testalarm und Simulation liegen unter Einstellungen → Alarm bzw. Test & Diagnose.
+- **Tests nicht im Dashboard:** Testalarm und Simulation liegen unter Einstellungen → Kennung & Sperrzeit bzw. Test & Diagnose.
 - **Ohne Vorwissen einrichtbar:** sinnvolle Standardwerte, „In 3 Schritten startklar“, Testalarm ohne Folgen.
 - **Responsiv:** PC = schmale Symbolleiste links, Handy (≤ 760 px) = Leiste unten mit Pillen-Markierung. Einstellungen, Geräte und Routinen sind zwei Spalten (Liste links, eine Seite rechts); am Handy Liste → Unterseite mit „Zurück“.
+- **Einstellungen** (`views/settings.js` → `PAGES`): Bereiche nach Fragen gruppiert (Alarm · Bei Alarm · Zuhause · Verbindung · App). Jeder Bereich hat `desc` (was drinsteht, Liste links), `status` (kurzer Zustand rechts), `lead` (ein Satz oben auf der Seite) und `scope` (für wen es gilt: nur dieses Gerät, alle deine Geräte, Zentrale/Admin). Ein Bereich bündelt einen oder mehrere Abschnitte (`sections`). Hat eine Seite nur einen Abschnitt, versteckt CSS dessen Überschrift. Eingabefelder stehen am PC als Zeile (Name links, Feld rechts). Scroll-Position von Liste und Seite bleibt beim Neuzeichnen und beim Wechsel stehen (`settingsView` merkt sie, `main.js` scrollt in den Einstellungen nicht selbst).
 - **Dunkel ist Standard**, Hell die zweite Auswahl. **Weiche Ecken** (`--radius-sm` 8 px, `--radius` 12 px, `--radius-lg` 16 px), Flächen statt Rahmenlinien. **Bereichsfarben** (`--c-alarm`, `--c-net`, `--c-pc` …) – derselbe Bereich hat überall dieselbe Farbe.
 - **PC und Handy zeigen dieselben Teile** (Start: Status, Kennzahlen, Licht & Geräte, Schnellaktionen, Zuletzt) – nur die Anordnung unterscheidet sich.
 - **Keine Geheimnisse im Repo.** WLAN-, MQTT- und Signier-Daten nur lokal (`secrets.yaml`) oder als GitHub-Secret. API-Schlüssel der Nutzer (Divera, aPager) bleiben nur auf dem Gerät. **Ausnahme (bewusst, freiwillig):** Wer „Divera-Status per Routine“ einschaltet, gibt seinen Divera-Accesskey der Zentrale – er liegt dann nur in `zentrale/dienst/data/divera.json`, nie in den gemeinsamen Daten.
@@ -322,7 +323,7 @@ Quelle: `docs/anleitungen/quelle/` – `uebersicht.html`, `esp32.html`, gemeinsa
 
 Farbwelt **„Leitstelle, lebendig“**: ruhig und kontrastreich, Signalrot nur für Alarm und Hauptaktion, jeder Bereich mit eigener Farbe (Symbol, Balken, Zeitleiste). Dunkel ist Standard. Ecken 8/12/16 px, Schalter und Chips als Pillen.
 
-Start (`views/overview.js`, `styles/home.css`): Status-Karte **Aktiv / Verbindet / Nicht verfügbar / Abwesend**. Unten die **Bereitschaft** (`core/readiness.js`): Verfügbar · Nicht verfügbar (gelb, `--warn`) · Abwesend (violett, `--c-absent`). Die beiden letzten fragen per `ui/until-picker.js` (Schnellwahl, Kalender, Uhrzeit) „bis wann?“ und springen danach von selbst auf Verfügbar (`initReadiness`, Dienst prüft `readiness.until` in `rules.js`). `shared.vacation` bleibt als Ja/Nein daneben – `engine.js`, `rules.js`, Discord, `routines-local.js` lesen es (App über `readiness()`, das abgelaufene Zeiten schon als verfügbar zählt). „Verbindet“ erst nach 10 s Trennung (`checkup.js`, `offlineSince()`). Darunter eine Pille: „Verbunden“, rot „Verbindung fehlgeschlagen“ oder während „Verbindet“ der laufende Check aus `core/checkup.js` (eine Zeile wie im Terminal). Die Pille liegt absolut in einem festen Platzhalter (`.stslot`) – nichts darf sich durch ihren Text verschieben. Symbole aus `ui/icons.js`. Einstellungs-Gruppen: `GROUPS` in `views/settings.js` (neuer Abschnitt → einer Gruppe zuordnen und in `BUILD` eintragen).
+Start (`views/overview.js`, `styles/home.css`): Status-Karte **Aktiv / Verbindet / Nicht verfügbar / Abwesend**. Unten die **Bereitschaft** (`core/readiness.js`): Verfügbar · Nicht verfügbar (gelb, `--warn`) · Abwesend (violett, `--c-absent`). Die beiden letzten fragen per `ui/until-picker.js` (Schnellwahl, Kalender, Uhrzeit) „bis wann?“ und springen danach von selbst auf Verfügbar (`initReadiness`, Dienst prüft `readiness.until` in `rules.js`). `shared.vacation` bleibt als Ja/Nein daneben – `engine.js`, `rules.js`, Discord, `routines-local.js` lesen es (App über `readiness()`, das abgelaufene Zeiten schon als verfügbar zählt). „Verbindet“ erst nach 10 s Trennung (`checkup.js`, `offlineSince()`). Darunter eine Pille: „Verbunden“, rot „Verbindung fehlgeschlagen“ oder während „Verbindet“ der laufende Check aus `core/checkup.js` (eine Zeile wie im Terminal). Die Pille liegt absolut in einem festen Platzhalter (`.stslot`) – nichts darf sich durch ihren Text verschieben. Symbole aus `ui/icons.js`. Einstellungs-Bereiche: `PAGES` in `views/settings.js` (neuer Abschnitt → einem Bereich zuordnen, in `BUILD` eintragen und – falls gerätegebunden – in `AVAILABLE`).
 Schriftgrößen: mindestens 14 px (Labels), Hilfstexte 15 px, Fließtext 16 px.
 
 | Token | Hell | Dunkel | Einsatz |
@@ -368,7 +369,7 @@ Nummern wie im früheren Konzept (A–I, nur noch in Code-Kommentaren). Alles in
 - **Koppeln Handy↔PC:** per Adresse + Kopplungscode (kein QR-Scan); danach eigener Code je Handy.
 - **Optionale Funktionen sind Standard aus:** Logbuch, Statistik, Rückmeldung an Divera (`divera.answer`, `divera.setStatus`) und aPager (`apager.feedback`). Neue Zusatzfunktion → Schalter unter Einstellungen → Funktionen bzw. bei der Quelle, Standard `false`.
 - **App-Sperre biometrisch:** `core/biometric.js` – Android `tauri-plugin-biometric` (nur mobile Abhängigkeit, Recht in `capabilities/mobile.json`), Windows Hello über Rust-Befehl `windows_hello` (`windows`-Crate 0.62 wie Tauri). PIN bleibt immer Rückfall (`lock.biometric`).
-- **Abgleich-Intervall** ohne Zentrale: `sync.intervalSec` (Standard 120 s), einstellbar unter Dieses Gerät (nur Handy).
+- **Abgleich-Intervall** ohne Zentrale: `sync.intervalSec` (Standard 120 s), einstellbar unter Einstellungen → Dieses Handy.
 - **Handy-Layout:** Dialoge `max-height: 100%` im Raster der `.dialog-wrap` (Safe-Area-Abstand), `overscroll-behavior: none` auf html/body (sonst zieht der Android-Gummiband-Effekt die feste Leiste unten mit). „So läuft ein Alarm“ ist aufklappbar.
 - **Anleitungen:** `docs/anleitungen/*.pdf` (Quellen nicht im Repo; bei Änderungen an Abläufen aktualisieren).
 - **Layout:** volle Breite am Monitor (`--content-max: none`), Seiten auf PC und Handy identisch.
@@ -376,16 +377,16 @@ Nummern wie im früheren Konzept (A–I, nur noch in Code-Kommentaren). Alles in
 
 | Bereich | Wo in der App |
 |---|---|
-| Betrieb, Kopplung | Einstellungen → Betrieb |
-| A Alarmeingang | Einstellungen → Alarmquellen, Alarm, ESP32 · `engine.js` |
+| Betrieb, Kopplung | Einstellungen → Betrieb & Koppeln |
+| A Alarmeingang | Einstellungen → Alarmquellen, Melder (ESP32), Kennung & Sperrzeit · `engine.js` |
 | B Routinen | Seite Routinen (Dienst bzw. Handy führt aus) |
 | C Licht & Geräte | Seite Geräte (WLAN, Zigbee) |
-| D Windows-PC | Einstellungen → PC · Vollbild-Abfrage |
-| E Handy | Übersicht, Protokoll, Einstellungen → Android/Dieses Gerät/Darstellung |
-| F Zentrale | Einstellungen → Verbindung, Zentrale, Backup · Protokoll → Zentrale |
+| D Windows-PC | Einstellungen → „Fährst du?“, Vor dem Ruhezustand, Discord · Vollbild-Abfrage |
+| E Handy | Übersicht, Protokoll, Einstellungen → Handy bei Alarm, Hintergrund & Rechte, Dieses Handy |
+| F Zentrale | Einstellungen → Zentrale, Sicherheit & Backup · Protokoll → Zentrale |
 | G Personen | Einstellungen → Personen, Sicherheit · Routinen „Für wen“ |
-| H Sicherheit | Einstellungen → Verbindung, Zentrale, Sicherheit |
-| I Test & Diagnose | Einstellungen → Alarm (Testalarm) · Test & Diagnose |
+| H Sicherheit | Einstellungen → Zentrale, Sicherheit & Backup |
+| I Test & Diagnose | Einstellungen → Kennung & Sperrzeit (Testalarm) · Test & Diagnose |
 | Sprachassistenten | Einstellungen → Alexa, Google & HA |
 
 ## Prüfen (lokal, nicht in CI)

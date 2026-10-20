@@ -24,7 +24,7 @@ Oben auf **Start** steht immer, ob Heimalarm bereit ist: **Aktiv**, **Verbindet*
 
 ## So funktioniert es
 
-Heimalarm läuft auf zwei Arten – du wählst in der App unter *Einstellungen → Betrieb & Verbindung*.
+Heimalarm läuft auf zwei Arten – du wählst in der App unter *Einstellungen → Betrieb & Koppeln*.
 
 ### Welcher Aufbau passt?
 
@@ -73,7 +73,7 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 | **Start** | Status Aktiv / Verbindet / Inaktiv mit Verbindungs-Check, Kennzahlen, Licht zum Schalten, Schnellaktionen, „Zuletzt“. Zeigt nur, was eingerichtet ist. |
 | **Einsatz-Logbuch** | Jeder Einsatz mit allen Infos, Notizen, Statistik und Jahresrückblick, CSV-Export. |
 | **Test & Diagnose** | Testalarm, Melder-Alarm nachspielen, Generalprobe, Verbindungstest, wöchentlicher Selbsttest – was jeder Test wirklich auslöst, steht in der App unter *Test & Diagnose*. |
-| **Am PC (optional)** | Discord-Status bei Einsatz, Tasten vor dem Ruhezustand (z. B. Speichern in einem Programm). Unter *Einstellungen → Dieser PC* bzw. *Discord*. |
+| **Am PC (optional)** | Discord-Status bei Einsatz, Tasten vor dem Ruhezustand (z. B. Speichern in einem Programm). Unter *Einstellungen → Vor dem Ruhezustand* bzw. *Discord*. |
 | **Home Assistant** | Mit Zentrale erscheint Heimalarm von selbst in Home Assistant (MQTT). Unter *Einstellungen → Alexa, Google & HA*. |
 | **Sicher & privat** | Alles im Heimnetz. App-PIN, Admin-PIN, API-Schlüssel bleiben auf dem Gerät. |
 | **Bedienung** | Dunkel (Standard) und hell, jeder Bereich mit eigener Farbe. Einstellungen, Geräte, Routinen und Protokoll in zwei Spalten (am Handy Liste → Unterseite). Einstellungen gleichen sich ab. |
@@ -121,12 +121,12 @@ Die App führt dich selbst durch: **Start** zeigt eine Checkliste und das Schaub
 Installer (`.exe`) bzw. APK aus den [Releases](../../releases) laden und installieren.
 
 **2 · Betrieb wählen**
-*Einstellungen → Betrieb & Verbindung:* „Mit Zentrale“ oder „Ohne Zentrale“. Ohne Zentrale am PC Adresse und Code ablesen und am Handy unter „PC hinzufügen“ eintragen. Windows fragt einmal nach der Firewall – „Private Netzwerke“ erlauben.
+*Einstellungen → Betrieb & Koppeln:* „Mit Zentrale“ oder „Ohne Zentrale“. Ohne Zentrale am PC Adresse und Code ablesen und am Handy unter „PC hinzufügen“ eintragen. Windows fragt einmal nach der Firewall – „Private Netzwerke“ erlauben.
 
-**Mehrere PCs und Laptops:** Mit Zentrale auf jedem Gerät Heimalarm installieren, mit der Zentrale verbinden und **dieselbe Kennung** eintragen – alle zeigen bei Alarm „Fährst du?“, egal ob der Melder oder SYBOS/aPager/Divera am Handy auslöst. Ohne Zentrale jeden PC am Handy unter „PC hinzufügen“ eintragen. Für einen gemeinsamen PC mehrerer Personen: *Einstellungen → Dieser PC → „Abfrage auch bei Alarm von“*.
+**Mehrere PCs und Laptops:** Mit Zentrale auf jedem Gerät Heimalarm installieren, mit der Zentrale verbinden und **dieselbe Kennung** eintragen – alle zeigen bei Alarm „Fährst du?“, egal ob der Melder oder SYBOS/aPager/Divera am Handy auslöst. Ohne Zentrale jeden PC am Handy unter „PC hinzufügen“ eintragen. Für einen gemeinsamen PC mehrerer Personen: *Einstellungen → „Fährst du?“ → „Auch bei Alarm von“*.
 
 **3 · Alarmquellen wählen**
-In der App unter *Einstellungen → Alarm & Quellen* einschalten, was du nutzt:
+In der App unter *Einstellungen → Alarmquellen* einschalten, was du nutzt:
 - **SYBOS / aPager / Divera:** Am Handy „Benachrichtigungen mitlesen“ erlauben. Für Divera bzw. aPager optional den persönlichen API-Schlüssel eintragen – dann klappt auch die Rückmeldung.
 - **Melder:** braucht Zentrale und ESP32 (Schritt 5 und 6).
 
@@ -143,19 +143,19 @@ docker compose up -d                                     # Grundausstattung
 docker compose --profile zigbee up -d                    # mit Zigbee-USB-Stick
 docker compose --profile zigbee --profile matter up -d   # dazu Licht für Alexa / Google
 ```
-Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einstellungen → Betrieb & Verbindung* eintragen (Port `9001`, Benutzer und Passwort aus `.env`). Ohne Passwort startet die Zentrale nicht – sonst könnte jeder im WLAN Fehlalarme senden.
+Dann der Zentrale im Router eine feste IP geben und sie in der App unter *Einstellungen → Zentrale* eintragen (Port `9001`, Benutzer und Passwort aus `.env`). Ohne Passwort startet die Zentrale nicht – sonst könnte jeder im WLAN Fehlalarme senden.
 
 **6 · ESP32 (optional)**
 1. `esp32/secrets.example.yaml` nach `secrets.yaml` kopieren, WLAN-Daten und als `mqtt_host` die IP der Zentrale eintragen. Bei `mqtt_pw` **dasselbe Passwort wie `MQTT_PASSWORD` in `zentrale/.env`**. In der YAML-Datei die `kennung` setzen – dieselbe wie in der App (siehe „Kennung“ unten).
 2. Kontakt der Ladeschale messen (keine Spannung, bei Alarm Durchgang). Die Ladeschale hat eine Steckklemme: ein 2-adriges Kabel einstecken, am anderen Ende per WAGO-Klemme mit zwei Jumper-Kabeln verbinden (keine Litze direkt in die Jumper-Buchse). Einen Pol an `GPIO27`, den anderen an `GND`.
 3. `esp32/alarm-ich.yaml` flashen – am Windows-PC mit `pip install esphome` und `esphome run alarm-ich.yaml` (Anleitung: [ESP32-PDF](docs/anleitungen/Heimalarm-Einrichtung-ESP32.pdf), Schritt 4B) oder mit der ESPHome-Oberfläche der Zentrale. Für ein **ESP32-S3**-Board stattdessen `esp32/alarm-ich-s3.yaml` (Pol A an `GPIO4`, direkt neben `RST` – genau zählen), für einen **Wemos D1 mini (ESP8266)** `esp32/alarm-ich-d1mini.yaml` (Pol A an `D5`).
-4. In der App unter *Test & Diagnose → Kontakt-Test* die Kabel prüfen: Die Anzeige springt beim Verbinden auf „geschlossen“, ein Alarm wird dabei nicht ausgelöst. Öffnet der Kontakt deiner Ladeschale bei Alarm, statt zu schließen: *Einstellungen → ESP32 → „Alarm, wenn der Kontakt“ → öffnet*.
+4. In der App unter *Test & Diagnose → Kontakt-Test* die Kabel prüfen: Die Anzeige springt beim Verbinden auf „geschlossen“, ein Alarm wird dabei nicht ausgelöst. Öffnet der Kontakt deiner Ladeschale bei Alarm, statt zu schließen: *Einstellungen → Melder (ESP32) → „Alarm, wenn der Kontakt“ → öffnet*.
 
 **Kennung**
-Ein kurzer Name pro Person, z. B. `daniel` – nur Kleinbuchstaben, Ziffern und `-`. Jede Person braucht eine **eigene**; bleibt überall der Standard `ich` stehen, lösen sich mehrere Personen gegenseitig aus. Dieselbe Kennung gehört in die App (*Alarm & Quellen → Meine Kennung*, auf jedem eigenen Gerät), in den ESP32 (`kennung:`) und unter *Einstellungen → Personen*.
+Ein kurzer Name pro Person, z. B. `daniel` – nur Kleinbuchstaben, Ziffern und `-`. Jede Person braucht eine **eigene**; bleibt überall der Standard `ich` stehen, lösen sich mehrere Personen gegenseitig aus. Dieselbe Kennung gehört in die App (*Einstellungen → Kennung & Sperrzeit*, auf jedem eigenen Gerät), in den ESP32 (`kennung:`) und unter *Einstellungen → Personen*.
 
 **7 · Testen**
-Auf *Start* **Testalarm** – es passiert nichts Echtes, du siehst nur die Abfrage. Unter *Einstellungen → Dieser PC* bzw. *Dieses Handy* mit **Ton testen** prüfen, wie laut es wird. Mehr unter *Einstellungen → Test & Diagnose*.
+Auf *Start* **Testalarm** – es passiert nichts Echtes, du siehst nur die Abfrage. Unter *Einstellungen → „Fährst du?“* bzw. *Handy bei Alarm* mit **Ton testen** prüfen, wie laut es wird. Mehr unter *Einstellungen → Test & Diagnose*.
 
 **Updates**
 Heimalarm sucht beim Start und danach alle 6 Stunden auf GitHub nach einer neuen Version (*Einstellungen → Darstellung & Updates*, abschaltbar). Mit **Installieren** lädt die App die Datei, prüft die Prüfsumme und installiert – am PC still mit Neustart, am Handy über den normalen Android-Installationsdialog (beim ersten Mal „Apps aus dieser Quelle zulassen“). Einstellungen bleiben erhalten. 
