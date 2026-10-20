@@ -258,6 +258,13 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
                     setDataAndType(uri, "application/vnd.android.package-archive")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                // Direkt an den Paketinstaller von Android – sonst fragt Android „Öffnen mit“, sobald eine
+                // andere App (z. B. ein Dateimanager) APK-Dateien öffnen kann. Ohne Treffer bleibt die Auswahl.
+                @Suppress("DEPRECATION")
+                activity.packageManager.queryIntentActivities(intent, 0)
+                    .map { it.activityInfo.packageName }
+                    .firstOrNull { it.contains("packageinstaller") }
+                    ?.let { intent.setPackage(it) }
                 progress("install", apk.length(), apk.length())
                 activity.runOnUiThread { activity.startActivity(intent) }
                 val ret = JSObject(); ret.put("needsPermission", false); invoke.resolve(ret)

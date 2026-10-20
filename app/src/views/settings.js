@@ -6,6 +6,7 @@ import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog, ask } from "../ui/form.js";
 import { settings, set, get, replace, isConfigured, mode, phoneMode } from "../core/settings.js";
 import { has } from "../core/features.js";
+import { on as onEvent } from "../core/events.js";
 import { direct, startReceiver, renewCode, openPairing, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
 import { shared, updateShared, sha256, newId } from "../core/shared.js";
@@ -745,7 +746,13 @@ function updateProgress(d) {
     h("ol.upd-steps", {}, STEPS.map(([, t], i) => h("li" + (i < at ? ".done" : i === at ? ".now" : ""), {}, t))));
 }
 
+/* Fortschritt beim Herunterladen: Die Einstellungen zeichnen sich bei Ereignissen nicht von selbst neu
+   (main.js → live), darum zeichnet sich der Abschnitt „Updates“ bei jedem Update-Ereignis selbst neu. */
+let updatesRe = null;
+onEvent("update", () => { if (document.getElementById("updates")?.isConnected) updatesRe?.(); });
+
 function updates(rerender) {
+  updatesRe = rerender;
   const u = update;
   const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
   return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert – ohne zusätzliche Programme.",
