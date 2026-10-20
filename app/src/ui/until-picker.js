@@ -1,6 +1,6 @@
 // Auswahl „bis wann?“ für Nicht verfügbar / Abwesend.
 // Aufbau wie bei Status-Apps (Slack, Teams): oben Schnellwahl, darunter Kalender und Uhrzeit für alles andere.
-// Uhrzeit als natives Zeitfeld: am PC Tastatur, am Handy der System-Zeitwähler.
+// Uhrzeit als Ziffernfeld (siehe timeField in dom.js), damit am Handy die Tastatur kommt.
 import { h } from "./dom.js";
 import { dialog } from "./form.js";
 import { icon } from "./icons.js";
@@ -43,7 +43,7 @@ export function pickUntil(mode, current) {
     let done = false;
 
     const value = () => {
-      const [hh, mm] = (time.value || "07:00").split(":").map(Number);
+      const [hh, mm] = (/^\d\d:\d\d$/.test(time.value) ? time.value : "07:00").split(":").map(Number);
       return new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm).getTime();
     };
     const update = () => {
