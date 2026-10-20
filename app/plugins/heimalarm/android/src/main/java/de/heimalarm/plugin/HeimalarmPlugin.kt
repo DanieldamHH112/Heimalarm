@@ -37,6 +37,23 @@ class ConfigArgs {
     var words: Array<String> = arrayOf()
     var service: Boolean = true
     var silent: Boolean = false
+    var mode: String = "heimalarm"
+    var dnd: Boolean = false
+    var torch: Boolean = false
+    var wake: Boolean = false
+}
+
+@InvokeArg
+class OpenAppArgs {
+    var app: String = ""
+    var dnd: Boolean = false
+    var torch: Boolean = false
+    var wake: Boolean = false
+}
+
+@InvokeArg
+class NavArgs {
+    var target: String = ""
 }
 
 @InvokeArg
@@ -49,6 +66,9 @@ class AlarmArgs {
     var tone: String = ""
     var volume: Int = 80
     var ms: Long = 60000
+    var dnd: Boolean = false
+    var torch: Boolean = false
+    var wake: Boolean = false
 }
 
 @InvokeArg
@@ -84,6 +104,8 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
 
     override fun load(webView: WebView) {
         instance = this
+        PhoneActions.visible = true
+        takeOpenIntent(activity.intent)
         ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             val d = activity.resources.displayMetrics.density
@@ -152,6 +174,9 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         ret.put("insetBottom", insetBottom)
         val nm = activity.getSystemService(android.app.NotificationManager::class.java)
         ret.put("fullScreenAllowed", Build.VERSION.SDK_INT < 34 || nm.canUseFullScreenIntent())
+        ret.put("overlayAllowed", PhoneActions.canOverlay(activity))
+        ret.put("dndAccess", PhoneActions.hasDndAccess(activity))
+        ret.put("torch", PhoneActions.hasTorch(activity))
         invoke.resolve(ret)
     }
 
@@ -281,7 +306,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun configure(invoke: Invoke) {
         val a = invoke.parseArgs(ConfigArgs::class.java)
-        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service, a.silent)
+        Native.configure(activity, a.packages.toList(), a.words.toList(), a.service, a.silent, a.mode, a.dnd, a.torch, a.wake)
         invoke.resolve(JSObject())
     }
 
@@ -304,12 +329,14 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         AlarmSound.notifyAlarm(activity, a.title, a.text, a.fullscreen)
         if (a.sound) AlarmSound.play(activity, a.tone, a.volume, a.ms)
         if (a.vibrate) AlarmSound.vibrate(activity)
+        PhoneActions.extras(activity, a.dnd, a.torch, a.wake)
         invoke.resolve(JSObject())
     }
 
     @Command
     fun stopAlarm(invoke: Invoke) {
         AlarmSound.cancel(activity)
+        PhoneActions.stopTorch(activity)
         activity.runOnUiThread {
             if (Build.VERSION.SDK_INT >= 27) { activity.setShowWhenLocked(false); activity.setTurnScreenOn(false) }
         }
@@ -404,6 +431,81 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
                 else Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
         activity.startActivity(i)
         invoke.resolve(JSObject())
+    }
+
+    // ── Alarm-App öffnen, Navigation, Erlaubnisse ─────────────
+
+    /** Alarm-App öffnen (Einsatz aus der Benachrichtigung). Darf Android das gerade nicht,
+     *  öffnet eine Vollbild-Meldung zuerst Heimalarm, und Heimalarm reicht beim Sichtbarwerden weiter. */
+    @Command
+    fun openAlarmApp(invoke: Invoke) {
+        val a = invoke.parseArgs(OpenAppArgs::class.java)
+        PhoneActions.extras(activity, a.dnd, a.torch, a.wake)
+        val ret = JSObject()
+        if (PhoneActions.openApp(activity, a.app)) {
+            ret.put("opened", true)
+        } else {
+            PhoneActions.pendingOpen = a.app
+            AlarmSound.notifyAlarm(activity, "Heimalarm: Alarm", "Tippen öffnet die Alarm-App", true)
+            ret.put("opened", false)
+        }
+        invoke.resolve(ret)
+    }
+
+    @Command
+    fun navigate(invoke: Invoke) {
+        val a = invoke.parseArgs(NavArgs::class.java)
+        if (PhoneActions.navigate(activity, a.target)) invoke.resolve(JSObject())
+        else invoke.reject("Keine Karten-App gefunden oder kein Ziel eingetragen")
+    }
+
+    @Command
+    fun stopTorch(invoke: Invoke) {
+        PhoneActions.stopTorch(activity)
+        invoke.resolve(JSObject())
+    }
+
+    @Command
+    fun testTorch(invoke: Invoke) {
+        if (!PhoneActions.hasTorch(activity)) { invoke.reject("Dieses Handy hat keine Taschenlampe"); return }
+        PhoneActions.blinkTorch(activity, 4)
+        invoke.resolve(JSObject())
+    }
+
+    /** „Über anderen Apps einblenden“ – damit sich die Alarm-App auch aus dem Hintergrund öffnet */
+    @Command
+    fun openOverlaySettings(invoke: Invoke) {
+        activity.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + activity.packageName)))
+        invoke.resolve(JSObject())
+    }
+
+    /** Zugriff auf „Nicht stören“ */
+    @Command
+    fun openDndSettings(invoke: Invoke) {
+        activity.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        invoke.resolve(JSObject())
+    }
+
+    private fun takeOpenIntent(intent: Intent?) {
+        val pkg = intent?.getStringExtra(PhoneActions.EXTRA_OPEN_APP) ?: return
+        intent.removeExtra(PhoneActions.EXTRA_OPEN_APP)
+        PhoneActions.pendingOpen = pkg
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        takeOpenIntent(intent)
+        if (PhoneActions.visible) PhoneActions.flushPending(activity)
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+    override fun onResume() {
+        PhoneActions.visible = true
+        PhoneActions.flushPending(activity)
+    }
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+    override fun onPause() {
+        PhoneActions.visible = false
     }
 
     fun emitNotification(app: String, title: String, text: String) {

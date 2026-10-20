@@ -18,8 +18,13 @@ object Native {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun configure(ctx: Context, packages: List<String>, words: List<String>, service: Boolean, silent: Boolean = false) {
+    fun configure(ctx: Context, packages: List<String>, words: List<String>, service: Boolean, silent: Boolean = false,
+                  mode: String = "heimalarm", dnd: Boolean = false, torch: Boolean = false, wake: Boolean = false) {
         prefs(ctx).edit()
+            .putString("mode", mode)
+            .putBoolean("dnd", dnd)
+            .putBoolean("torch", torch)
+            .putBoolean("wake", wake)
             .putString("packages", JSONArray(packages.map { it.lowercase() }).toString())
             .putString("words", JSONArray(words.map { it.lowercase() }).toString())
             .putBoolean("service", service)
@@ -28,6 +33,16 @@ object Native {
     }
 
     fun silent(ctx: Context) = prefs(ctx).getBoolean("silent", false)
+
+    /** Bei Alarm am Handy: heimalarm (Vollbild wie am PC) · app (Alarm-App öffnen) · off (nichts) */
+    fun mode(ctx: Context): String = prefs(ctx).getString("mode", null) ?: if (silent(ctx)) "off" else "heimalarm"
+
+    /** Zusatzaktionen (Nicht stören, Taschenlampe, Bildschirm) – nur wenn das Handy bei Alarm etwas tut. */
+    fun runExtras(ctx: Context) {
+        if (mode(ctx) == "off") return
+        val p = prefs(ctx)
+        PhoneActions.extras(ctx, p.getBoolean("dnd", false), p.getBoolean("torch", false), p.getBoolean("wake", false))
+    }
 
     fun serviceWanted(ctx: Context) = prefs(ctx).getBoolean("service", true)
 
@@ -46,7 +61,7 @@ object Native {
     }
 
     @Synchronized
-    fun buffer(ctx: Context, app: String, title: String, text: String) {
+    fun buffer(ctx: Context, app: String, title: String, text: String, handled: Boolean = false) {
         val now = System.currentTimeMillis()
         val old = JSONArray(prefs(ctx).getString("pending", "[]"))
         val keep = JSONArray()
@@ -54,7 +69,7 @@ object Native {
             val o = old.getJSONObject(i)
             if (now - o.optLong("ts") < MAX_AGE_MS) keep.put(o)
         }
-        keep.put(JSONObject().put("app", app).put("title", title).put("text", text).put("ts", now))
+        keep.put(JSONObject().put("app", app).put("title", title).put("text", text).put("ts", now).put("handled", handled))
         prefs(ctx).edit().putString("pending", keep.toString()).apply()
     }
 

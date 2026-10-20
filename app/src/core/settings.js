@@ -65,7 +65,13 @@ export const defaults = {
   },
   // Handy – Alarm auf diesem Handy (nur Android, AlarmSound.kt)
   phone: {
-    silent: false,          // „Aus“: bei Alarm nichts anzeigen, kein Ton, keine Vibration (Weiterleiten, Routinen, Protokoll laufen weiter)
+    mode: "",               // Bei Alarm: heimalarm (Vollbild wie am PC) · app (Alarm-App öffnen) · off (nichts). "" = alt: aus silent abgeleitet
+    silent: false,          // „Aus“ (alt, = mode off): bei Alarm nichts anzeigen, kein Ton, keine Vibration (Weiterleiten, Routinen, Protokoll laufen weiter)
+    dnd: false,             // „Nicht stören“ für 15 Minuten aufheben
+    torch: false,           // Taschenlampe 30 s blinken
+    wake: false,            // Bildschirm einschalten
+    navigate: "off",        // off · go = bei „Ich fahre“ Navigation zum Gerätehaus starten
+    station: "",            // Ziel der Navigation: Adresse oder „52.12,10.34“
     sound: false,           // eigenen Alarmton spielen (die Alarm-App klingelt meist schon)
     tone: "",               // "" = Melder-Ton, sonst id eines eigenen Tons
     volume: 80,             // Lautstärke des Tons (0–100), innerhalb der Wecker-Lautstärke
@@ -167,6 +173,9 @@ export const settings = () => current;
 
 /** Wert per Pfad lesen, z. B. get("pc.countdownSec"). */
 export const get = (path) => path.split(".").reduce((o, k) => o?.[k], current);
+
+/** Was das Handy bei Alarm tut: heimalarm · app · off */
+export const phoneMode = () => { const p = settings().phone || {}; return ["heimalarm", "app", "off"].includes(p.mode) ? p.mode : (p.silent ? "off" : "heimalarm"); };
 
 /** Wert per Pfad setzen. `silent` = nicht an die Zentrale weitergeben (z. B. beim Empfang). */
 export function set(path, value, { silent = false } = {}) {

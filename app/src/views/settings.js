@@ -4,7 +4,7 @@ import { startWizard } from "../core/wizard.js";
 import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
 import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog, ask } from "../ui/form.js";
-import { settings, set, get, replace, isConfigured, mode } from "../core/settings.js";
+import { settings, set, get, replace, isConfigured, mode, phoneMode } from "../core/settings.js";
 import { has } from "../core/features.js";
 import { direct, startReceiver, renewCode, openPairing, webhookUrl, renewHookKey, pingPeer, addPeer, editPeer, removePeer, syncPeers, unpairPhone, renamePhone } from "../core/direct.js";
 import { runsHere } from "../core/routines-local.js";
@@ -13,7 +13,7 @@ import { connect, state, publish, APP_VERSION } from "../core/mqtt.js";
 import { ACTIONS, setAutostart, hibernateEnabled, enableHibernate, macAddress } from "../core/pc.js";
 import { hasPcFeatures, isAndroid, isTauri } from "../core/platform.js";
 import { requireAdmin, isAdmin } from "../core/admin.js";
-import { androidStatus, openBatterySettings, openNotificationAccess, openFullScreenSettings, setBackgroundService } from "../core/android.js";
+import { androidStatus, openBatterySettings, openNotificationAccess, openFullScreenSettings, setBackgroundService, openOverlaySettings, openDndSettings, testTorch, navigateToStation } from "../core/android.js";
 import { applyTheme } from "../ui/theme.js";
 import { biometricLabel } from "../core/biometric.js";
 import { recentApps, testAlarm } from "../core/engine.js";
@@ -518,15 +518,57 @@ function androidSection(rerender) {
       h("small", {}, "Ohne diese Erlaubnis erscheint der Alarm nur als Mitteilung, nicht über dem Sperrbildschirm."),
       h("button.btn.small", { onclick: () => openFullScreenSettings().then(() => setTimeout(() => { android = null; rerender(); }, 4000)) }, "Erlauben")),
     h("h3.group-title", {}, "Alarm auf diesem Handy"),
-    toggle("phone.silent", "Bei Alarm aus", "Das Handy zeigt nichts, klingelt und vibriert nicht. Weiterleiten an den PC, Routinen und Protokoll laufen weiter.", () => rerender()),
-    !settings().phone.silent && toggle("phone.fullscreen", "Groß anzeigen, auch auf dem Sperrbildschirm", "Bei eigenem Alarm erscheint Heimalarm über allem, mit Knopf „Stopp“.", () => rerender()),
-    !settings().phone.silent && toggle("phone.vibrate", "Vibrieren"),
-    !settings().phone.silent && toggle("phone.sound", "Eigenen Alarmton spielen", "Meist klingelt schon die Alarm-App. Gut, wenn der Melder in der Ladeschale die einzige Quelle ist.", () => rerender()),
-    !settings().phone.silent && settings().phone.sound && h("div.group", {}, ...toneSettings("phone", rerender),
-      field("Klingelt höchstens", select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"]], String(settings().phone.durationSec), (v) => set("phone.durationSec", Number(v))),
-        "Spielt als Wecker – auch im Lautlos-Modus hörbar, solange die Wecker-Lautstärke nicht auf 0 steht.")),
+    ...phoneAlarmSettings(s, rerender),
     h("p.meta", {}, "Nach einem Neustart des Handys startet Heimalarm von selbst. Erkennt es einen Alarm, öffnet sich die App."),
   );
+}
+
+const PHONE_MODES = {
+  heimalarm: "Heimalarm meldet sich groß wie am PC: „Fährst du?“, Rückmeldung per Knopf.",
+  app: "Heimalarm öffnet SYBOS, aPager oder Divera direkt beim Einsatz. Rückmeldung gibst du dort.",
+  off: "Das Handy zeigt nichts, klingelt und vibriert nicht. Weiterleiten an den PC, Routinen und Protokoll laufen weiter.",
+};
+
+/** Was das Handy bei Alarm tut: Modus, Ton/Anzeige und Zusatzaktionen. */
+function phoneAlarmSettings(s, rerender) {
+  const ph = settings().phone;
+  const pm = phoneMode();
+  const recheck = () => setTimeout(() => { android = null; rerender(); }, 4000);
+  const pickMode = (v) => { set("phone.mode", v); set("phone.silent", v === "off"); rerender(); };
+  const needs = (title, why, label, open) => h("div.item", {},
+    h("div.item-head", {}, h("b", {}, title), h("span.chip.bad", {}, "nicht erlaubt")),
+    h("small", {}, why),
+    h("button.btn.small", { onclick: () => open().then(recheck) }, label));
+  return [
+    h("div.field", {}, h("span", {}, "Bei Alarm"),
+      segmented([["heimalarm", "Heimalarm"], ["app", "Alarm-App"], ["off", "Aus"]], pm, pickMode),
+      h("small", {}, PHONE_MODES[pm])),
+
+    pm === "app" && s.overlayAllowed === false && needs("Aus dem Hintergrund öffnen",
+      "Ohne diese Erlaubnis öffnet sich die Alarm-App erst, wenn du die Heimalarm-Meldung antippst. Android-Name: „Über anderen Apps einblenden“.",
+      "Erlauben", openOverlaySettings),
+
+    pm === "heimalarm" && toggle("phone.fullscreen", "Groß anzeigen, auch auf dem Sperrbildschirm", "Bei eigenem Alarm erscheint Heimalarm über allem, mit Knopf „Stopp“.", () => rerender()),
+    pm === "heimalarm" && toggle("phone.vibrate", "Vibrieren"),
+    pm === "heimalarm" && toggle("phone.sound", "Eigenen Alarmton spielen", "Meist klingelt schon die Alarm-App. Gut, wenn der Melder in der Ladeschale die einzige Quelle ist.", () => rerender()),
+    pm === "heimalarm" && ph.sound && h("div.group", {}, ...toneSettings("phone", rerender),
+      field("Klingelt höchstens", select([["30", "30 Sekunden"], ["60", "1 Minute"], ["120", "2 Minuten"], ["300", "5 Minuten"]], String(ph.durationSec), (v) => set("phone.durationSec", Number(v))),
+        "Spielt als Wecker – auch im Lautlos-Modus hörbar, solange die Wecker-Lautstärke nicht auf 0 steht.")),
+
+    pm !== "off" && h("h3.group-title", {}, "Zusätzlich bei Alarm"),
+    pm !== "off" && toggle("phone.dnd", "„Nicht stören“ durchbrechen", "Schaltet „Nicht stören“ für 15 Minuten aus, damit die Alarm-App hörbar klingelt. Danach wieder wie vorher.", () => rerender()),
+    pm !== "off" && ph.dnd && s.dndAccess === false && needs("Zugriff auf „Nicht stören“",
+      "Ohne diese Erlaubnis darf Heimalarm „Nicht stören“ nicht ausschalten.", "Erlauben", openDndSettings),
+    pm !== "off" && s.torch !== false && toggle("phone.torch", "Taschenlampe blinken", "30 Sekunden – gut zu sehen, wenn das Handy im Dunkeln liegt.", () => rerender()),
+    pm !== "off" && s.torch !== false && ph.torch && h("button.btn.small", { onclick: () => testTorch().catch((e) => toast(String(e))) }, "Blinken testen"),
+    pm !== "off" && toggle("phone.wake", "Bildschirm einschalten", "Das Display geht bei Alarm an, auch ohne Vollbild-Meldung."),
+
+    pm === "heimalarm" && h("h3.group-title", {}, "Navigation"),
+    pm === "heimalarm" && switchRow("Bei „Ich fahre“ zum Gerätehaus navigieren", "Startet Google Maps oder deine Karten-App mit dem Gerätehaus als Ziel.",
+      ph.navigate === "go", (v) => { set("phone.navigate", v ? "go" : "off"); rerender(); }),
+    pm === "heimalarm" && ph.navigate === "go" && field("Gerätehaus", text("phone.station", { placeholder: "Hauptstraße 1, 12345 Musterstadt" }), "Adresse oder Koordinaten wie 52.12, 10.34."),
+    pm === "heimalarm" && ph.navigate === "go" && h("button.btn.small", { onclick: () => navigateToStation().then((ok) => { if (!ok) toast("Erst das Gerätehaus eintragen"); }) }, "Navigation testen"),
+  ];
 }
 
 // ── Zusatzfunktionen: alles aus, bis man es einschaltet ─

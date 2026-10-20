@@ -1,7 +1,7 @@
 // Android-Funktionen über das eigene Plugin (plugins/heimalarm):
 // Hintergrund-Dienst, Akku-Optimierung (E6), Benachrichtigungen mitlesen (A1/A6).
 import { isTauri, isAndroid } from "./platform.js";
-import { settings, set } from "./settings.js";
+import { settings, set, phoneMode } from "./settings.js";
 import { log } from "./log.js";
 import { alarmFromNotification } from "./engine.js";
 
@@ -29,8 +29,44 @@ export function phoneAlarm({ title, text, test = false }) {
     tone: ph.tone || "",
     volume: Number(ph.volume) || 80,
     ms: (Number(ph.durationSec) || 60) * 1000,
+    ...(test ? {} : extras()),
   }).catch((e) => log("warn", "Alarm-Anzeige am Handy fehlgeschlagen", String(e)));
 }
+/** Zusatzaktionen bei Alarm: „Nicht stören“ aufheben, Taschenlampe, Bildschirm an */
+function extras() {
+  const ph = settings().phone || {};
+  return { dnd: Boolean(ph.dnd), torch: Boolean(ph.torch), wake: Boolean(ph.wake) };
+}
+
+/** Paketname der Alarm-App, die geöffnet werden soll: die, deren Benachrichtigung den Alarm ausgelöst hat,
+ *  sonst die erste eingeschaltete (z. B. beim Alarm vom Melder in der Ladeschale). */
+function alarmAppFor(a) {
+  if (a?.app) return a.app;
+  const apps = settings().alarm.apps || {};
+  return Object.values(apps).find((x) => x.on && x.pkg)?.pkg || "";
+}
+
+/** Modus „Alarm-App öffnen“: Einsatz direkt in SYBOS, aPager oder Divera öffnen. */
+export async function openAlarmApp(a) {
+  if (!enabled) return;
+  try {
+    const r = await call("open_alarm_app", { app: alarmAppFor(a), ...extras() });
+    log("info", r.opened ? "Alarm-App geöffnet" : "Alarm-App öffnet beim Antippen der Meldung", a?.app || "");
+  } catch (e) { log("warn", "Alarm-App nicht geöffnet", String(e)); }
+}
+
+/** Navigation zum Gerätehaus (Einstellung phone.station). */
+export async function navigateToStation() {
+  const target = String(settings().phone?.station || "").trim();
+  if (!enabled || !target) return false;
+  try { await call("navigate", { target }); return true; }
+  catch (e) { log("warn", "Navigation nicht gestartet", String(e)); return false; }
+}
+
+export const testTorch = () => call("test_torch");
+export const openOverlaySettings = () => call("open_overlay_settings");
+export const openDndSettings = () => call("open_dnd_settings");
+
 export const stopPhoneAlarm = () => (enabled ? call("stop_alarm").catch(() => {}) : Promise.resolve());
 
 /** Filter an den nativen Teil geben: nach einem Neustart erkennt er Alarme auch, bevor die App offen ist. */
@@ -40,7 +76,7 @@ export function configureNative() {
   const pkgs = [...Object.values(s.apps || {}).filter((a) => a.on && a.pkg).map((a) => a.pkg),
     ...s.filterApps.split(",").map((x) => x.trim()).filter(Boolean)];
   const words = s.filterWords.split(",").map((x) => x.trim()).filter(Boolean);
-  call("configure", { packages: pkgs, words, service: settings().android?.service !== false, silent: Boolean(settings().phone?.silent) }).catch(() => {});
+  call("configure", { packages: pkgs, words, service: settings().android?.service !== false, silent: phoneMode() === "off", mode: phoneMode(), ...extras() }).catch(() => {});
 }
 
 export const androidStatus = () => (enabled ? call("status") : Promise.resolve({ supported: false }));
@@ -93,6 +129,11 @@ export async function initAndroid() {
   } catch { /* ältere App-Version des Plugins */ }
   configureNative();
   const { on } = await import("./events.js");
+  on("phone-open-app", (a) => openAlarmApp(a));
+  // „Ich fahre“ am Handy → Navigation zum Gerätehaus
+  on("answer", ({ going, test, remote }) => {
+    if (going && !test && !remote && settings().phone?.navigate === "go") navigateToStation();
+  });
   on("settings", ({ path }) => { if (path.startsWith("alarm") || path.startsWith("android") || path.startsWith("phone")) configureNative(); });
   if (settings().android?.service !== false) {
     setBackgroundService(true).catch((e) => log("warn", "Hintergrund-Dienst nicht gestartet", String(e)));

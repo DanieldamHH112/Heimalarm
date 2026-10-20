@@ -22,14 +22,25 @@ class AlarmListener : NotificationListenerService() {
         val extra = listOf(str(Notification.EXTRA_SUB_TEXT), str(Notification.EXTRA_SUMMARY_TEXT), str(Notification.EXTRA_INFO_TEXT))
             .filter { it.isNotEmpty() && !body.contains(it) }.distinct().joinToString(" · ")
         val text = if (extra.isEmpty()) body else "$body\n$extra"
+        val match = Native.matches(this, sbn.packageName, title, text)
+        // Tipp-Ziel merken: „Alarm-App öffnen“ öffnet damit den Einsatz direkt
+        if (match) PhoneActions.remember(sbn.packageName, sbn.notification.contentIntent ?: sbn.notification.fullScreenIntent)
         val plugin = HeimalarmPlugin.instance?.takeIf { it.alive() }
         if (plugin != null) {
             plugin.emitNotification(sbn.packageName, title, text)
-        } else if (Native.matches(this, sbn.packageName, title, text)) {
-            // App läuft nicht (z. B. nach Neustart): merken und Heimalarm über die Vollbild-Meldung öffnen
+        } else if (match) {
+            // App läuft nicht (z. B. nach Neustart): Alarm merken, damit Heimalarm ihn beim Öffnen weitergibt
+            val mode = Native.mode(this)
+            Native.runExtras(this)
+            if (mode == "app" && PhoneActions.openApp(this, sbn.packageName)) {
+                // Alarm-App ist schon offen – beim späteren Öffnen von Heimalarm nicht noch einmal öffnen
+                Native.buffer(this, sbn.packageName, title, text, handled = true)
+                return
+            }
             Native.buffer(this, sbn.packageName, title, text)
-            // „Bei Alarm aus“: nur leise Mitteilung, damit der Alarm beim Öffnen weitergeleitet werden kann
-            AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, !Native.silent(this))
+            if (mode == "app") PhoneActions.pendingOpen = sbn.packageName
+            // „Aus“: nur leise Mitteilung, damit der Alarm beim Öffnen weitergeleitet werden kann
+            AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, mode != "off")
         }
     }
 }

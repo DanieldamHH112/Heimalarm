@@ -2,7 +2,7 @@
 // Ruhezeiten und Ausnahmen am PC, Ablauf nach „Fährst du?“.
 // Routinen (Licht usw.) laufen im Zentrale-Programm, damit sie auch ohne Handy/PC funktionieren.
 import { on, emit } from "./events.js";
-import { settings, mode } from "./settings.js";
+import { settings, mode, phoneMode } from "./settings.js";
 import { sendToPeers } from "./direct.js";
 import { log } from "./log.js";
 import { hasPcFeatures, isAndroid, isTauri } from "./platform.js";
@@ -143,7 +143,10 @@ function handleAlarm(a) {
     if (inQuietTime() && !test && !probe) { log("info", "Ruhezeit am PC – keine Abfrage"); return; } // D12
     emit("takeover", engine.last);
   } else if (own && isTauri && isAndroid && !test) {
-    if (settings().phone?.silent && !probe) { log("info", "Handy bei Alarm aus – nichts angezeigt"); return; }
+    const pm = phoneMode();
+    if (pm === "off" && !probe) { log("info", "Handy bei Alarm aus – nichts angezeigt"); return; }
+    if (a.phoneDone) { log("info", "Alarm-App wurde schon geöffnet"); return; }
+    if (pm === "app") { emit("phone-open-app", engine.last); return; }   // core/android.js öffnet SYBOS/aPager/Divera
     emit("takeover", engine.last);   // Handy: groß anzeigen, Ton/Vibration (AlarmSound.kt), Rückmeldung per Knopf
   } else if (!test) {
     engine.last.notified = true;
@@ -174,7 +177,7 @@ export const simulateContact = () => { publish(`alarm/${settings().alarm.me}/led
 export const fullProbe = () => (mode() === "direkt" ? (forward({ source: "Generalprobe", probe: true }), true) : publish(`alarm/${settings().alarm.me}`, { source: "Generalprobe", probe: true }));
 
 /** Alarm aus einer Android-Benachrichtigung (A1/A6). */
-export function alarmFromNotification({ app, title, text }) {
+export function alarmFromNotification({ app, title, text, handled = false }) {
   const s = settings().alarm;
   const pkg = String(app || "").toLowerCase();
   if (pkg) { recentApps.delete(pkg); recentApps.set(pkg, Date.now()); if (recentApps.size > 12) recentApps.delete(recentApps.keys().next().value); }
@@ -191,7 +194,7 @@ export function alarmFromNotification({ app, title, text }) {
   const words = s.filterWords.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
   const body = `${title} ${text}`.toLowerCase();
   if (words.length && !words.some((w) => body.includes(w))) return;
-  forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 1000), app: pkg });
+  forward({ source, keyword: String(title || "").slice(0, 80), text: String(text || "").slice(0, 1000), app: pkg, ...(handled ? { phoneDone: true } : {}) });
 }
 
 /** Antwort an die Alarm-Apps weitergeben, die dafür eingerichtet sind. */
