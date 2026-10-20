@@ -644,6 +644,36 @@ function zentrale(rerender) {
   );
 }
 
+/* Automatischer Selbsttest der Zentrale (zentrale/dienst/src/selftest.js): an/aus, Tage, Uhrzeit, was geprüft wird. */
+const DAY_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const selftestCfg = () => ({ enabled: true, days: [7], at: "10:00", esp: true, apps: true, zigbee: true, ...shared().selftest });
+/** Kurz: „Sonntags um 10:00“, „Mo, Mi um 10:00“, „Täglich um 10:00“ oder „aus“. */
+export function selftestWhen() {
+  const c = selftestCfg();
+  if (!c.enabled || !c.days?.length) return "aus";
+  const days = c.days.length === 7 ? "Täglich" : c.days.length === 1 && c.days[0] === 7 ? "Sonntags" : c.days.map((d) => DAY_NAMES[d - 1]).join(", ");
+  return `${days} um ${c.at}`;
+}
+function selbsttest(rerender) {
+  const c = selftestCfg();
+  const save = async (patch) => { if (await requireAdmin()) { updateShared({ selftest: { ...c, ...patch } }); rerender(); } };
+  const dayBtns = h("div.segmented.days", { role: "group", "aria-label": "Wochentage" }, DAY_NAMES.map((d, i) => {
+    const on = c.days.includes(i + 1);
+    return h("button", { type: "button", "aria-pressed": String(on), disabled: !c.enabled,
+      onclick: () => save({ days: on ? c.days.filter((x) => x !== i + 1) : [...c.days, i + 1].toSorted((a, b) => a - b) }) }, d);
+  }));
+  return section("selbsttest", "Automatischer Selbsttest", "Die Zentrale prüft regelmäßig, ob alles läuft, und legt unter Test & Diagnose einen Bericht ab. Probleme stehen auch im Protokoll.",
+    switchRow("Selbsttest einschalten", c.enabled ? `Nächste Prüfung: ${selftestWhen()}.` : "Aus – „Jetzt ausführen“ unter Test & Diagnose geht weiter.", c.enabled, (v) => save({ enabled: v })),
+    c.enabled && h("div.field", {}, h("span", {}, "An diesen Tagen"), dayBtns,
+      !c.days.length && h("small.warn", {}, "Kein Tag gewählt – der Selbsttest läuft dann nie.")),
+    c.enabled && field("Uhrzeit", h("input.input", { type: "time", value: c.at, onchange: (e) => { if (e.target.value) save({ at: e.target.value }); } }), "Am besten, wenn alle Geräte an sind."),
+    c.enabled && h("h3.group-title", {}, "Was geprüft wird"),
+    c.enabled && switchRow("Melder (ESP32)", "Ist jeder ESP32 online?", c.esp, (v) => save({ esp: v })),
+    c.enabled && switchRow("Apps", "Ist mindestens eine Heimalarm-App verbunden?", c.apps, (v) => save({ apps: v })),
+    c.enabled && switchRow("Zigbee", "Läuft Zigbee2MQTT? Wird nur geprüft, wenn es eingerichtet ist.", c.zigbee, (v) => save({ zigbee: v })),
+  );
+}
+
 function sicherheit(rerender) {
   const setPin = (title, after) => async () => {
     const a = h("input.input", { type: "password", inputmode: "numeric" });
@@ -849,10 +879,10 @@ const PAGES = () => [
     lead: "Wie der Alarm zu deinen Geräten kommt. Gekoppelte Geräte übernehmen die Einstellung beim nächsten Abgleich.",
     scope: [["net", "Für alle gekoppelten Geräte"]],
     status: () => (mode() === "direkt" ? plain("Ohne Zentrale") : mode() === "zentrale" ? plain("Mit Zentrale") : warn("nicht gewählt")) },
-  { grp: "verbindung", id: "zentrale", label: "Zentrale", icon: "hub", color: "--c-net", sections: ["verbindung", "zentrale"],
-    desc: "Adresse, Passwort, Standort, Webhook",
+  { grp: "verbindung", id: "zentrale", label: "Zentrale", icon: "hub", color: "--c-net", sections: ["verbindung", "zentrale", "selbsttest"],
+    desc: "Adresse, Passwort, Standort, Webhook, Selbsttest",
     lead: "Das Gerät, das rund um die Uhr läuft: NAS, Mini-PC oder Raspberry Pi. Ohne sie kommt kein Melder-Alarm an.",
-    scope: [[hasPcFeatures ? "pc" : "phone", "Verbindung: nur dieses Gerät"], ["lock", "Standort & Webhook: Admin", "admin"]],
+    scope: [[hasPcFeatures ? "pc" : "phone", "Verbindung: nur dieses Gerät"], ["lock", "Standort, Webhook, Selbsttest: Admin", "admin"]],
     status: () => (state.connected ? ok("verbunden") : isConfigured() ? warn("getrennt") : warn("nicht eingerichtet")),
     warn: () => isConfigured() && !state.connected },
   // App
@@ -935,6 +965,7 @@ export function settingsView(rerender) {
     hass: () => part(hassSection),
     discord: () => hasPcFeatures && part(discordSection),
     zentrale: () => z && part(zentrale),
+    selbsttest: () => z && part(selbsttest),
     sicherheit: () => part(sicherheit),
     backup: () => part(backup),
     updates: () => isTauri && part(updates),
@@ -1049,7 +1080,8 @@ const KEYWORDS = {
   sprache: "alexa google matter voice monkey ansage sprachassistent echo vorlesen",
   hass: "home assistant ha mqtt discovery automation smart home",
   discord: "discord rich presence status profil spielt im einsatz freunde",
-  zentrale: "selbsttest webhook dienst",
+  zentrale: "webhook dienst standort",
+  selbsttest: "selbsttest wöchentlich prüfung bericht sonntag automatisch",
   sicherheit: "pin sperre admin passwort",
   backup: "sichern wiederherstellen export import",
   updates: "update version aktualisieren neue github installieren",

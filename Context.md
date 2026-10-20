@@ -91,7 +91,7 @@ Heimalarm/
 │     ├─ src/index.js      Start, MQTT, Konfiguration (DEFAULTS), verteilt Nachrichten
 │     ├─ src/rules.js      Routinen: Auslöser, Bedingungen, Aktionen, „Wieder da“, Wake-on-LAN
 │     ├─ src/webhook.js    aPager-Webhook (Port 8080, mit Schlüssel)
-│     ├─ src/selftest.js   wöchentlicher Selbsttest
+│     ├─ src/selftest.js   automatischer Selbsttest (Zeitplan aus shared.selftest)
 │     ├─ src/hass.js       Home Assistant (MQTT-Discovery)
 │     ├─ src/divera.js     Divera-Status per Routine (Schlüssel in data/divera.json)
 │     ├─ src/voice.js      Matter-Bridge (Kontaktsensoren für Alexa/Google), Port 5540 (Alexa koppelt nur über 5540)
@@ -192,7 +192,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `heimalarm/divera/keys` | `{<kennung>: {ok, error, ts}}` wer einen Schlüssel hinterlegt hat – ohne Schlüssel (retained) | Dienst |
 | `heimalarm/voice/status` | `{enabled, running, qr, manual, commissioned, fabrics, sensors, error}` (retained) | Dienst |
 | `heimalarm/log`, `heimalarm/log/recent` | Protokoll der Zentrale | Dienst |
-| `heimalarm/report` | Selbsttest-Bericht (retained) | Dienst |
+| `heimalarm/report` | Selbsttest-Bericht `{ts, ok, checks, manual}` (retained) | Dienst |
 | `heimalarm/dienst/status`, `heimalarm/ping` → `heimalarm/pong` | Dienst-Status, Verbindungstest | Dienst |
 | `zigbee2mqtt/#` | Geräte, Gruppen, Zustände, Befehle | Zigbee2MQTT |
 | `homeassistant/<comp>/heimalarm_*/config` | MQTT-Discovery für Home Assistant (retained, nur wenn `shared.hass.enabled`) | Dienst (`hass.js`) |
@@ -260,6 +260,7 @@ Diese Stellen hängen zusammen – eine Seite ändern heißt die andere mitziehe
 - **Discord-Status** (`core/discord.js`, `views/discord.js`, `src-tauri/src/discord.rs`): nur Windows, Einstellungen lokal in `settings.discord`. Hört auf die Ereignisse `alarm`, `answer` (aus `engine.decide`) und `restore` („Wieder da“). `engine.decide` wartet bis 3 s auf `presenceSettled()`, damit der Status vor dem Ruhezustand rausgeht. Laufender Einsatz in localStorage `heimalarm.discord.active`. Zeiten an Discord in Sekunden; `status_display_type` steuert den Text in der Mitgliederliste.
 - **Tasten vor dem Ruhezustand** (`core/hotkeys.js`, `views/hotkeys.js`, `src-tauri/src/hotkeys.rs`): `pc.hotkeys {enabled, waitSec, rules:[{id, exe, name, keys, on}]}`, lokal je PC. Rust `window_list` (sichtbare Fenster, exe klein, `elevated`) und `send_hotkey` (Fenster nach vorn + `SendInput`). Tasten-Schreibweise `Ctrl+Shift+S`, Namen in `hotkeys.rs → vk`. Läuft in `engine.decide` nach „Medien stoppen“, vor Discord/Ruhezustand. Braucht windows-sys-Feature `Win32_Security` (Admin-Erkennung).
 - **Home Assistant** (`zentrale/dienst/src/hass.js`): Konfiguration `shared.hass` (auch im Dienst-`DEFAULTS`). Entity-IDs (`heimalarm_einsatz_alle`, `heimalarm_alarm` …) nicht umbenennen – Automationen der Nutzer hängen daran. Discovery nutzt `default_entity_id` (`object_id` ist in HA veraltet).
+- **Selbsttest** (`zentrale/dienst/src/selftest.js`): Zeitplan in `shared.selftest {enabled, days:[1..7] (1 = Montag), at:"HH:MM", esp, apps, zigbee}`, Standard sonntags 10:00. Steht in `sharedDefaults` (App) und als `SELFTEST_DEFAULTS` im Dienst – beide gleich halten. Einstellen unter Einstellungen → Zentrale (Admin); Zigbee wird nur geprüft, wenn Zigbee2MQTT schon einmal gemeldet war. „Jetzt ausführen“ (`heimalarm/cmd/selftest`) geht auch, wenn der Zeitplan aus ist.
 - **Routinen-Format** wird in `views/routines.js` gebaut und von `zentrale/dienst/src/rules.js` **und** `core/routines-local.js` ausgeführt. Neue Aktion/Bedingung in allen dreien.
 - **Gemeinsame Daten:** neues Feld in `shared.js` (`sharedDefaults`) **und** Dienst `DEFAULTS`. Der Dienst übernimmt die Konfiguration flach (`{...DEFAULTS, ...cfg}`) – verschachtelte Objekte immer komplett schreiben.
 - **Alarm-JSON** (`alarm/<kennung>`, `POST /alarm`): `parseAlarm` gibt es in `core/mqtt.js` und `zentrale/dienst/src/index.js`; `engine.js` und `rules.js` lesen `keyword`, `unit`, `test`, `probe`, `diveraId`.

@@ -72,7 +72,7 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 | **Mehrere Personen** | Jede Person mit eigener Kennung, eigenen Routinen und eigenem Melder. |
 | **Start** | Status Aktiv / Verbindet / Inaktiv mit Verbindungs-Check, Kennzahlen, Licht zum Schalten, Schnellaktionen, „Zuletzt“. Zeigt nur, was eingerichtet ist. |
 | **Einsatz-Logbuch** | Jeder Einsatz mit allen Infos, Notizen, Statistik und Jahresrückblick, CSV-Export. |
-| **Test & Diagnose** | Testalarm, Melder-Alarm nachspielen, Generalprobe, Verbindungstest, wöchentlicher Selbsttest – was jeder Test wirklich auslöst, steht in der App unter *Test & Diagnose*. |
+| **Test & Diagnose** | Testalarm, Melder-Alarm nachspielen, Generalprobe, Verbindungstest, automatischer Selbsttest (Tage und Uhrzeit einstellbar, abschaltbar) – was jeder Test wirklich auslöst, steht in der App unter *Test & Diagnose*. |
 | **Am PC (optional)** | Discord-Status bei Einsatz, Tasten vor dem Ruhezustand (z. B. Speichern in einem Programm). Unter *Einstellungen → Vor dem Ruhezustand* bzw. *Discord*. |
 | **Home Assistant** | Mit Zentrale erscheint Heimalarm von selbst in Home Assistant (MQTT). Unter *Einstellungen → Alexa, Google & HA*. |
 | **Sicher & privat** | Alles im Heimnetz. App-PIN, Admin-PIN, API-Schlüssel bleiben auf dem Gerät. |

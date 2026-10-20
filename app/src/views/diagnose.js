@@ -10,6 +10,7 @@ import { answerApager } from "../core/apager.js";
 import { testAlarm, simulateContact, fullProbe } from "../core/engine.js";
 import { sendToPeers } from "../core/direct.js";
 import { hasPcFeatures } from "../core/platform.js";
+import { selftestWhen } from "./settings.js";
 
 /** Kontakt-Test: zeigt live, ob der Kontakt offen oder geschlossen ist. Der ESP32 meldet so lange keinen Alarm. */
 function contactCard() {
@@ -137,11 +138,12 @@ export function diagnoseView(rerender) {
       lastTest?.ts && h("p.meta", {}, `Getestet ${fmtTime(lastTest.ts)}`)),
 
     has.pi() && h("section.card", {},
-      h("div.card-head", {}, h("h2", {}, "Wöchentlicher Selbsttest"),
+      h("div.card-head", {}, h("div", {}, h("h2", {}, "Automatischer Selbsttest"), h("p.meta", {}, selftestWhen() === "aus" ? "Automatisch: aus" : `Automatisch: ${selftestWhen()}`)),
         h("button.btn.small", { onclick: () => { publish("heimalarm/cmd/selftest", {}); toast("Selbsttest läuft auf der Zentrale"); } }, "Jetzt ausführen")),
       report ? [
         h("p.meta", {}, `${report.ok ? "Alles in Ordnung" : "Probleme gefunden"} · ${fmtDate(report.ts)} ${fmtTime(report.ts)} · ${fmtAgo(report.ts)}`),
         checkList(report.checks),
-      ] : h("p.hint", {}, "Die Zentrale prüft jeden Sonntag um 10 Uhr alle Teile und legt hier einen Bericht ab.")),
+      ] : h("p.hint", {}, "Die Zentrale prüft regelmäßig alle Teile und legt hier einen Bericht ab."),
+      h("a.btn.small.ghost", { href: "#/einstellungen/selbsttest" }, "Zeitplan einstellen")),
   );
 }
