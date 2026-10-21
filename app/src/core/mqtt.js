@@ -184,6 +184,7 @@ function handle(topic, msg, retained) {
     else if (id === "led_modus") d.ledMode = msg;
     else if (id === "ip") d.ip = msg;
     else if (id === "version") d.version = msg;
+    else if (id === "heimalarm_firmware") d.fw = Number(msg) || 0;
     else if (id === "min_duration") d.minDuration = Number(msg);
   }
   emit("devices", state);

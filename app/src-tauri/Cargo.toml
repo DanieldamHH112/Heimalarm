@@ -1,6 +1,6 @@
 [package]
 name = "heimalarm"
-version = "0.1.26"
+version = "0.1.27"
 description = "Heimalarm"
 edition = "2021"
 

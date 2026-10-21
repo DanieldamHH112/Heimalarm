@@ -49,7 +49,7 @@ Der Melder wird ausschließlich über einen **ESP32** an der Steckklemme der Lad
 
 ## Release erstellen (Kurzanleitung – immer so vorgehen, nur nach anweisung)
 
-1. Version hochzählen: `app/package.json` → `"version"` **und** `app/src-tauri/Cargo.toml` → `version` (gleich halten, z. B. `0.1.6`). Dienst-Version nur, wenn sich `zentrale/dienst` geändert hat.
+1. Version hochzählen: `app/package.json` → `"version"` **und** `app/src-tauri/Cargo.toml` → `version` (gleich halten, z. B. `0.1.6`). Dienst-Version nur, wenn sich `zentrale/dienst` geändert hat. ESP32-Firmware geändert → `HEIMALARM_FW` in **allen drei** `esp32/alarm-ich*.yaml` hochzählen. Die App warnt auf Start, wenn Zentrale oder ESP32 älter sind (`core/versions.js`; Sollwerte liest `vite.config.js` beim Bauen aus `zentrale/dienst/package.json` und `esp32/alarm-ich.yaml`).
 2. Lokal prüfen: `cd app && npx -y oxlint@latest src` (0 Befunde) und `cd src-tauri && cargo check`.
 3. Committen und auf `main` pushen.
 4. Release starten: GitHub → *Actions → Release → Run workflow*, Feld **Version = `v0.1.6`** (mit `v`, gleich wie in `package.json`). Aus einer Claude-Session: `gh api -X POST repos/DanieldamHH112/Heimalarm/actions/workflows/release.yml/dispatches -f ref=main -f 'inputs[version]=v0.1.6'` (Tags pushen geht dort nicht). Leeres Feld = nur bauen, kein Release.
@@ -178,6 +178,7 @@ Divera-API ◄── PC und Handy fragen selbst ab (beide Betriebsarten)
 | `alarm/<kennung>/event` | `{event: recall\|clear, source, keyword, unit}` – Rückalarm / Alarmende, **kein** Alarm (Dienst hört nicht zu, Apps vermerken es am Einsatz) | Webhook → Apps |
 | `alarm/<kennung>/status` | `online` / `offline` (Last Will) | ESP32 |
 | `alarm/<kennung>/sensor/wifi_signal\|uptime/state`, `…/text_sensor/ip\|version/state` | WLAN, Laufzeit, IP, Firmware | ESP32 |
+| `alarm/<kennung>/text_sensor/heimalarm_firmware/state` | Firmware-Stand (`HEIMALARM_FW`), für die Warnung „ESP32 aktualisieren“ | ESP32 |
 | `alarm/<kennung>/number/min_duration/command\|state` | Mindestdauer Kontakt (A3) | App ↔ ESP32 |
 | `alarm/<kennung>/switch/alarm_bei_offen\|kontakt_test/command\|state` | Kontakt-Logik, Kontakt-Test | App ↔ ESP32 |
 | `alarm/<kennung>/binary_sensor/kontakt/state` | Kontakt roh, `ON` = geschlossen | ESP32 |

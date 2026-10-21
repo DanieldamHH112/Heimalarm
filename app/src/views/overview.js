@@ -1,4 +1,5 @@
 // E3 – Übersicht / Dashboard: alles Wichtige auf einen Blick.
+import { outdated, GUIDE_URL } from "../core/versions.js";
 import { h, fmtAgo, fmtTime, toast } from "../ui/dom.js";
 import { state, publish, testDevice, renameDevice, forgetDevice, setDevice } from "../core/mqtt.js";
 import { field, dialog, ask } from "../ui/form.js";
@@ -66,6 +67,17 @@ function updateBanner() {
     h("div.row", {},
       h("button.btn.primary.small", { onclick: installUpdate, disabled: update.installing }, update.installing ? "Lädt …" : "Installieren"),
       h("a.btn.small", { href: "#/einstellungen/updates" }, "Details")));
+}
+
+/** Zentrale oder ESP32 älter als diese App – mit Link auf die Update-Anleitung. */
+function outdatedBanner(list) {
+  const one = list.length === 1;
+  return h("div.banner.update.stale", { role: "status" },
+    h("div", {},
+      h("b", {}, one ? `${list[0].name} aktualisieren` : "Geräte aktualisieren"),
+      h("ul.stale-list", {}, list.map((x) => h("li", {}, h("span", {}, x.name), h("span.mono", {}, `${x.have} → ${x.want}`), h("small", {}, x.how)))),
+    ),
+    h("div.row", {}, h("a.btn.small", { href: GUIDE_URL, target: "_blank", rel: "noopener" }, "Anleitung öffnen")));
 }
 
 function espCard() {
@@ -343,11 +355,13 @@ export function overview() {
   const s = settings();
   if (divera.current === null && has.diveraApi() && !divera.loading) { divera.loading = true; loadDivera().catch(() => {}); }
   const left = devicesPanel();
+  const stale = outdated();
   return h("div.page.home", {},
     h("h1.sr-only", {}, `Start · ${s.device.name || platformName}`),
     statusCard(),
     answerCard(),
     update.available && updateBanner(),
+    stale.length > 0 && outdatedBanner(stale),
     needsSetup() && setupCard(),
     kpis(),
     h("div.home-cols" + (left ? "" : ".single"), {}, left, recentPanel()),

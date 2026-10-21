@@ -126,6 +126,11 @@ sensor:
     update_interval: 60s
 
 text_sensor:
+  # Firmware-Stand für die App (warnt bei älterem ESP32). Bei Änderungen an der Firmware in ALLEN alarm-ich*.yaml hochzählen.
+  - platform: template
+    name: "Heimalarm Firmware"
+    lambda: 'return {"1"};'  # HEIMALARM_FW 1
+    update_interval: 300s
   - platform: wifi_info
     ip_address:
       name: "IP"
