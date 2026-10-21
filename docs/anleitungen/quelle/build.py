@@ -21,6 +21,7 @@ DOCS = {
     "uebersicht.html": "Heimalarm-Uebersicht.pdf",
     "esp32.html": "Heimalarm-Einrichtung-ESP32.pdf",
     "update.html": "Heimalarm-Update.pdf",
+    "geraete.html": "Heimalarm-Geraete-einbinden.pdf",
 }
 
 # Symbole wie in der App (app/src/ui/icons.js)
@@ -48,6 +49,7 @@ ICONS = {
     "warn": '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
     "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
     "gear": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    "heat": '<path d="M14 14.76V4a2 2 0 0 0-4 0v10.76a4 4 0 1 0 4 0Z"/><path d="M12 10v7"/>',
     "cloud": '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18z"/>',
 }
 
