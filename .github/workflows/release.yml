@@ -63,6 +63,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows
+          retention-days: 1   # nur Übergabe an den Release-Job; die Dateien liegen danach im Release
           path: |
             app/src-tauri/target/release/bundle/nsis/*.exe
             app/src-tauri/target/release/bundle/nsis/*.exe.sha256
@@ -124,7 +125,7 @@ jobs:
           rm aligned.apk
           sha256sum "Heimalarm-${VERSION}.apk" > "Heimalarm-${VERSION}.apk.sha256"
       - uses: actions/upload-artifact@v7
-        with: { name: android, path: "app/Heimalarm-*.apk*" }
+        with: { name: android, path: "app/Heimalarm-*.apk*", retention-days: 1 }
 
   release:
     needs: [windows, android]
