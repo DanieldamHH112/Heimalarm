@@ -9,7 +9,7 @@ import { fireLocal } from "../core/routines-local.js";
 import { icon } from "../ui/icons.js";
 import { emit } from "../core/events.js";
 import { templateField, SAMPLE } from "../ui/template.js";
-import { voiceMonkeyAnnounce } from "../core/wifi.js";
+import { voiceMonkeyAnnounce, isHeat, WIFI_TYPES, HEAT_MIN, HEAT_MAX } from "../core/wifi.js";
 import { isTauri } from "../core/platform.js";
 import { settings } from "../core/settings.js";
 import { MODES } from "../core/readiness.js";
@@ -93,6 +93,39 @@ const devNames = () => [["", "– Gerät wählen –"],
   ...(has.pi() ? (state.matter || []).map((d) => [d.name, `${d.name} (Matter)`]) : []),
   ...(shared().wifi || []).map((d) => [d.name, `${d.name} (WLAN)`])];
 
+/** Zigbee-Gerät mit Solltemperatur in den exposes? */
+const zigbeeTrv = (d) => {
+  let hit = false;
+  const walk = (list) => (list || []).forEach((e) => { if (e.property === "occupied_heating_setpoint") hit = true; walk(e.features); });
+  walk(d.definition?.exposes);
+  return hit;
+};
+/** Alle Heizkörperthermostate, die eine Routine stellen kann. */
+const heatNames = () => [
+  ...(has.pi() ? (state.zigbee || []).filter(zigbeeTrv).map((d) => [d.friendly_name, `${d.friendly_name} (Zigbee)`]) : []),
+  ...(has.pi() ? (state.matter || []).filter((d) => d.caps?.heat).map((d) => [d.name, `${d.name} (Matter)`]) : []),
+  ...(shared().wifi || []).filter(isHeat).map((d) => [d.name, `${d.name} (${WIFI_TYPES[d.type].label})`])];
+
+/** Aktion „Heizung“: Thermostat auf eine Temperatur stellen oder ausschalten. */
+function heatRow(a, del) {
+  const list = heatNames();
+  const known = !a.device || list.some(([k]) => k === a.device);
+  const tempField = field("Temperatur (°C)", h("input.input", { type: "number", min: HEAT_MIN, max: HEAT_MAX, step: 0.5, inputmode: "decimal", value: a.temp ?? 16,
+    onchange: (e) => (a.temp = Math.max(HEAT_MIN, Math.min(HEAT_MAX, Number(e.target.value) || 16))) }), `${HEAT_MIN}–${HEAT_MAX} °C in halben Grad.`);
+  const box = h("div.fields", {},
+    field("Thermostat", select([["", "– Thermostat wählen –"], ...list, ...(known ? [] : [[a.device, `${a.device} (nicht gefunden)`]])], a.device || "", (v) => (a.device = v))),
+    field("Einstellen", select([["set", "Auf Temperatur"], ["off", "Aus (Frostschutz)"]], (a.mode ||= "set"), (v) => { a.mode = v; tempField.hidden = v === "off"; })),
+    tempField);
+  tempField.hidden = a.mode === "off";
+  return h("div.item", {},
+    h("div.item-head", {}, h("b", {}, "Heizung"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),
+    list.length === 0 && h("p.meta.warn", {}, "Noch kein Thermostat eingerichtet – unter Licht & Geräte hinzufügen."),
+    box,
+    h("p.meta", {}, has.pi()
+      ? "Die vorherige Temperatur kommt mit „Wieder da“ oder nach der Zeit unten zurück."
+      : "Ohne Zentrale merkt sich Heimalarm die vorherige Temperatur nicht – dafür eine zweite Routine anlegen."));
+}
+
 /** Routine ausführen – mit Zentrale dort, ohne Zentrale hier. */
 const run = (r, test = false) => (has.pi() ? publish("heimalarm/cmd/run", { id: r.id, test }) : fireLocal(r, { manual: true, test }));
 
@@ -147,6 +180,7 @@ const actionRow = (a, del) => {
         field("Adresse", h("input.input.mono", { value: a.url || "", placeholder: "http://192.168.178.10:8123/api/webhook/heimalarm", inputmode: "url", autocomplete: "off", spellcheck: "false", onchange: (e) => (a.url = e.target.value.trim()) }),
           "Für Home Assistant, Node-RED, IFTTT … {stichwort} und {who} werden ersetzt."),
         field("Art", select([["GET", "GET"], ["POST", "POST (JSON)"]], (a.method ||= "GET"), (v) => (a.method = v)))));
+    if (a.type === "heat") return heatRow(a, del);
     if (a.type === "restore") return h("div.item", {}, h("div.item-head", {}, h("b", {}, "Vorherigen Zustand wiederherstellen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")));
     a.payload ||= {};
     return h("div.item", {},
@@ -202,6 +236,7 @@ function editor(routine, rerender) {
       ...r.actions.map((a, i) => actionRow(a, () => { r.actions.splice(i, 1); paint(); })),
       h("div.row", {},
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "device", device: "", payload: { state: "ON" }, transition: 1 }); paint(); } }, "+ Gerät"),
+        h("button.btn.small", { onclick: () => { r.actions.push({ type: "heat", device: heatNames()[0]?.[0] || "", mode: "set", temp: 16 }); paint(); } }, "+ Heizung"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "delay", sec: 5 }); paint(); } }, "+ Warten"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "announce", device: "", speech: "Einsatz. {stichwort}. {adresse}" }); paint(); } }, "+ Alexa sagt an"),
         h("button.btn.small", { onclick: () => { r.actions.push({ type: "voicemonkey", device: "" }); paint(); } }, "+ Alexa-Routine"),

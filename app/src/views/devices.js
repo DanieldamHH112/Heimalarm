@@ -9,7 +9,8 @@ import { log } from "../core/log.js";
 import { has } from "../core/features.js";
 import { row as wifiRow, addDialog as addWifi } from "./wifi.js";
 import { shared } from "../core/shared.js";
-import { WIFI_TYPES } from "../core/wifi.js";
+import { WIFI_TYPES, isHeat } from "../core/wifi.js";
+import { heatControl, fmtTemp } from "../ui/heat.js";
 import { icon } from "../ui/icons.js";
 
 /** Alle Eigenschaften (property) aus den Zigbee2MQTT-"exposes" sammeln. */
@@ -23,8 +24,17 @@ function props(dev) {
 const pct = (v) => Math.round(((Number(v) || 0) / 254) * 100);
 const asked = (fn) => async (...a) => { if (await requireAdmin()) fn(...a); };
 
+/** Heizkörperthermostat? (Zigbee: occupied_heating_setpoint in den exposes, Matter: Thermostat-Cluster) */
+const isTrv = (p) => p.has("occupied_heating_setpoint");
+
 function controls(name, p, s) {
   const out = [];
+  if (isTrv(p)) {
+    const wake = s.system_mode === "off" && p.has("system_mode") ? { system_mode: "heat" } : {};
+    out.push(heatControl({ temp: s.occupied_heating_setpoint, current: s.local_temperature, off: s.system_mode === "off", battery: s.battery },
+      (t) => setDevice(name, { ...wake, occupied_heating_setpoint: t }),
+      p.has("system_mode") ? () => setDevice(name, { system_mode: "off" }) : null));
+  }
   if (p.has("state")) {
     out.push(h("div.row", {},
       h("button.btn.small" + (s.state === "ON" ? ".primary" : ""), { onclick: () => setDevice(name, { state: "ON", transition: 1 }) }, "An"),
@@ -90,8 +100,8 @@ function deviceCard(dev) {
 }
 
 // ── Matter: Geräte, die schon in Alexa, Google Home & Co. sind, zusätzlich in Heimalarm ──
-const MATTER_PROPS = { onoff: "state", level: "brightness", ct: "color_temp" };
-const matterProps = (d) => new Set(Object.entries(d.caps || {}).filter(([, v]) => v).map(([k]) => MATTER_PROPS[k]));
+const MATTER_PROPS = { onoff: ["state"], level: ["brightness"], ct: ["color_temp"], heat: ["occupied_heating_setpoint", "system_mode"] };
+const matterProps = (d) => new Set(Object.entries(d.caps || {}).filter(([, v]) => v).flatMap(([k]) => MATTER_PROPS[k] || []));
 
 function matterCard(d) {
   const s = state.mstate[d.id] || {};
@@ -179,6 +189,9 @@ function networkSection() {
   );
 }
 
+/** Untertitel eines Thermostats: „20,5 °C · Soll 21,0 °C“ */
+const heatSub = (st) => (st.system_mode === "off" ? `${fmtTemp(st.local_temperature)} · aus` : `${fmtTemp(st.local_temperature)} · Soll ${fmtTemp(st.occupied_heating_setpoint)}`);
+
 // ── Seite: zwei Spalten (Geräte links, gewähltes Gerät rechts) ──
 const isPhone = () => window.matchMedia("(max-width: 760px)").matches;
 const keyOf = () => decodeURIComponent(location.hash.replace("#/", "").split("/").slice(1).join("/") || "");
@@ -223,21 +236,26 @@ export function devicesView(rerender) {
   const addW = async () => { if (await requireAdmin()) addWifi(rerender); };
 
   const item = (e) => {
-    let on = false, sub = "", color = "--c-net";
+    let on = false, sub = "", color = "--c-net", ico = "bulb";
     if (e.kind === "zigbee") {
       const st = state.zstate[e.d.friendly_name] || {}, av = state.zavail[e.d.friendly_name];
       on = st.state === "ON";
-      sub = av === "offline" ? "nicht erreichbar" : "state" in st ? (on ? "an" : "aus") : e.d.definition?.description || e.d.type;
-      color = av === "offline" ? "--signal" : on ? "--warn" : "--c-pc";
+      if (isTrv(props(e.d))) ico = "heat";
+      sub = av === "offline" ? "nicht erreichbar" : ico === "heat" ? heatSub(st) : "state" in st ? (on ? "an" : "aus") : e.d.definition?.description || e.d.type;
+      color = av === "offline" ? "--signal" : on || (ico === "heat" && st.system_mode !== "off") ? "--warn" : "--c-pc";
     } else if (e.kind === "matter") {
       const st = state.mstate[e.d.id] || {};
       on = st.state === "ON";
-      sub = !e.d.online ? "nicht erreichbar" : "state" in st ? `${on ? "an" : "aus"} · Matter` : "Matter";
-      color = !e.d.online ? "--signal" : on ? "--warn" : "--c-voice";
-    } else { sub = `${WIFI_TYPES[e.d.type]?.label || e.d.type} · ${e.d.host}`; }
+      if (e.d.caps?.heat) ico = "heat";
+      sub = !e.d.online ? "nicht erreichbar" : ico === "heat" ? `${heatSub(st)} · Matter` : "state" in st ? `${on ? "an" : "aus"} · Matter` : "Matter";
+      color = !e.d.online ? "--signal" : on || (ico === "heat" && st.system_mode !== "off") ? "--warn" : "--c-voice";
+    } else {
+      if (isHeat(e.d)) ico = "heat";
+      sub = `${WIFI_TYPES[e.d.type]?.label || e.d.type} · ${e.d.host}`;
+    }
     const name = e.kind === "zigbee" ? e.d.friendly_name : e.d.name;
     return h("a.split-item", { href: link(e.key), "aria-current": current === e.key ? "page" : null },
-      h("span.ico", { style: `--a:var(${color})` }, icon("bulb")),
+      h("span.ico", { style: `--a:var(${color})` }, icon(ico)),
       h("span.split-item-text", {}, h("b", {}, name), h("small" + (sub === "nicht erreichbar" ? ".warn" : ""), {}, sub)),
       h("span.chev", {}, icon("chev")));
   };
@@ -251,7 +269,7 @@ export function devicesView(rerender) {
       h("button.btn.small", { onclick: addW }, "WLAN-Gerät")),
     has.pi() && state.bridge === "offline" && h("p.split-warn", {}, "Zigbee2MQTT ist offline – Stick und Container auf der Zentrale prüfen."),
     h("nav.split-nav", { "aria-label": "Geräte" },
-      entries.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, has.pi() ? "Noch kein Gerät. Zigbee anlernen, ein WLAN-Gerät (Shelly, Hue, WLED, Tasmota) oder ein Matter-Gerät aus Alexa bzw. Google Home hinzufügen." : "Shelly, Philips Hue, WLED oder Tasmota direkt im Heimnetz hinzufügen. Zigbee gibt es mit Zentrale.")
+      entries.length === 0 ? h("p.hint", { style: "padding:8px 10px" }, has.pi() ? "Noch kein Gerät. Zigbee anlernen, ein WLAN-Gerät (Shelly, Hue, WLED, Tasmota, FRITZ!-Heizkörperregler) oder ein Matter-Gerät aus Alexa bzw. Google Home hinzufügen." : "Shelly, Philips Hue, WLED, Tasmota oder FRITZ!-Heizkörperregler direkt im Heimnetz hinzufügen. Zigbee gibt es mit Zentrale.")
         : entries.map(item),
       extra.length > 0 && h("div.split-grp", {}, "Mehr"),
       extra.map((x) => h("a.split-item", { href: link(x.key), "aria-current": current === x.key ? "page" : null },
@@ -261,9 +279,9 @@ export function devicesView(rerender) {
 
   let detail = null;
   const e = entries.find((x) => x.key === current);
-  if (e?.kind === "zigbee") detail = pane(e.d.friendly_name, "bulb", "--c-pc", h("section.card", {}, deviceCard(e.d)));
-  else if (e?.kind === "matter") detail = pane(e.d.name, "bulb", "--c-voice", h("section.card", {}, matterCard(e.d)));
-  else if (e?.kind === "wifi") detail = pane(e.d.name, "bulb", "--c-net", h("section.card", {}, h("ul.rows", {}, wifiRow(e.d, shared().wifi || [], rerender))));
+  if (e?.kind === "zigbee") detail = pane(e.d.friendly_name, isTrv(props(e.d)) ? "heat" : "bulb", "--c-pc", h("section.card", {}, deviceCard(e.d)));
+  else if (e?.kind === "matter") detail = pane(e.d.name, e.d.caps?.heat ? "heat" : "bulb", "--c-voice", h("section.card", {}, matterCard(e.d)));
+  else if (e?.kind === "wifi") detail = pane(e.d.name, isHeat(e.d) ? "heat" : "bulb", "--c-net", h("section.card", {}, h("ul.rows", {}, wifiRow(e.d, shared().wifi || [], rerender))));
   else if (current === "gruppen") detail = pane("Gruppen", "flow", "--c-app", groupsSection());
   else if (current === "netz") detail = pane("Netzwerkkarte", "net", "--c-app", networkSection());
   else if (current === "matter") detail = pane("Matter-Gerät hinzufügen", "link", "--c-voice", matterAddCard());

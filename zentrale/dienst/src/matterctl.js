@@ -7,24 +7,28 @@
 // Startet erst, wenn ein Gerät gekoppelt ist oder gekoppelt werden soll (sonst kein Matter-Verkehr).
 //
 // Geräte heißen wie Zigbee-Geräte über ihren Namen; Zustand im Zigbee-Format { state, brightness 0–254, color_temp },
+// Thermostate { occupied_heating_setpoint °C, local_temperature °C, system_mode "off"|"heat"|"auto" },
 // damit Routinen, „Wieder da“ und Geräte-Auslöser ohne Sonderfälle funktionieren.
 //
 // Für die App:  heimalarm/matter/status  (retained) { running, error, pairing: { busy, error, ok, at } }
-//               heimalarm/matter/devices (retained) [{ id, node, name, vendor, product, online, caps: { onoff, level, ct } }]
+//               heimalarm/matter/devices (retained) [{ id, node, name, vendor, product, online, caps: { onoff, level, ct, heat } }]
 //               heimalarm/matter/state   (retained) { id: { state, brightness?, color_temp? } }
 // Befehle:      heimalarm/cmd/matter/pair {code} · set {id, payload} · rename {id, name} · remove {node}
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { Environment, StorageService } from "@matter/main";
 import { ManualPairingCodeCodec, QrPairingCodeCodec, NodeId } from "@matter/main/types";
-import { OnOff, LevelControl, ColorControl, BridgedDeviceBasicInformation, GeneralCommissioning } from "@matter/main/clusters";
+import { OnOff, LevelControl, ColorControl, Thermostat, BridgedDeviceBasicInformation, GeneralCommissioning } from "@matter/main/clusters";
 import { StorageBackendDisk } from "@matter/nodejs";
 import { CommissioningController } from "@project-chip/matter.js";
 import { NodeStates } from "@project-chip/matter.js/device";
 
 const STORAGE = resolve(process.env.MATTER_CTL_STORAGE || "./data/matter-ctl");
 const META = resolve(STORAGE, "heimalarm.json");   // Namen: { names: { id: name } }
-const CLUSTER = { [OnOff.Cluster.id]: "onOff", [LevelControl.Cluster.id]: "level", [ColorControl.Cluster.id]: "color" };
+const CLUSTER = { [OnOff.Cluster.id]: "onOff", [LevelControl.Cluster.id]: "level", [ColorControl.Cluster.id]: "color", [Thermostat.Cluster.id]: "thermo" };
+// Matter-Betriebsart des Thermostats ↔ Zigbee-Schreibweise
+const MODE_OUT = { [Thermostat.SystemMode.Off]: "off", [Thermostat.SystemMode.Heat]: "heat", [Thermostat.SystemMode.Auto]: "auto" };
+const MODE_IN = { off: Thermostat.SystemMode.Off, heat: Thermostat.SystemMode.Heat, auto: Thermostat.SystemMode.Auto };
 // Eigene Matter-Bridges nicht als Gerät koppeln (Schleife): Heimalarm-Sensoren und Matterbridge.
 const OWN = /heimalarm|matterbridge/iu;
 
@@ -85,6 +89,13 @@ export function startMatterCtl(ctx, log, onDevice) {
     if (lvl != null) s.brightness = lvl;
     const ct = local(c.color, "colorTemperatureMireds");
     if (ct != null) s.color_temp = ct;
+    // Thermostat: Werte in 0,01 °C
+    const sp = local(c.thermo, "occupiedHeatingSetpoint");
+    if (sp != null) s.occupied_heating_setpoint = sp / 100;
+    const lt = local(c.thermo, "localTemperature");
+    if (lt != null) s.local_temperature = lt / 100;
+    const sm = local(c.thermo, "systemMode");
+    if (sm != null) s.system_mode = MODE_OUT[sm] || "heat";
     states[d.id] = s;
     ctx.devices[d.name] = s;      // für „Wieder da“ und Geräte-Auslöser in Routinen
     onDevice(d.name, s);
@@ -99,7 +110,8 @@ export function startMatterCtl(ctx, log, onDevice) {
     const walk = (eps) => {
       for (const ep of eps) {
         const onOff = ep.getClusterClient(OnOff.Complete);
-        if (onOff) {
+        const thermo = ep.getClusterClient(Thermostat.Complete);
+        if (onOff || thermo) {
           const level = ep.getClusterClient(LevelControl.Complete);
           const color = ep.getClusterClient(ColorControl.Complete);
           const bridged = ep.getClusterClient(BridgedDeviceBasicInformation.Cluster);
@@ -109,8 +121,8 @@ export function startMatterCtl(ctx, log, onDevice) {
           const base = label || info.nodeLabel || info.productLabel || info.productName || `Matter-Gerät ${nodeId}`;
           const d = {
             id, node: nodeId, ep: ep.number, vendor: info.vendorName || "", product: info.productName || "",
-            caps: { onoff: true, level: Boolean(level), ct: Boolean(color?.supportedFeatures?.colorTemperature) },
-            clients: { onOff, level, color },
+            caps: { onoff: Boolean(onOff), level: Boolean(level), ct: Boolean(color?.supportedFeatures?.colorTemperature), heat: Boolean(thermo) },
+            clients: { onOff, level, color, thermo },
           };
           d.name = meta.names[id] || uniqueName(base, id);
           devices.set(id, d);
@@ -218,11 +230,21 @@ export function startMatterCtl(ctx, log, onDevice) {
 
   const byName = (name) => [...devices.values()].find((d) => d.name === name);
 
-  /** Zigbee-Payload { state: ON|OFF|TOGGLE, brightness 0–254, color_temp, transition s } anwenden. */
+  /** Zigbee-Payload { state: ON|OFF|TOGGLE, brightness 0–254, color_temp, transition s,
+   *  occupied_heating_setpoint °C, system_mode } anwenden. */
   async function set(id, p = {}) {
     const d = devices.get(id);
     if (!d) throw new Error("Matter-Gerät unbekannt");
-    const { onOff, level, color } = d.clients;
+    const { onOff, level, color, thermo } = d.clients;
+    if (thermo) {
+      const mode = MODE_IN[String(p.system_mode || "").toLowerCase()];
+      if (mode != null) await thermo.attributes.systemMode.set(mode);
+      if (p.occupied_heating_setpoint != null) {
+        if (mode == null && thermo.attributes.systemMode.getLocal() === Thermostat.SystemMode.Off) await thermo.attributes.systemMode.set(Thermostat.SystemMode.Heat);
+        await thermo.attributes.occupiedHeatingSetpoint.set(Math.round(Number(p.occupied_heating_setpoint) * 100));
+      }
+    }
+    if (!onOff) return;
     const tt = p.transition != null ? Math.round(Number(p.transition) * 10) : 0;
     const opts = { optionsMask: {}, optionsOverride: {} };
     const st = String(p.state || "").toUpperCase();

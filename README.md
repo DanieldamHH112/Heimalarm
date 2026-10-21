@@ -66,7 +66,7 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 | **Alarm am Handy** | Vollbild über dem Sperrbildschirm mit Vibration und „Ich fahre / nicht“. Startet nach einem Neustart des Handys von selbst. |
 | **Rückmeldung** | „Ich fahre / nicht“ geht an Divera (Rückmeldung und Status) und aPager (Zu-/Absage). |
 | **Divera-Status** | Eigenen Status auf Start mit einem Tipp setzen, optional automatisch zurücksetzen. |
-| **Licht & Geräte** | WLAN-Geräte (Shelly, Hue, WLED, Tasmota) direkt im Heimnetz, mit Zentrale auch Zigbee – ohne Hersteller-Cloud. |
+| **Licht & Geräte** | WLAN-Geräte (Shelly, Hue, WLED, Tasmota) und Heizkörperthermostate direkt im Heimnetz, mit Zentrale auch Zigbee und Matter – ohne Hersteller-Cloud. |
 | **Ohne Zentrale** | Handy und PC koppeln sich mit einem Code im WLAN. Das Handy meldet Alarme an den PC und führt die Routinen aus. |
 | **Routinen** | Wenn Alarm, Uhrzeit oder Gerät → Licht, Gruppen, Verzögerung, „Wieder da“. Bedingungen wie Nacht, dunkel, Wochentag, Stichwort. Pro Person. |
 | **Alexa & Google Home** | Alarm startet Routinen (Ansage, Licht). Lokal über Matter (mit Zentrale) oder Alexa über Voice Monkey (auch ohne). |
@@ -89,9 +89,15 @@ Die **Zentrale** ist kein bestimmtes Gerät, sondern ein kleines Docker-Projekt 
 | **WLED** (LED-Streifen) | ✅ | ✅ | |
 | **Tasmota** | ✅ | ✅ | umgeflashte Stecker und Lampen |
 | **Tuya / Smart Life** | über Alexa-Routine | ✅ Zigbee-Geräte | WLAN-Geräte nur über die Tuya-Cloud – per Voice Monkey eine Alexa-Routine starten, die sie schaltet |
+| **FRITZ! Heizkörperregler** (FRITZ!Smart Thermo 301/302, FRITZ!DECT 301/302, Comet DECT) | ✅ | ✅ | über die FRITZ!Box; eigenen FRITZ!Box-Benutzer mit Recht „Smart Home“ anlegen |
+| **Shelly BLU TRV** | ✅ | ✅ | über das Shelly BLU Gateway Gen3 |
+| **Zigbee-Thermostate** (z. B. Sonoff TRVZB, TRV Gen2, Bosch, Aqara E1) | – | ✅ | über Zigbee2MQTT, braucht Zigbee-Stick |
+| **Matter-Thermostate** (z. B. Eve Thermo, tado X) | – | ✅ Matter | erst in Alexa/Google/Apple einrichten, dann teilen; Thread braucht einen Thread-Router |
 | **Zigbee allgemein** | – | ✅ | tausende Geräte, siehe [Zigbee2MQTT](https://www.zigbee2mqtt.io/supported-devices/) |
 | **Amazon Echo** | ✅ Voice Monkey | ✅ Matter oder Voice Monkey | Echo mit Matter für den lokalen Weg |
 | **Google Nest / Home** | – | ✅ Matter | Nest Hub, Nest Lautsprecher oder Google TV |
+
+**Heizung in Routinen:** Aktion „+ Heizung“ stellt ein Thermostat auf eine Temperatur oder aus (Frostschutz), z. B. bei Alarm auf 16 °C. Mit Zentrale bringt „Wieder da“ die vorherige Temperatur zurück.
 
 **Voice Monkey** ([voicemonkey.io](https://voicemonkey.io)) startet Alexa-Routinen per Internet. In Voice Monkey einen „Routine Trigger“ anlegen, in der Alexa-App eine Routine damit starten (z. B. Ansage „Einsatz!“, Licht an) und in Heimalarm den API-Token eintragen. In Routinen als Aktion „+ Alexa“.
 

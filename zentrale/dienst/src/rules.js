@@ -3,7 +3,7 @@
 // Routine = { id, name, enabled, who: [kennung] (leer = alle),
 //   trigger: { type: "alarm" | "time" | "device" | "manual" | "readiness", at, device, property, value, to },
 //   conditions: { mode: "and" | "or", items: [ { type, ... } ] },
-//   actions: [ { type: "device" (Zigbee, WLAN oder Matter) | "group" | "delay" | "restore" | "publish" | "divera" | "readiness" | "webhook", ... } ],
+//   actions: [ { type: "device" (Zigbee, WLAN oder Matter) | "heat" {device, mode: set|off, temp} | "group" | "delay" | "restore" | "publish" | "divera" | "readiness" | "webhook", ... } ],
 //   restoreAfterMin }  // B8: vorherigen Zustand nach X min wiederherstellen (0 = aus)
 //
 // Bedingungen: time {from,to} · weekday {days:[1..7]} · sun {is:"dark"|"light"} ·
@@ -12,12 +12,13 @@
 // „Nicht verfügbar“/„Abwesend“ pausiert nur Routinen mit Auslöser „Bei Alarm“ – Zeit-, Geräte- und
 // Bereitschafts-Routinen laufen weiter (sonst könnte z. B. „um 6 Uhr wieder verfügbar“ nie laufen).
 import SunCalc from "suncalc";
-import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
+import { wifiApply, wifiHeatGet, isHeat, heatPayload, describeHeat, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
 
 export function createRules(ctx, log) {
   const lastAlarm = new Map();   // Sperrzeit je Person
   const timers = new Set();      // laufende Verzögerungen / Ausschalt-Timer
   let snapshot = null;           // B8 – Zustand vor der letzten Routine
+  const reading = new Map();     // WLAN-Thermostate: Sollwert wird vor dem Umstellen gelesen
   let clock = null;
   let lastMode = null;           // für den Auslöser „Bereitschaft wechselt“
 
@@ -30,11 +31,8 @@ export function createRules(ctx, log) {
 
   const pub = (topic, payload) => ctx.client.publish(topic, typeof payload === "string" ? payload : JSON.stringify(payload), { qos: 1 });
   const wifiDev = (name) => (ctx.config.wifi || []).find((d) => d.name === name);
-  /** Zigbee-Payload ({ state, brightness 0–254 }) auf WLAN-Gerät anwenden. */
-  const setWifi = (dev, payload) => wifiSet(dev, {
-    on: String(payload.state || "ON").toUpperCase() !== "OFF",
-    bri: payload.brightness != null ? (Number(payload.brightness) / 254) * 100 : null,
-  }, fetch).catch((e) => log.warn(`WLAN-Gerät ${dev.name}`, e.message));
+  /** Zigbee-Payload ({ state, brightness 0–254 } bzw. { occupied_heating_setpoint }) auf WLAN-Gerät anwenden. */
+  const setWifi = (dev, payload) => wifiApply(dev, payload, fetch).catch((e) => log.warn(`WLAN-Gerät ${dev.name}`, e.message));
   /** Gerät oder Gruppe schalten – Zigbee über MQTT, WLAN direkt, Matter über den Controller. */
   const switchDevice = (name, payload) => {
     const w = wifiDev(name);
@@ -83,11 +81,21 @@ export function createRules(ctx, log) {
 
   // ── Aktionen ─────────────────────────────────────
   function takeSnapshot(actions) {
-    const names = new Set(actions.filter((a) => a.type === "device").map((a) => a.device));
-    snapshot = {};
+    const names = new Set(actions.filter((a) => a.type === "device" || a.type === "heat").map((a) => a.device));
+    const snap = {};
+    snapshot = snap;
+    reading.clear();
     for (const n of names) {
+      const w = wifiDev(n);
+      if (w && isHeat(w)) {
+        // Sollwert vorher lesen; die Aktion „Heizung“ wartet darauf, Licht nicht
+        reading.set(n, wifiHeatGet(w, fetch)
+          .then((s) => { snap[n] = s.off ? { system_mode: "off" } : { occupied_heating_setpoint: s.temp }; })
+          .catch((e) => log.warn(`Heizung ${n}: Sollwert nicht gelesen`, e.message)));
+        continue;
+      }
       const s = ctx.devices[n];
-      if (s) snapshot[n] = pick(s, ["state", "brightness", "color_temp", "color"]);
+      if (s) snap[n] = pick(s, ["state", "brightness", "color_temp", "color", "occupied_heating_setpoint", "system_mode"]);
     }
   }
 
@@ -107,6 +115,10 @@ export function createRules(ctx, log) {
         if (a.type === "device") {
           switchDevice(a.device, { ...a.payload, ...(a.transition && !wifiDev(a.device) ? { transition: Number(a.transition) } : {}) });
           if (Number(a.offAfterSec) > 0) later(Number(a.offAfterSec) * 1000, () => switchDevice(a.device, { state: "OFF" })); // B7
+        } else if (a.type === "heat") {
+          const p = heatPayload(a);
+          Promise.resolve(reading.get(a.device)).then(() => switchDevice(a.device, p));
+          log.action(describeHeat(a), routine.name);
         } else if (a.type === "group") {
           pub(`zigbee2mqtt/${a.group}/set`, a.payload || { state: "ON" });
         } else if (a.type === "voicemonkey") {
@@ -137,6 +149,7 @@ export function createRules(ctx, log) {
 
   function describe(a) {
     if (a.type === "device") return `${a.device}: ${JSON.stringify(a.payload)}`;
+    if (a.type === "heat") return describeHeat(a);
     if (a.type === "group") return `Gruppe ${a.group}`;
     if (a.type === "voicemonkey") return `Alexa-Routine ${a.device}`;
     if (a.type === "announce") return `Alexa-Ansage auf ${a.device}`;

@@ -6,7 +6,7 @@ import { settings, mode } from "./settings.js";
 import { shared } from "./shared.js";
 import { log } from "./log.js";
 import { isTauri, hasPcFeatures } from "./platform.js";
-import { wifiSet, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
+import { wifiApply, heatPayload, describeHeat, voiceMonkey, voiceMonkeyAnnounce } from "./wifi.js";
 import { readiness, setReadiness, MODES } from "./readiness.js";
 import { setDiveraStatusRaw } from "./divera.js";
 const offDuty = () => readiness().mode !== "ready";
@@ -38,8 +38,7 @@ function check(c, ev) {
 function switchDevice(name, payload) {
   const dev = (shared().wifi || []).find((d) => d.name === name);
   if (!dev) return log("warn", `Gerät „${name}“ ohne Zentrale nicht erreichbar`, "Ohne Zentrale gehen nur WLAN-Geräte");
-  return wifiSet(dev, { on: String(payload.state || "ON").toUpperCase() !== "OFF", bri: payload.brightness != null ? (payload.brightness / 254) * 100 : null }, fetchFn)
-    .catch((e) => log("warn", `WLAN-Gerät ${name}`, e.message));
+  return wifiApply(dev, payload, fetchFn).catch((e) => log("warn", `WLAN-Gerät ${name}`, e.message));
 }
 
 function runActions(r, dry, ev = {}) {
@@ -47,10 +46,13 @@ function runActions(r, dry, ev = {}) {
   for (const a of r.actions || []) {
     if (a.type === "delay") { wait += (Number(a.sec) || 0) * 1000; continue; }
     const go = () => {
-      if (dry) return log("info", `Probe: ${a.device || a.group || a.type}`, r.name);
+      if (dry) return log("info", `Probe: ${a.type === "heat" ? describeHeat(a) : a.device || a.group || a.type}`, r.name);
       if (a.type === "device" || a.type === "group") {
         switchDevice(a.device || a.group, a.payload || { state: "ON" });
         if (Number(a.offAfterSec) > 0) setTimeout(() => switchDevice(a.device || a.group, { state: "OFF" }), a.offAfterSec * 1000);
+      } else if (a.type === "heat") {
+        switchDevice(a.device, heatPayload(a));
+        log("action", describeHeat(a), r.name);
       } else if (a.type === "voicemonkey") {
         const token = shared().voicemonkey?.token;
         if (!token) return log("warn", "Voice Monkey: kein Token eingetragen");

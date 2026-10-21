@@ -119,7 +119,7 @@ Heimalarm/
 | `sync.js` | Abgleich ohne Zentrale: Bereiche, Zeitstempel, `bundle()`/`applyBundle()` |
 | `stats.js` | Einsatz-Logbuch: speichern, zusammenführen, Statistik, Jahresrückblick, CSV |
 | `routines-local.js` | Ohne Zentrale: Routinen auf dem Handy ausführen |
-| `wifi.js` | WLAN-Geräte (Shelly, Hue, WLED, Tasmota) + Voice Monkey (KOPIE in zentrale/dienst/src/wifi.js) |
+| `wifi.js` | WLAN-Geräte (Shelly, Hue, WLED, Tasmota), Heizkörperregler (FRITZ!Box AHA, Shelly BLU TRV) + Voice Monkey (KOPIE in zentrale/dienst/src/wifi.js) |
 | `divera.js` | Divera-API: laden, Alarme abfragen, Rückmeldung, Status |
 | `apager.js` | aPager-Rückmeldung (Alamos-API) |
 | `pc.js` | PC-Funktionen (Rust-Befehle) |
@@ -237,6 +237,8 @@ Bereiche mit Zeitstempel (localStorage `heimalarm.sync.ts`): `betrieb` (Betriebs
 | **Shelly** | Gen2/3 `/rpc/Switch.Set`, `/rpc/Light.Set`; Gen1 `/relay/0?turn=` | – |
 | **Hue Bridge** (API v1) | `POST /api {devicetype}` nach Knopfdruck → Schlüssel; `PUT /api/<key>/lights/<id>/state`, `/groups/<id>/action` | Schlüssel aus Koppeln |
 | **WLED / Tasmota** | `POST /json/state` · `/cm?cmnd=Power On\|Dimmer 40` | – |
+| **FRITZ!Box** (AHA-HTTP) | `GET/POST /login_sid.lua?version=2` (PBKDF2, ab FRITZ!OS 7.24) → SID · `/webservices/homeautoswitch.lua?switchcmd=getdevicelistinfos\|sethkrtsoll&ain=&param=` (16–56 = 8–28 °C in 0,5-Schritten, 253 aus, 254 an) | FRITZ!Box-Benutzer mit Recht „Smart Home“ (Kennwort in `shared.wifi`) |
+| **Shelly BLU Gateway Gen3** | `/rpc/Shelly.GetComponents` (`blutrv:200`…) · `/rpc/BluTrv.GetStatus?id=200` · `/rpc/BluTrv.Call?id=200&method="TRV.SetTarget"&params={"id":0,"target_C":17}` | – |
 | **SYBOS** | keine offene Schnittstelle für Mitglieder (syBOS-Webservices nur mit Berechtigung der Verwaltung, liefern Einsatzarchiv). Nur Mitlesen der Benachrichtigung. | – |
 
 Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`, Divera über „Erkennen“ in der App.
@@ -254,7 +256,8 @@ Android-Paketnamen: SYBOS `at.syPhone`, aPager PRO `org.xcrypt.apager.android2`,
 | `localStorage heimalarm.sync.ts` | Zeitstempel der Abgleich-Bereiche (ohne Zentrale) | – |
 
 Routine (gleiches Format in App und Dienst; Aktion `announce` = Alexa-Ansage `{device, speech, voice, chime, show}`, Text mit Platzhaltern `{stichwort} {adresse} {einheit} {uhrzeit} {quelle} {person} {text}` → `fillTemplate` in `wifi.js`):
-`{ id, name, enabled, who:[kennung], trigger:{type: alarm|time|readiness|device|manual, at, days:[1..7], to, device, property, value}, conditions:{mode: and|or, items:[{type: time|weekday|sun|home|readiness|keyword|unit, …}]}, actions:[{type: device|group|delay|restore|voicemonkey|announce|divera|readiness|webhook|publish, …}], restoreAfterMin }`
+`{ id, name, enabled, who:[kennung], trigger:{type: alarm|time|readiness|device|manual, at, days:[1..7], to, device, property, value}, conditions:{mode: and|or, items:[{type: time|weekday|sun|home|readiness|keyword|unit, …}]}, actions:[{type: device|heat|group|delay|restore|voicemonkey|announce|divera|readiness|webhook|publish, …}], restoreAfterMin }`
+Aktion `heat` = `{ device, mode: set|off, temp }` → Zigbee-Payload `{ occupied_heating_setpoint }` bzw. `{ system_mode: "off" }` (`heatPayload` in `wifi.js`); gilt für Zigbee, Matter (Thermostat-Cluster in `matterctl.js`) und WLAN-Thermostate. Die Zentrale liest den Sollwert von WLAN-Thermostaten vor dem Umstellen (für „Wieder da“).
 - `divera {who, statusId, statusName, note, resetMin, resetTo}` – mit Zentrale nur mit dort hinterlegtem Schlüssel, ohne Zentrale nur für die eigene Kennung. `readiness {mode, untilAt:"HH:MM"}` setzt `shared.readiness`. `webhook {url, method}`.
 - „Nicht verfügbar/Abwesend“ pausiert **nur Routinen „Bei Alarm“** – Zeit-, Bereitschafts- und Geräte-Routinen laufen weiter.
 Aktion `device` schaltet ein WLAN-Gerät, wenn ein Gerät mit diesem Namen in `shared.wifi` steht, sonst Zigbee.
