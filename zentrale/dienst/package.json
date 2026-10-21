@@ -1,6 +1,6 @@
 {
   "name": "heimalarm-dienst",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Heimalarm-Dienst: Routinen, Webhook, Protokoll, Selbsttest",
   "main": "src/index.js",
   "scripts": {
