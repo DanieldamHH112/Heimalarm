@@ -123,6 +123,6 @@ export function wifiSection(rerender) {
   return h("section.card", {},
     h("div.card-head", {}, h("h2", {}, "WLAN-Geräte"), h("button.btn.small", { onclick: add }, "Hinzufügen")),
     list.length === 0
-      ? h("p.hint", {}, "Shelly, Philips Hue (auch IKEA-Lampen an der Bridge), WLED, Tasmota, FRITZ!-Heizkörperregler – direkt im Heimnetz, auch ohne Zentrale.")
+      ? h("p.hint", {}, "Shelly, Philips Hue (auch IKEA-Lampen an der Bridge), WLED, Tasmota und FRITZ!-Heizkörperregler. Läuft direkt im Heimnetz, auch ohne Zentrale.")
       : h("ul.rows", {}, sorted.map((d) => row(d, list, rerender))));
 }

@@ -9,7 +9,7 @@ import { hasPcFeatures } from "../core/platform.js";
 /** Die zwei Betriebsarten als große Auswahl statt Umschalter. */
 export const MODES = [
   { id: "zentrale", title: "Mit Zentrale",
-    text: "Ein Gerät, das immer läuft – NAS, Mini-PC, Raspberry Pi oder ein alter Laptop mit Docker. Nötig für den Melder in der Ladeschale.",
+    text: "Ein Gerät, das immer läuft: NAS, Mini-PC, Raspberry Pi oder ein alter Laptop mit Docker. Nötig für den Melder in der Ladeschale.",
     meta: "Melder · Alarm-Apps · alle Geräte" },
   { id: "direkt", title: "Ohne Zentrale",
     text: "Nur Handy und PC im selben WLAN. Der Alarm kommt über SYBOS, aPager oder Divera aufs Handy und geht an den PC.",

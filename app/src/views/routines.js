@@ -151,7 +151,7 @@ function diveraRow(a, del) {
     : field(label, h("input.input", { type: "number", value: a[key] || "", placeholder: "Status-ID", onchange: (e) => (a[key] = e.target.value) }), hint || "Liste erscheint, sobald dein Divera-Schlüssel eingetragen ist.");
   const persons = [[me, `${me} (dieses Gerät)`], ...(shared().persons || []).filter((p) => p.id !== me).map((p) => [p.id, `${p.name} (${p.id})`])];
   const keyInfo = has.pi() && state.diveraKeys?.[a.who];
-  const warn = has.pi() ? (!keyInfo ? "Für diese Person liegt kein Schlüssel auf der Zentrale – unter Einstellungen → Alarmquellen → Divera „Auf der Zentrale hinterlegen“." : keyInfo.ok === false ? `Schlüssel auf der Zentrale ungültig: ${keyInfo.error}` : "")
+  const warn = has.pi() ? (!keyInfo ? "Für diese Person liegt kein Schlüssel auf der Zentrale. Hinterlegen unter Einstellungen → Alarmquellen → Divera „Auf der Zentrale hinterlegen“." : keyInfo.ok === false ? `Schlüssel auf der Zentrale ungültig: ${keyInfo.error}` : "")
     : a.who !== me ? "Ohne Zentrale nur für die eigene Kennung." : !settings().divera.key ? "Erst den Divera-Schlüssel eintragen." : "";
   return h("div.item", {},
     h("div.item-head", {}, h("b", {}, "Divera-Status setzen"), h("button.btn.small.ghost.danger", { onclick: del }, "Entfernen")),

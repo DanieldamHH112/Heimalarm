@@ -23,7 +23,7 @@ function contactCard() {
       !d?.online ? h("span.chip.bad", {}, "ESP32 offline")
         : !known ? h("span.chip", {}, "ältere Firmware")
         : h("span.chip" + (d.contact ? ".ok" : ""), {}, d.contact ? "geschlossen" : "offen")),
-    h("p.hint", {}, "Zeigt live, ob der Kontakt an der Ladeschale offen oder geschlossen ist. Während des Tests meldet der Melder keinen Alarm – gut zum Prüfen der Kabel."),
+    h("p.hint", {}, "Zeigt live, ob der Kontakt an der Ladeschale offen oder geschlossen ist. Während des Tests meldet der Melder keinen Alarm. So prüfst du in Ruhe die Kabel."),
     d?.testing && h("p.meta", {}, "Test läuft. Kabelenden kurz verbinden oder am Kabel wackeln: Springt die Anzeige, sitzt etwas locker. Endet nach 10 Minuten von selbst."),
     h("div.row", {}, d?.testing
       ? h("button.btn.primary", { onclick: () => set(false) }, "Test beenden")

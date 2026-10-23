@@ -147,7 +147,7 @@ function matterAddCard() {
     p.error && !p.busy && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Nicht gekoppelt"), p.error)),
     st?.error && !st.running && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Matter-Steuerung startet nicht"), st.error)),
     tooOld && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Zentrale aktualisieren"), "Das Zentrale-Programm kennt Matter-Geräte noch nicht. Auf der Zentrale: ", h("code", {}, "docker compose up -d --build dienst"))),
-    h("p.hint", {}, "Neue Geräte zuerst in Alexa oder Google Home einrichten – Heimalarm koppelt nicht über Bluetooth. Thread-Geräte brauchen einen Thread-Router im Haus (z. B. Echo 4, Nest Hub, HomePod)."));
+    h("p.hint", {}, "Neue Geräte zuerst in Alexa oder Google Home einrichten, denn Heimalarm koppelt nicht über Bluetooth. Thread-Geräte brauchen einen Thread-Router im Haus (z. B. Echo 4, Nest Hub, HomePod)."));
 }
 
 function groupsSection() {

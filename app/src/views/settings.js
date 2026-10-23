@@ -85,7 +85,7 @@ function betrieb(rerender) {
   const d = settings().direct;
   const syncHint = h("small.meta", {}, settings().sync?.enabled === false
     ? `Abgleich ist aus (Einstellungen → ${hasPcFeatures ? "Dieser PC" : isAndroid ? "Dieses Handy" : "Dieses Gerät"}).`
-    : "Gekoppelte Geräte gleichen Betriebsart, Alarm-, PC- und Darstellungs-Einstellungen ab – ohne Zentrale auch Routinen und WLAN-Geräte. Divera-/aPager-Schlüssel bleiben auf dem Gerät.");
+    : "Gekoppelte Geräte gleichen Betriebsart, Alarm-, PC- und Darstellungs-Einstellungen ab, ohne Zentrale auch Routinen und WLAN-Geräte. Divera-/aPager-Schlüssel bleiben auf dem Gerät.");
   const pcPart = () => {
     const phones = d.phones || [];
     return h("div.item", {},
@@ -150,8 +150,8 @@ function verbindung(rerender) {
       field("Port", text("broker.port", { type: "number", min: 1, max: 65535 }), "Fast immer 9001 – nur ändern, wenn du ihn in der Zentrale geändert hast."),
       field("Benutzer", text("broker.user", { autocomplete: "off" }), "Fast immer „heimalarm“."),
       field("Passwort", text("broker.pass", { type: "password", autocomplete: "off" }), "Das Passwort, das du beim Einrichten der Zentrale in die Datei .env geschrieben hast (MQTT_PASSWORD).")),
-    toggle("broker.tls", "Verschlüsselt (TLS)", "Im Heimnetz nicht nötig. Nur einschalten, wenn deine Zentrale dafür eingerichtet ist – sonst klappt die Verbindung nicht."),
-    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Heimalarm ist fürs Heimnetz gedacht. Stell die Zentrale nicht offen ins Internet. Für unterwegs gibt es z. B. ein VPN über deinen Router – frag im Zweifel jemanden mit Erfahrung.")),
+    toggle("broker.tls", "Verschlüsselt (TLS)", "Im Heimnetz nicht nötig. Nur einschalten, wenn deine Zentrale dafür eingerichtet ist. Sonst klappt die Verbindung nicht."),
+    host && !PRIVATE.test(host) && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Adresse liegt nicht im Heimnetz"), "Heimalarm ist fürs Heimnetz gedacht. Stell die Zentrale nicht offen ins Internet. Für unterwegs eignet sich z. B. ein VPN über deinen Router. Frag im Zweifel jemanden mit Erfahrung.")),
     h("div.row", {}, h("button.btn.primary", { onclick: () => { connect(); toast("Verbinde mit der Zentrale …"); setTimeout(rerender, 1500); } }, "Speichern & verbinden")),
   );
 }
@@ -219,7 +219,7 @@ function sourceRow({ id, title, summary, on, onToggle, badge, body }) {
 
 /** Benachrichtigung mitlesen (nur Android) – auf PC nur Hinweis. */
 function notifGroup(id, rerender) {
-  if (!isAndroid) return group("Alarm empfangen", h("p.meta", {}, id === "divera" ? "Am Handy liest Heimalarm die Divera-Benachrichtigung mit. Am PC fragt Heimalarm Divera direkt ab – dafür unten den Zugangsschlüssel eintragen." : "Das Handy liest mit und gibt den Alarm über die Zentrale an diesen PC."));
+  if (!isAndroid) return group("Alarm empfangen", h("p.meta", {}, id === "divera" ? "Am Handy liest Heimalarm die Divera-Benachrichtigung mit. Am PC fragt Heimalarm Divera direkt ab. Dafür unten den Zugangsschlüssel eintragen." : "Das Handy liest mit und gibt den Alarm über die Zentrale an diesen PC."));
   return group("Alarm empfangen",
     h("div.inline", {},
       field("App auf dem Handy", text(`alarm.apps.${id}.pkg`, { autocomplete: "off", placeholder: "über „Erkennen“ wählen" }), "Paketname, ein Teil reicht."),
@@ -280,7 +280,7 @@ function diveraOnZentrale(rerender) {
   const me = settings().alarm.me, info = state.diveraKeys?.[me];
   const send = (key) => { publish("heimalarm/cmd/divera/key", { who: me, key }); toast(key ? "Wird geprüft …" : "Schlüssel auf der Zentrale gelöscht"); setTimeout(rerender, 2500); };
   return group("Divera-Status per Routine",
-    h("p.meta", {}, "Erlaubt der Zentrale, deinen Divera-Status per Routine zu setzen (z. B. ab 22 Uhr „Nicht verfügbar“) – auch wenn dein Handy aus ist. Der Schlüssel liegt dann zusätzlich auf der Zentrale und wird nur dort gespeichert, nicht an andere Geräte verteilt."),
+    h("p.meta", {}, "Damit setzt die Zentrale deinen Divera-Status per Routine (z. B. ab 22 Uhr „Nicht verfügbar“), auch wenn dein Handy aus ist. Der Schlüssel liegt dann zusätzlich auf der Zentrale. Andere Geräte bekommen ihn nicht."),
     info?.ok === false && h("p.meta.err", {}, `Nicht übernommen: ${info.error}`),
     h("div.row", {},
       info?.ok ? h("span.badge", {}, `Hinterlegt für „${me}“`) : null,
@@ -299,7 +299,7 @@ function apagerSource(rerender) {
     body: [
       notifGroup("apager", rerender),
       group("Webhook (Smart-Home-Paket in aPager)",
-        h("p.meta", {}, "aPager auf dem Handy ruft bei Alarm eine Adresse auf – mit Stichwort und Einheit, ohne Alarmtext. In aPager unter Einstellungen → Labor → Webhooks eintragen und in der Einheit „Webhooks aktivieren“."),
+        h("p.meta", {}, "aPager auf dem Handy ruft bei Alarm eine Adresse auf. Mit dabei sind Stichwort und Einheit, der Alarmtext fehlt. In aPager unter Einstellungen → Labor → Webhooks eintragen und in der Einheit „Webhooks aktivieren“."),
         h("p.meta", {}, "An die Zentrale: Adresse unter ", h("a", { href: "#/einstellungen/zentrale" }, "Zentrale"), ". Geht von überall, wenn die Zentrale erreichbar ist."),
         hasPcFeatures ? h("div.field", {}, h("span", {}, "Direkt an diesen PC (ohne Zentrale)"),
           webhookUrl() ? h("code", { style: "overflow-wrap:anywhere" }, webhookUrl()) : h("small", {}, "Startet gerade …"),
@@ -381,7 +381,7 @@ function sprache(rerender) {
     vmItem,
     h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Alarm als Auslöser (Matter)"), statusChip),
-      h("p.meta", {}, "Die Zentrale meldet sich als Kontaktsensor. Bei Alarm öffnet er sich kurz – damit startest du in Alexa oder Google Home eine Routine, z. B. Ansage „Einsatz!“ auf allen Lautsprechern."),
+      h("p.meta", {}, "Die Zentrale meldet sich als Kontaktsensor. Bei Alarm öffnet er sich kurz. Damit startest du in Alexa oder Google Home eine Routine, z. B. die Ansage „Einsatz!“ auf allen Lautsprechern."),
       switchRow("Sensoren bereitstellen", "Gilt für die ganze Zentrale.", cfg.enabled, (on) => setCfg({ enabled: on })),
       cfg.enabled && v?.error && !v.running && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Matter startet nicht"), v.error)),
       cfg.enabled && v?.running && h("div.pair", {},
@@ -406,7 +406,7 @@ function sprache(rerender) {
         v.commissioned && h("button.btn.small.ghost.danger", { onclick: async () => { if (await requireAdmin() && await ask("Alle Kopplungen mit Alexa/Google Home löschen? Routinen dort müssen danach neu angelegt werden.")) publish("heimalarm/cmd/voice/reset", {}); } }, "Kopplungen löschen"))),
     h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Licht & Geräte steuern")),
-      h("p.meta", {}, "Zigbee-Lichter und -Gruppen erscheinen in Alexa und Google Home – „Alexa, Flurlicht an“. Dafür läuft Matterbridge auf der Zentrale."),
+      h("p.meta", {}, "Zigbee-Lichter und -Gruppen erscheinen in Alexa und Google Home („Alexa, Flurlicht an“). Dafür läuft Matterbridge auf der Zentrale."),
       h("ol.pair-steps", {},
         h("li", {}, "Auf der Zentrale: ", h("code", {}, "docker compose --profile zigbee --profile matter up -d")),
         h("li", {}, "Oberfläche öffnen, Plugin ", h("code", {}, "matterbridge-zigbee2mqtt"), " hinzufügen."),
@@ -415,7 +415,7 @@ function sprache(rerender) {
     h("div.item", {},
       h("div.item-head", {}, h("b", {}, "Matter-Geräte in Heimalarm"),
         state.matter?.length ? h("span.chip.ok", {}, `${state.matter.length} Gerät${state.matter.length === 1 ? "" : "e"}`) : h("span.chip", {}, "keine")),
-      h("p.meta", {}, "Umgekehrter Weg: Lampen und Steckdosen, die schon in Alexa, Google Home, SmartThings oder Smart Life sind, steuert auch Heimalarm – in Routinen und unter Licht & Geräte. Alexa und Google behalten sie."),
+      h("p.meta", {}, "Umgekehrter Weg: Lampen und Steckdosen, die schon in Alexa, Google Home, SmartThings oder Smart Life sind, kann auch Heimalarm steuern, in Routinen und unter Licht & Geräte. In Alexa und Google bleiben sie trotzdem."),
       h("div.row", {}, h("a.btn.small", { href: "#/geraete/matter" }, "Matter-Gerät hinzufügen"))),
     h("p.meta", {}, "Nötig: ein Echo mit Matter-Unterstützung bzw. ein Nest-Lautsprecher, Nest Hub oder Google TV im selben WLAN."),
   );
@@ -485,7 +485,7 @@ function ledSection() {
     oninput: (e) => { lvlText.textContent = `${e.target.value} %`; },
     onchange: (e) => send("number/led_helligkeit/command", e.target.value) });
   const lvlText = h("span.mono", {}, `${d?.ledLevel ?? 40} %`);
-  return section("led", "LED am ESP32", "Die Lampe auf dem Board zeigt, was der Melder gerade tut – praktisch beim Einrichten und als Kontrolle an der Ladeschale.",
+  return section("led", "LED am ESP32", "Die Lampe auf dem Board zeigt, was der Melder gerade tut. Das hilft beim Einrichten und als Kontrolle an der Ladeschale.",
     !known && h("p.hint", {}, offline ? "ESP32 offline – die Einstellungen erscheinen, sobald er sich meldet." : "Die Firmware auf dem ESP32 kennt die LED noch nicht. Einmal neu bauen und aufspielen (Anleitung ESP32, Schritt 4)."),
     known && switchRow("LED benutzen", rgb ? "Farbige LED erkannt." : "Einfarbige LED erkannt – sie zeigt Blinkmuster statt Farben.", d.ledOn !== false, (v) => send("switch/led/command", v ? "ON" : "OFF")),
     known && rgb && h("div.fields", {},
@@ -502,9 +502,9 @@ function ledSection() {
 function pc(rerender) {
   const p = settings().pc;
   if (hibernateOn === null) hibernateEnabled().then((v) => { hibernateOn = v; rerender(); }).catch(() => (hibernateOn = false));
-  return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert. Jeder PC mit Heimalarm fragt selbst – mehrere PCs und Laptops gehen also gleichzeitig.",
+  return section("pc", "PC bei Alarm", "Was nach der Abfrage „Fährst du?“ passiert. Jeder PC mit Heimalarm fragt selbst, mehrere PCs und Laptops gehen also gleichzeitig.",
     toggle("pc.silent", "Bei Alarm aus", "Dieser PC fragt nicht „Fährst du?“ und bleibt an. Der Testalarm geht weiter.", () => rerender()),
-    field("Abfrage auch bei Alarm von", kennungInput("pc.alsoFor", { placeholder: "z. B. max, anna" }, true), "Weitere Kennungen mit Komma – für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
+    field("Abfrage auch bei Alarm von", kennungInput("pc.alsoFor", { placeholder: "z. B. max, anna" }, true), "Weitere Kennungen, mit Komma getrennt. Für einen gemeinsamen PC, der bei mehreren Personen ausgehen soll. Leer = nur bei eigener Kennung."),
     h("div.field", {}, h("span", {}, "Aktion"),
       select(Object.entries(ACTIONS).map(([k, v]) => [k, v.label]), p.action, (v) => { set("pc.action", v); rerender(); }),
       h("small", {}, ACTIONS[p.action]?.hint)),
@@ -667,7 +667,7 @@ function zentrale(rerender) {
       h("div.row", {},
         h("button.btn.small", { onclick: async () => { if (await requireAdmin()) { updateShared({ webhookSecret: secretKey() }); rerender(); } } }, hook ? "Neuen Schlüssel" : "Schlüssel erzeugen"),
         hook && h("button.btn.small.ghost", { onclick: () => copyText(hook).then(() => toast("Kopiert")) }, "Kopieren")),
-      h("small", {}, "In aPager PRO unter Einstellungen → Labor → Webhooks eintragen (Smart-Home-Paket nötig) und in der Einheit „Webhooks aktivieren“. aPager liefert nur Stichwort und Einheit – mehrere Einheiten werden zu einem Einsatz zusammengefasst, Rückalarm wird vermerkt.")),
+      h("small", {}, "In aPager PRO unter Einstellungen → Labor → Webhooks eintragen (Smart-Home-Paket nötig) und in der Einheit „Webhooks aktivieren“. aPager liefert nur Stichwort und Einheit. Alarme mehrerer Einheiten zählen als ein Einsatz, ein Rückalarm wird vermerkt.")),
   );
 }
 
@@ -759,7 +759,7 @@ function keepSecrets(k, v) {
 let backupSecrets = false;
 function backup(rerender) {
   return section("backup", "Backup", "Einstellungen sichern oder auf ein anderes Gerät übertragen.",
-    switchRow("Schlüssel und Passwörter mitsichern", "Divera-/aPager-Schlüssel, Zentrale-Passwort, PINs und Kopplungscodes. Nur einschalten, wenn du das Backup sicher aufbewahrst – am Handy landet es in der Zwischenablage.",
+    switchRow("Schlüssel und Passwörter mitsichern", "Divera-/aPager-Schlüssel, Zentrale-Passwort, PINs und Kopplungscodes. Nur einschalten, wenn du das Backup sicher aufbewahrst. Am Handy landet es in der Zwischenablage.",
       backupSecrets, (v) => { backupSecrets = v; rerender(); }),
     h("div.row", {},
       h("button.btn", { onclick: async () => { const t = exportAll(backupSecrets); if (await copyText(t)) toast(backupSecrets ? "Backup mit Schlüsseln kopiert" : "Backup (ohne Schlüssel) kopiert"); if (!isAndroid) download("heimalarm-backup.json", t); } }, "Backup erstellen"),
@@ -812,7 +812,7 @@ function updates(rerender) {
   updatesRe = rerender;
   const u = update;
   const when = u.checkedAt ? ` · geprüft ${new Date(u.checkedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "";
-  return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert – ohne zusätzliche Programme.",
+  return section("updates", "Updates", "Neue Versionen kommen von GitHub. Die App lädt sie, prüft die Prüfsumme und installiert sie selbst.",
     h("p.meta", {}, `Installiert: ${APP_VERSION}${state.dienst?.version ? " · Zentrale " + state.dienst.version : ""}`),
     toggle("update.auto", "Automatisch nach Updates suchen", "Beim Start und alle 6 Stunden eine kurze Abfrage bei GitHub, nichts wird ohne dich installiert."),
     u.available
@@ -847,7 +847,7 @@ const PAGES = () => [
   // Alarm – wie er ankommt
   { grp: "alarm", id: "quellen", label: "Alarmquellen", icon: "bell", color: "--c-alarm", sections: ["quellen"],
     desc: "Melder, SYBOS, aPager, Divera",
-    lead: "Woher Heimalarm von einem Einsatz erfährt. Mehrere Quellen gleichzeitig sind normal – kommt derselbe Alarm doppelt, zählt er als ein Einsatz.",
+    lead: "Woher Heimalarm von einem Einsatz erfährt. Mehrere Quellen gleichzeitig sind normal. Kommt derselbe Alarm doppelt, zählt er als ein Einsatz.",
     scope: [ALL_MINE, ["lock", "Zugangsschlüssel bleiben auf diesem Gerät"]],
     status: () => { const n = activeSources().length; return n ? ok(`${n} aktiv`) : warn("keine"); } },
   { grp: "alarm", id: "melder", label: "Melder (ESP32)", icon: "hub", color: "--c-alarm", sections: ["esp32", "led"],
@@ -864,7 +864,7 @@ const PAGES = () => [
   // Bei Alarm – auf diesem Gerät
   { grp: "bei", id: "faehrst", label: "„Fährst du?“", icon: "pc", color: "--c-pc", sections: ["pc"],
     desc: "Abfrage, Aktion, Countdown, Ton",
-    lead: "Was dieser PC bei deinem Alarm tut. Jeder PC mit Heimalarm fragt selbst – mehrere PCs gehen also gleichzeitig.",
+    lead: "Was dieser PC bei deinem Alarm tut. Jeder PC mit Heimalarm fragt selbst, mehrere PCs gehen also gleichzeitig.",
     scope: [["pc", "Nur dieser PC"]],
     status: () => (settings().pc.silent ? off("aus") : plain(`${ACTIONS[settings().pc.action]?.label} · ${settings().pc.countdownSec} s`)),
     warn: () => settings().pc.action === "hibernate" && hibernateOn === false },

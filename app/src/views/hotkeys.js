@@ -161,7 +161,7 @@ export function hotkeySection(rerender) {
   };
   paint();
 
-  return section("hotkeys", "Vor dem Ruhezustand speichern", "Heimalarm holt jedes Programm kurz nach vorn und drückt die Tasten – wie du selbst. Danach geht der PC in die gewählte Aktion.",
+  return section("hotkeys", "Vor dem Ruhezustand speichern", "Heimalarm holt jedes Programm kurz nach vorn und drückt die Tasten, als würdest du es selbst tun. Danach geht der PC in die gewählte Aktion.",
     toggle("pc.hotkeys.enabled", "Tasten an Programme senden", "Nur nach „Ich fahre“ oder ohne Antwort, nicht beim Testalarm.", () => rerender()),
     hk.enabled && body,
     hk.enabled && field("Danach warten (Sekunden)", h("input.input", { type: "number", min: 0, max: 30, value: hk.waitSec,

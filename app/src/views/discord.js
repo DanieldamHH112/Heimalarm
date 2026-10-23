@@ -104,7 +104,7 @@ export function discordSection(rerender) {
 
   const presetNow = Object.entries(PRESETS).find(([, p]) => p.details === c.details && p.state === c.state && p.timer === c.timer)?.[0] || "eigen";
 
-  return section("discord", "Discord-Status", "Zeigt Freunden bei Alarm „Im Einsatz“ im Discord-Profil. Läuft lokal über das Discord-Programm – kein Bot, kein Passwort, nichts wird an Heimalarm-Server geschickt.",
+  return section("discord", "Discord-Status", "Zeigt Freunden bei Alarm „Im Einsatz“ im Discord-Profil. Das läuft lokal über das Discord-Programm. Du brauchst keinen Bot und kein Passwort, und Heimalarm schickt nichts an einen Server.",
     h("div.rp-top", {},
       h("div", {},
         toggle("discord.enabled", "Bei Alarm in Discord anzeigen", ready ? "Nur bei deinen eigenen Alarmen." : "Erst die Einrichtung unten abschließen.", () => rerender()),
@@ -137,7 +137,7 @@ export function discordSection(rerender) {
       h("div.field", {}, h("span", {}, "Bei „Ich fahre nicht“"),
         segmented([["clear", "Entfernen"], ["keep", "Stehen lassen"]], c.onStay, (v) => setP("onStay", v))),
       toggle("discord.clearOnRestore", "„Wieder da“ beendet den Status", "Knopf in der Übersicht – ohne Zigbee heißt er dort „Einsatz beenden“."),
-      toggle("discord.resume", "Nach dem Ruhezustand wieder anzeigen", "Im Ruhezustand ist auch Discord aus – Freunde sehen dich dann offline. Wacht der PC vor Ablauf auf, erscheint der Status wieder."),
+      toggle("discord.resume", "Nach dem Ruhezustand wieder anzeigen", "Im Ruhezustand ist auch Discord aus, Freunde sehen dich dann offline. Wacht der PC vor Ablauf auf, erscheint der Status wieder."),
       toggle("discord.tests", "Auch bei Testalarm", "Sonst nur echte Alarme und Generalprobe.")),
 
     h("details.group", {}, h("summary.group-title", {}, "Bilder (optional)"),
@@ -151,7 +151,7 @@ export function discordSection(rerender) {
           tpl("smallText", "Text beim Drüberfahren", { placeholder: "z. B. {einheit}" })))),
 
     h("details.group", {}, h("summary.group-title", {}, "Knöpfe (optional)"),
-      h("p.meta", {}, "Bis zu zwei Links unter dem Status, z. B. zur Website eurer Wehr. Du selbst siehst sie in Discord nicht – nur andere."),
+      h("p.meta", {}, "Bis zu zwei Links unter dem Status, z. B. zur Website eurer Wehr. Nur andere sehen sie, du selbst nicht."),
       ...[0, 1].map((i) => {
         const b = (c.buttons || [])[i] || { label: "", url: "" };
         const save = (patch) => { const list = structuredClone(get("discord.buttons") || [{}, {}]); list[i] = { ...b, ...patch }; setP("buttons", list); };

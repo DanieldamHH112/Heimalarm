@@ -56,7 +56,7 @@ export function hassSection(rerender) {
     ...(c.buttons ? [["button.heimalarm_wieder_da", "Wieder da", "Beendet den Einsatz, Licht zurück."], ["button.heimalarm_test_…", "Testalarm", "Je Person, ohne Folgen."]] : []),
   ];
 
-  return section("hass", "Home Assistant", "Heimalarm erscheint als eigenes Gerät – ohne Integration, ohne Token. Damit baust du in Home Assistant eigene Automationen für den Einsatz.",
+  return section("hass", "Home Assistant", "Heimalarm erscheint als eigenes Gerät. Du brauchst dafür weder Integration noch Token. Damit baust du in Home Assistant eigene Automationen für den Einsatz.",
     h("div.group", {}, h("h3.group-title", {}, c.enabled ? "Eingerichtet" : "In 3 Schritten startklar"),
       h("ol.guide", {},
         step(c.enabled, false, "Home Assistant mit der Zentrale verbinden",
