@@ -112,6 +112,7 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     fun alive(): Boolean = !activity.isFinishing && !activity.isDestroyed
 
     override fun load(webView: WebView) {
+        if (hasNotificationAccess()) AlarmListener.rebind(activity)
         instance = this
         PhoneActions.visible = true
         takeOpenIntent(activity.intent)
@@ -176,7 +177,13 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
         val ret = JSObject()
         ret.put("supported", true)
         ret.put("batteryOptimized", !pm.isIgnoringBatteryOptimizations(activity.packageName))
-        ret.put("notificationAccess", hasNotificationAccess())
+        val access = hasNotificationAccess()
+        ret.put("notificationAccess", access)
+        // Zugriff erlaubt, Dienst aber getrennt: neu verbinden lassen
+        if (access && !AlarmListener.connected) AlarmListener.rebind(activity)
+        ret.put("listenerConnected", AlarmListener.connected)
+        ret.put("recentApps", Native.recentApps(activity))
+        ret.put("lastNotification", Native.lastNotification(activity))
         ret.put("localNetwork", hasLocalNetwork())
         ret.put("service", KeepAliveService.running)
         ret.put("insetTop", insetTop)

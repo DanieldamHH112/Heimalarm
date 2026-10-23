@@ -36,6 +36,23 @@ object Native {
             .apply()
     }
 
+    /** Zuletzt gesehene Apps mit Benachrichtigungen (neueste zuletzt, höchstens 12) – für „App erkennen“. */
+    @Synchronized
+    fun rememberApp(ctx: Context, app: String) {
+        val pkg = app.lowercase()
+        val old = JSONArray(prefs(ctx).getString("recentApps", "[]"))
+        val keep = JSONArray()
+        for (i in 0 until old.length()) if (old.optString(i) != pkg) keep.put(old.optString(i))
+        keep.put(pkg)
+        val out = JSONArray()
+        for (i in maxOf(0, keep.length() - 12) until keep.length()) out.put(keep.optString(i))
+        prefs(ctx).edit().putString("recentApps", out.toString()).putLong("lastNotification", System.currentTimeMillis()).apply()
+    }
+
+    fun recentApps(ctx: Context): JSONArray = JSONArray(prefs(ctx).getString("recentApps", "[]"))
+    fun lastNotification(ctx: Context) = prefs(ctx).getLong("lastNotification", 0L)
+    fun listenerSeen(ctx: Context) { prefs(ctx).edit().putLong("listenerConnected", System.currentTimeMillis()).apply() }
+
     fun silent(ctx: Context) = prefs(ctx).getBoolean("silent", false)
 
     /** Bei Alarm am Handy: heimalarm (Vollbild wie am PC) · app (Alarm-App öffnen) · off (nichts) */

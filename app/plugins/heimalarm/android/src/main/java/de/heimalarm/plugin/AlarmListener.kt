@@ -1,6 +1,9 @@
 package de.heimalarm.plugin
 
 import android.app.Notification
+import android.content.ComponentName
+import android.content.Context
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -8,8 +11,22 @@ import android.service.notification.StatusBarNotification
  *  Alarm-Apps legen den vollständigen Einsatztext oft nur in den ausgeklappten Teil
  *  (Langtext, mehrere Zeilen) – darum alles mitlesen, was die Benachrichtigung enthält. */
 class AlarmListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        connected = true
+        Native.listenerSeen(this)
+    }
+
+    /** Android trennt den Dienst z. B. nach App-Updates oder beim Aufräumen – sofort neu anmelden. */
+    override fun onListenerDisconnected() {
+        connected = false
+        rebind(this)
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
+        connected = true
+        // Für „App erkennen“: auch merken, wenn die App gerade nicht läuft
+        Native.rememberApp(this, sbn.packageName)
         val extras = sbn.notification.extras
         fun str(key: String) = extras.getCharSequence(key)?.toString()?.trim() ?: ""
         val title = str(Notification.EXTRA_TITLE_BIG).ifEmpty { str(Notification.EXTRA_TITLE) }
@@ -41,6 +58,17 @@ class AlarmListener : NotificationListenerService() {
             if (mode == "app") PhoneActions.pendingOpen = sbn.packageName
             // „Aus“: nur leise Mitteilung, damit der Alarm beim Öffnen weitergeleitet werden kann
             AlarmSound.notifyAlarm(this, "Heimalarm: Alarm erkannt", title.ifEmpty { "Tippen zum Öffnen" }, mode != "off")
+        }
+    }
+
+    companion object {
+        @Volatile var connected = false
+
+        /** Bittet Android, den Dienst neu zu verbinden (nur wirksam, wenn der Zugriff erlaubt ist). */
+        fun rebind(ctx: Context) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                try { NotificationListenerService.requestRebind(ComponentName(ctx, AlarmListener::class.java)) } catch (_: Exception) {}
+            }
         }
     }
 }

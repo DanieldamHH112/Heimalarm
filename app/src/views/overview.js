@@ -19,7 +19,8 @@ import { recordAnswer } from "../core/stats.js";
 import { setDiveraStatus, divera, loadDivera } from "../core/divera.js";
 import { hasPcFeatures, platformName, isTauri } from "../core/platform.js";
 import { on } from "../core/events.js";
-import { startWizard, inProgress } from "../core/wizard.js";
+import { startWizard, inProgress, androidState } from "../core/wizard.js";
+import { openNotificationAccess } from "../core/android.js";
 import { MODES, readiness, setReadiness, untilText } from "../core/readiness.js";
 import { pickUntil } from "../ui/until-picker.js";
 import { testAlarm } from "../core/engine.js";
@@ -78,6 +79,18 @@ function outdatedBanner(list) {
       h("ul.stale-list", {}, list.map((x) => h("li", {}, h("span", {}, x.name), h("span.mono", {}, `${x.have} → ${x.want}`), h("small", {}, x.how)))),
     ),
     h("div.row", {}, h("a.btn.small", { href: GUIDE_URL, target: "_blank", rel: "noopener" }, "Anleitung öffnen")));
+}
+
+/** Alarm-App eingeschaltet, aber Heimalarm darf Benachrichtigungen nicht mitlesen → kein Alarm kommt an. */
+function notifAccessBanner() {
+  const st = androidState();
+  const appsOn = ["sybos", "apager"].some((k) => settings().alarm.apps?.[k]?.on) || settings().alarm.filterApps;
+  if (!st?.supported || !appsOn || st.notificationAccess) return null;
+  return h("div.banner.warn", { role: "alert" },
+    h("div", {},
+      h("b", {}, "Alarme aus der Alarm-App werden nicht erkannt"),
+      h("p", {}, "Heimalarm darf Benachrichtigungen nicht mitlesen. Ist der Schalter ausgegraut: App-Infos → ⋮ → „Eingeschränkte Einstellungen zulassen“.")),
+    h("div.row", {}, h("button.btn.small", { onclick: () => openNotificationAccess().catch(() => toast("Einstellung ließ sich nicht öffnen")) }, "Zugriff erlauben")));
 }
 
 function espCard() {
@@ -359,6 +372,7 @@ export function overview() {
   return h("div.page.home", {},
     h("h1.sr-only", {}, `Start · ${s.device.name || platformName}`),
     statusCard(),
+    notifAccessBanner(),
     answerCard(),
     update.available && updateBanner(),
     stale.length > 0 && outdatedBanner(stale),

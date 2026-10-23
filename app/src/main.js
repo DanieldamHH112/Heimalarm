@@ -117,7 +117,7 @@ on("update", live);
 on("wizard", live);
 document.addEventListener("keydown", wizardKeys);
 // Zurück aus den Android-Einstellungen (Benachrichtigungszugriff, Akku): Haken sofort prüfen
-document.addEventListener("visibilitychange", () => { if (!document.hidden && current() === "einrichtung") refreshAndroid(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && isAndroid) refreshAndroid(); });
 on("settings", ({ path }) => { if (path.startsWith("ui")) applyTheme(); });
 on("alarm", (a) => { if (!a.own) toast(`Alarm von „${a.who}“`); });
 on("takeover", showTakeover);

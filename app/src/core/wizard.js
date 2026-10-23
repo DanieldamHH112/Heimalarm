@@ -134,6 +134,8 @@ export async function refreshAndroid() {
   try { android = await androidStatus(); } catch { android = null; }
   emit("wizard", {});
 }
+/** Letzter Android-Status (Benachrichtigungszugriff, Akku …) – null, solange noch nicht geladen. */
+export const androidState = () => android;
 
 export function check(key) {
   const s = settings(), manual = Boolean(w().ok[key]);

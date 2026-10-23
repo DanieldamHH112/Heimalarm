@@ -1,6 +1,6 @@
 // Einstellungen. Alles wird sofort gespeichert; allgemeine Werte gleichen sich über die Zentrale ab.
 import { modeChoice, setupFlow } from "../ui/setup.js";
-import { startWizard } from "../core/wizard.js";
+import { startWizard, androidState, refreshAndroid } from "../core/wizard.js";
 import { update, checkUpdate, installUpdate, RELEASES_URL } from "../core/update.js";
 import { h, toast, fmtAgo } from "../ui/dom.js";
 import { field, text, toggle, segmented, select, section, switchRow, copyText, download, dialog, ask } from "../ui/form.js";
@@ -180,15 +180,32 @@ function alarm(rerender) {
 
 /** Paketname per „Erkennen“: zuletzt gesehene Apps mit Benachrichtigungen zur Auswahl. */
 function pickPackage(path, rerender) {
-  const list = [...recentApps.keys()].toReversed();
+  // Live gesehene (laufende App) und nativ gemerkte (auch ohne laufende App) zusammen, neueste zuerst
+  const native = (androidState()?.recentApps || []).toReversed();
+  const list = [...new Set([...[...recentApps.keys()].toReversed(), ...native])];
+  const st = androidState();
+  if (isAndroid && st?.supported && !st.notificationAccess) { askNotifAccess(rerender); return; }
   const close = dialog("App erkennen",
     h("p.meta", {}, list.length ? "Apps mit den letzten Benachrichtigungen. Tippe auf die Alarm-App." : "Noch keine Benachrichtigung gesehen. Schick dir aus der Alarm-App eine Testmeldung und öffne das hier erneut."),
-    list.length && h("ul.rows.compact", {}, list.map((pkg) => h("li", {}, h("button.btn.ghost.pick", { onclick: () => { set(path, pkg); close(); rerender(); toast("Übernommen"); } }, h("code", {}, pkg))))));
+    list.length > 0 && h("ul.rows.compact", {}, list.map((pkg) => h("li", {}, h("button.btn.ghost.pick", { onclick: () => { set(path, pkg); close(); rerender(); toast("Übernommen"); } }, h("code", {}, pkg))))));
 }
 
 /** Erste lesbare Zeile der Release-Notizen – ohne Markdown, Links und „Full Changelog“. */
 const noteLine = (notes = "") => notes.split("\n").map((l) => l.replace(/[*_#`>]/gu, "").replace(/https?:\/\/\S+/gu, "").trim())
   .find((l) => l && !/^full changelog:?$/iu.test(l)) || "";
+
+/** Fehlt der Zugriff auf Benachrichtigungen, kommt kein Alarm aus SYBOS, aPager oder Divera an – direkt anbieten. */
+async function askNotifAccess(rerender) {
+  if (!isAndroid) return;
+  if (!androidState()) await refreshAndroid();
+  const st = androidState();
+  if (!st?.supported || st.notificationAccess) return;
+  if (await ask("Heimalarm darf Benachrichtigungen noch nicht mitlesen. Ohne diesen Zugriff wird kein Alarm aus der Alarm-App erkannt. Jetzt erlauben?", { ok: "Erlauben" })) {
+    openNotificationAccess().catch(() => toast("Einstellung ließ sich nicht öffnen"));
+  }
+  rerender?.();
+}
+const notifToggle = (path, rerender, after) => (v) => { set(path, v); after?.(); rerender(); if (v) askNotifAccess(rerender); };
 
 const group = (title, ...body) => h("div.group", {}, h("h3.group-title", {}, title), ...body.flat().filter(Boolean));
 
@@ -278,7 +295,7 @@ function apagerSource(rerender) {
   return sourceRow({
     id: "apager", title: "aPager PRO", on,
     summary: on && parts.length ? parts.join(" · ") : "Mitlesen, Webhook (Zentrale oder PC), Rückmeldung.",
-    onToggle: (v) => { set("alarm.apps.apager.on", v); rerender(); },
+    onToggle: notifToggle("alarm.apps.apager.on", rerender),
     body: [
       notifGroup("apager", rerender),
       group("Webhook (Smart-Home-Paket in aPager)",
@@ -302,16 +319,23 @@ function apagerSource(rerender) {
   });
 }
 
+let statusLoading = false;   // nur einmal nachladen, auch wenn der Status nicht kommt
 function quellen(rerender) {
   const a = settings().alarm;
   const sybosOn = a.apps.sybos.on;
   const anyNotif = Object.values(a.apps).some((x) => x.on) || a.filterApps;
+  // Status hier selbst laden – sonst erscheint der Hinweis nur, wenn vorher eine andere Seite ihn geholt hat
+  const st = android || androidState();
+  if (isAndroid && !st && !statusLoading) { statusLoading = true; refreshAndroid().then(() => rerender()); }
   return section("quellen", "Alarmquellen", "Mehrere gleichzeitig möglich. Die Sperrzeit macht daraus einen Einsatz.",
+    isAndroid && anyNotif && st?.supported && !st.notificationAccess && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Mitlesen nicht erlaubt"),
+      "Ohne diesen Zugriff erkennt Heimalarm keinen Alarm aus SYBOS, aPager oder Divera. Ist der Schalter in Android ausgegraut: App-Infos von Heimalarm → ⋮ → „Eingeschränkte Einstellungen zulassen“.",
+      h("div.row", { style: "margin-top:8px" }, h("button.btn.small", { onclick: () => openNotificationAccess() }, "Erlauben")))),
     h("div.sources", {},
       sourceRow({ id: "esp32", title: "Melder", summary: mode() === "zentrale" ? "Ladeschale über den ESP32. Hauptweg." : "Braucht die Zentrale (Betrieb → Mit Zentrale).", on: a.mqtt && mode() === "zentrale", onToggle: (v) => { set("alarm.mqtt", v); rerender(); } }),
       sourceRow({ id: "sybos", title: "SYBOS", on: sybosOn,
         summary: "Benachrichtigung der SYBOS-App mitlesen.",
-        onToggle: (v) => { set("alarm.apps.sybos.on", v); rerender(); },
+        onToggle: notifToggle("alarm.apps.sybos.on", rerender),
         body: [notifGroup("sybos", rerender), group("Rückmeldung", h("p.meta", {}, "SYBOS bietet dafür keine offene Schnittstelle. Rückmeldung weiter in der SYBOS-App."))] }),
       apagerSource(rerender),
       diveraSource(rerender),
@@ -320,8 +344,6 @@ function quellen(rerender) {
       h("summary", {}, "Weitere Apps & Filter"),
       field("Weitere Apps", text("alarm.filterApps", { placeholder: "z. B. de.example.alarm" }), "Paketnamen, kommagetrennt."),
       field("Schlüsselwörter", text("alarm.filterWords"), "Eines muss in der Meldung stehen. Leer = jede Meldung.")),
-    isAndroid && anyNotif && android && !android.notificationAccess && h("div.banner.warn", {}, h("div", {}, h("b", {}, "Mitlesen nicht erlaubt"), "Ohne Erlaubnis erkennt die App keine Alarme aus anderen Apps.",
-      h("div.row", { style: "margin-top:8px" }, h("button.btn.small", { onclick: () => openNotificationAccess() }, "Erlauben")))),
   );
 }
 
