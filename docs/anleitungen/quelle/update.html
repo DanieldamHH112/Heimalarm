@@ -47,7 +47,7 @@ docker compose up -d --build</pre><span class="note"><code>cp</code> holt die ne
 <section class="page" data-title="Heimalarm aktualisieren" id="nas">
   <div class="head"><span class="ico big" style="--a:var(--signal)">{{i:server}}</span><h2>Schritt 2 · Zentrale auf der UGREEN NAS</h2><span class="dur">15 min</span></div>
   <ol class="steps" style="--a:var(--signal)">
-    <li><div><b>Dateien holen:</b> GitHub <span class="mono">DanieldamHH112/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>, am PC entpacken.</div></li>
+    <li><div><b>Dateien holen:</b> GitHub <span class="mono">Type-1-Diabetes/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>, am PC entpacken.</div></li>
     <li><div><b>Versteckte Dateien zeigen:</b> in <span class="path">Dateien</span> unten links auf das Zahnrad → „Versteckte Dateien anzeigen“. Sonst siehst du die <code>.env</code> nicht.</div></li>
     <li><div><b>Hochladen nach</b> <code>docker/heimalarm</code>: den <b>Inhalt</b> von <code>zentrale</code> (<code>docker-compose.yml</code>, <code>dienst</code>, <code>mosquitto</code> …) und den ganzen Ordner <code>esp32</code>. Bei der Frage immer <span class="btn">Ersetzen</span>.<span class="note">Wird <code>docker-compose.yml</code> nicht ersetzt, laufen alte Teile weiter – z. B. die entfernte Tuya-Brücke.</span></div></li>
     <li><div><b>ESPHome wieder einschalten:</b> <code>docker-compose.yml</code> mit TextEdit öffnen, beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen, speichern.<span class="note">Die neue Datei bringt die Zeile jedes Mal wieder mit. Die Docker-App beachtet Profile aus der <code>.env</code> nicht.</span></div></li>

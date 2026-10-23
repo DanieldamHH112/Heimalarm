@@ -7,7 +7,7 @@ export const WANT = {
   zentrale: import.meta.env.ZENTRALE_VERSION || "0.0.0",
   fw: Number(import.meta.env.ESP_FW) || 0,
 };
-export const GUIDE_URL = "https://github.com/DanieldamHH112/Heimalarm/blob/main/docs/anleitungen/Heimalarm-Update.pdf";
+export const GUIDE_URL = "https://github.com/Type-1-Diabetes/Heimalarm/blob/main/docs/anleitungen/Heimalarm-Update.pdf";
 
 /** -1, 0, 1 für „0.2.8“ gegen „0.2.10“ */
 export function cmpVersion(a = "0", b = "0") {

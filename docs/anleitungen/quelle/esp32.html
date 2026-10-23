@@ -104,7 +104,7 @@
   <ol class="steps" style="--a:var(--signal)">
     <li><div><b>Feste IP:</b> Im WLAN-Router (Weboberfläche oder App des Routers) die NAS in der Geräteliste suchen und ihr eine <b>feste IP-Adresse</b> geben (oft „immer gleiche IP“, „IP reservieren“ oder „DHCP-Reservierung“). IP notieren.<span class="note">Sonst kann sich die Adresse ändern, und ESP32 und App finden die Zentrale nicht mehr.</span></div></li>
     <li><div><b>Docker</b> im App Center installieren. In <span class="path">Dateien <i>›</i> docker</span> den Ordner <code>heimalarm</code> anlegen.</div></li>
-    <li><div><b>Dateien:</b> GitHub <span class="mono">DanieldamHH112/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>. In <code>docker/heimalarm</code> hochladen: den Inhalt von <code>zentrale</code> und zusätzlich den Ordner <code>esp32</code>.</div></li>
+    <li><div><b>Dateien:</b> GitHub <span class="mono">Type-1-Diabetes/Heimalarm</span> → <span class="btn">Code</span> → <span class="btn">Download ZIP</span>. In <code>docker/heimalarm</code> hochladen: den Inhalt von <code>zentrale</code> und zusätzlich den Ordner <code>esp32</code>.</div></li>
     <li><div><b>ESPHome einschalten:</b> <code>docker-compose.yml</code> mit dem Editor öffnen (Windows: Rechtsklick → Öffnen mit → Editor), beim Abschnitt <code>esphome:</code> die Zeile <code>profiles: ["esphome"]</code> löschen.<span class="note">Die Docker-App der NAS beachtet Profile aus der <code>.env</code> nicht – ohne diesen Schritt gibt es keinen Container <code>heimalarm-esphome-1</code>.</span></div></li>
     <li><div><b>Passwort:</b> am PC <code>.env.example</code> kopieren als <code>env.txt</code>, <code>MQTT_PASSWORD=</code> ausfüllen, hochladen, auf der NAS umbenennen in <code>.env</code>.<span class="note">Sie verschwindet danach aus der Ansicht – das ist richtig.</span></div></li>
     <li><div><b>Starten:</b> <span class="path">Docker <i>›</i> Projekt</span> → <span class="btn">Erstellen</span>, Name <code>heimalarm</code>, Pfad <code>docker/heimalarm</code>, „sofort ausführen“ → <span class="btn">Bereitstellen</span></div></li>
@@ -145,7 +145,7 @@ sudo usermod -aG docker $USER
 exit</pre><span class="note">Danach mit <code>ssh benutzer@heimalarm.local</code> neu verbinden.</span></div></li>
     <li><div><b>Heimalarm holen:</b>
       <pre class="code">sudo apt install -y git
-git clone https://github.com/DanieldamHH112/Heimalarm.git
+git clone https://github.com/Type-1-Diabetes/Heimalarm.git
 cd Heimalarm/zentrale
 cp -r ../esp32 ./esp32</pre><span class="note">ESPHome baut aus dieser Kopie. Bei jedem Update neu kopieren (siehe „Pflege und Fehler“), sonst bleibt die Firmware alt.</span></div></li>
     <li><div><b>Passwort festlegen:</b>

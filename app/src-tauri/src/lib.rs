@@ -141,14 +141,22 @@ mod sound;
 mod takeover;
 
 /// Nur Dateien aus den eigenen GitHub-Releases werden geladen.
-const RELEASE_PREFIX: &str = "https://github.com/DanieldamHH112/Heimalarm/releases/download/";
+/// Alter Accountname (vor der Umbenennung) bleibt erlaubt.
+const RELEASE_PREFIXES: [&str; 2] = [
+    "https://github.com/Type-1-Diabetes/Heimalarm/releases/download/",
+    "https://github.com/DanieldamHH112/Heimalarm/releases/download/",
+];
+
+fn is_release_url(u: &str) -> bool {
+    RELEASE_PREFIXES.iter().any(|p| u.starts_with(p))
+}
 
 /// Update (Windows): Setup aus dem GitHub-Release laden, SHA256 mit `<datei>.sha256` vergleichen,
 /// Setup still (`/P`, nur Fortschrittsbalken) ausführen und danach Heimalarm neu starten.
 /// Die App beendet sich selbst, damit das Setup die Dateien ersetzen kann.
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle, url: String, sha_url: String) -> Result<(), String> {
-    if !url.starts_with(RELEASE_PREFIX) || !sha_url.starts_with(RELEASE_PREFIX) {
+    if !is_release_url(&url) || !is_release_url(&sha_url) {
         return Err("Update nur aus den Heimalarm-Releases auf GitHub (mit Prüfsumme)".into());
     }
     #[cfg(target_os = "windows")]

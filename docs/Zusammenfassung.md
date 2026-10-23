@@ -1,6 +1,6 @@
 # Heimalarm – was bisher gemacht wurde
 
-Stand: 18.10.2026 · Repo: `DanieldamHH112/Heimalarm` (öffentlich)
+Stand: 18.10.2026 · Repo: `Type-1-Diabetes/Heimalarm` (öffentlich)
 
 ## Ausgangslage
 

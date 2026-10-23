@@ -236,8 +236,12 @@ class HeimalarmPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun installApk(invoke: Invoke) {
         val args = invoke.parseArgs(UpdateArgs::class.java)
-        val prefix = "https://github.com/DanieldamHH112/Heimalarm/releases/download/"
-        if (!args.url.startsWith(prefix) || !args.shaUrl.startsWith(prefix)) {
+        // Alter Accountname (vor der Umbenennung) bleibt erlaubt.
+        val prefixes = listOf(
+            "https://github.com/Type-1-Diabetes/Heimalarm/releases/download/",
+            "https://github.com/DanieldamHH112/Heimalarm/releases/download/"
+        )
+        if (prefixes.none { args.url.startsWith(it) } || prefixes.none { args.shaUrl.startsWith(it) }) {
             invoke.reject("Update nur aus den Heimalarm-Releases auf GitHub (mit Prüfsumme)")
             return
         }

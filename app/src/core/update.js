@@ -8,8 +8,8 @@ import { emit } from "./events.js";
 import { log } from "./log.js";
 import { APP_VERSION } from "./mqtt.js";
 
-export const LATEST_API = "https://api.github.com/repos/DanieldamHH112/Heimalarm/releases/latest";
-export const RELEASES_URL = "https://github.com/DanieldamHH112/Heimalarm/releases";
+export const LATEST_API = "https://api.github.com/repos/Type-1-Diabetes/Heimalarm/releases/latest";
+export const RELEASES_URL = "https://github.com/Type-1-Diabetes/Heimalarm/releases";
 
 /** Zustand für die Oberfläche. available: { version, tag, notes, url, sha256Url, page } */
 export const update = { checking: false, installing: false, available: null, message: "", checkedAt: 0, progress: "",

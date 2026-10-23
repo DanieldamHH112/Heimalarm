@@ -48,6 +48,9 @@
           "url": "https://*/*"
         },
         {
+          "url": "https://api.github.com/repos/Type-1-Diabetes/Heimalarm/*"
+        },
+        {
           "url": "https://api.github.com/repos/DanieldamHH112/Heimalarm/*"
         }
       ]
